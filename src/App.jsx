@@ -2,6 +2,24 @@ import { useState, useEffect } from 'react'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
+function diasParaPrueba(fecha) {
+  if (!fecha) return null
+  const hoy = new Date(); hoy.setHours(0,0,0,0)
+  const d = new Date(fecha + 'T00:00:00')
+  return Math.round((d - hoy) / (1000 * 60 * 60 * 24))
+}
+
+function BadgeFecha({ fecha }) {
+  const dias = diasParaPrueba(fecha)
+  if (dias === null) return null
+  if (dias < 0) return <span style={{ fontSize: 10, background: '#f3f4f6', color: '#9ca3af', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>Pasada</span>
+  if (dias === 0) return <span style={{ fontSize: 10, background: '#fef3c7', color: '#d97706', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>¡Hoy!</span>
+  if (dias === 1) return <span style={{ fontSize: 10, background: '#fee2e2', color: '#dc2626', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>¡Mañana!</span>
+  if (dias <= 7) return <span style={{ fontSize: 10, background: '#fee2e2', color: '#dc2626', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>En {dias} días</span>
+  if (dias <= 14) return <span style={{ fontSize: 10, background: '#fef3c7', color: '#d97706', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>En {dias} días</span>
+  return <span style={{ fontSize: 10, background: '#ede9fe', color: '#6c63ff', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>En {dias} días</span>
+}
+
 function App() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -11,8 +29,9 @@ function App() {
   const [step, setStep] = useState(1)
   const [nuevoRamo, setNuevoRamo] = useState({ nombre: '', minAprobacion: 4.0 })
   const [evaluaciones, setEvaluaciones] = useState([])
-  const [evalTemp, setEvalTemp] = useState({ nombre: '', ponderacion: '' })
+  const [evalTemp, setEvalTemp] = useState({ nombre: '', ponderacion: '', fecha: '' })
   const [notas, setNotas] = useState({})
+  const [editando, setEditando] = useState({})
   const [guardando, setGuardando] = useState(false)
   const [toast, setToast] = useState(null)
 
@@ -38,19 +57,18 @@ function App() {
   }
 
   const calcularNecesaria = (ramo) => {
-    const evsPendientes = ramo.evaluaciones.filter(e => e.nota === null || e.nota === undefined || e.nota === '')
-    const evsRendidas = ramo.evaluaciones.filter(e => e.nota !== null && e.nota !== undefined && e.nota !== '')
+    const evs = ramo.evaluaciones || []
+    const evsPendientes = evs.filter(e => e.nota === null || e.nota === undefined || e.nota === '')
+    const evsRendidas = evs.filter(e => e.nota !== null && e.nota !== undefined && e.nota !== '')
     if (evsPendientes.length === 0) return null
-    const pesoRendido = evsRendidas.reduce((s, e) => s + e.ponderacion, 0)
     const pesoPendiente = evsPendientes.reduce((s, e) => s + e.ponderacion, 0)
     const sumaRendida = evsRendidas.reduce((s, e) => s + (parseFloat(e.nota) * e.ponderacion), 0)
     const min = ramo.min_aprobacion || 4.0
-    const necesaria = (min * 100 - sumaRendida) / pesoPendiente
-    return necesaria
+    return (min * 100 - sumaRendida) / pesoPendiente
   }
 
   const calcularPromedio = (ramo) => {
-    const rendidas = ramo.evaluaciones.filter(e => e.nota !== null && e.nota !== undefined && e.nota !== '')
+    const rendidas = (ramo.evaluaciones || []).filter(e => e.nota !== null && e.nota !== undefined && e.nota !== '')
     if (rendidas.length === 0) return null
     const pesoTotal = rendidas.reduce((s, e) => s + e.ponderacion, 0)
     const suma = rendidas.reduce((s, e) => s + (parseFloat(e.nota) * e.ponderacion), 0)
@@ -60,21 +78,18 @@ function App() {
   const getEstado = (ramo) => {
     const necesaria = calcularNecesaria(ramo)
     const promedio = calcularPromedio(ramo)
-    if (necesaria === null) {
-      if (promedio >= (ramo.min_aprobacion || 4.0)) return 'aprobado'
-      return 'reprobado'
-    }
+    if (necesaria === null) return promedio >= (ramo.min_aprobacion || 4.0) ? 'aprobado' : 'reprobado'
     if (necesaria <= (ramo.min_aprobacion || 4.0)) return 'al_dia'
     if (necesaria <= 5.5) return 'en_riesgo'
     return 'critico'
   }
 
   const estadoConfig = {
-    aprobado: { color: '#22c55e', bg: '#dcfce7', text: '#16a34a', label: '✅ Aprobado', border: '#22c55e' },
-    al_dia: { color: '#22c55e', bg: '#dcfce7', text: '#16a34a', label: '👍 Al día', border: '#22c55e' },
-    en_riesgo: { color: '#f59e0b', bg: '#fef3c7', text: '#d97706', label: '💪 En riesgo', border: '#f59e0b' },
-    critico: { color: '#ef4444', bg: '#fee2e2', text: '#dc2626', label: '😬 Crítico', border: '#ef4444' },
-    reprobado: { color: '#ef4444', bg: '#fee2e2', text: '#dc2626', label: '❌ Reprobado', border: '#ef4444' },
+    aprobado: { color: '#22c55e', bg: '#dcfce7', text: '#16a34a', border: '#22c55e' },
+    al_dia:   { color: '#22c55e', bg: '#dcfce7', text: '#16a34a', border: '#22c55e' },
+    en_riesgo:{ color: '#f59e0b', bg: '#fef3c7', text: '#d97706', border: '#f59e0b' },
+    critico:  { color: '#ef4444', bg: '#fee2e2', text: '#dc2626', border: '#ef4444' },
+    reprobado:{ color: '#ef4444', bg: '#fee2e2', text: '#dc2626', border: '#ef4444' },
   }
 
   const ponderacionUsada = evaluaciones.reduce((s, e) => s + Number(e.ponderacion), 0)
@@ -84,58 +99,48 @@ function App() {
     if (!evalTemp.nombre || !evalTemp.ponderacion) return
     const p = Number(evalTemp.ponderacion)
     if (p <= 0 || ponderacionUsada + p > 100) return
-    setEvaluaciones([...evaluaciones, { nombre: evalTemp.nombre, ponderacion: p }])
-    setEvalTemp({ nombre: '', ponderacion: '' })
+    setEvaluaciones([...evaluaciones, { nombre: evalTemp.nombre, ponderacion: p, fecha: evalTemp.fecha || null }])
+    setEvalTemp({ nombre: '', ponderacion: '', fecha: '' })
   }
 
   const guardarRamo = async () => {
     if (ponderacionUsada !== 100) { showToast('Las ponderaciones deben sumar 100%', 'error'); return }
     setGuardando(true)
     try {
+      const evsConNotas = evaluaciones.map((e, i) => ({ ...e, nota: notas[i] || null }))
       const r = await fetch(`${API}/ramos`, {
-        method: 'POST',
-        credentials: 'include',
+        method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre: nuevoRamo.nombre, minAprobacion: nuevoRamo.minAprobacion, evaluaciones })
+        body: JSON.stringify({ nombre: nuevoRamo.nombre, minAprobacion: nuevoRamo.minAprobacion, evaluaciones: evsConNotas })
       })
       const d = await r.json()
-      setRamos([...ramos, d])
-      setVista('dashboard')
-      setStep(1)
-      setNuevoRamo({ nombre: '', minAprobacion: 4.0 })
-      setEvaluaciones([])
+      setRamos(prev => [...prev, d])
+      setVista('dashboard'); setStep(1)
+      setNuevoRamo({ nombre: '', minAprobacion: 4.0 }); setEvaluaciones([]); setNotas({})
       showToast('Ramo guardado correctamente 🎉')
     } catch { showToast('Error al guardar', 'error') }
     setGuardando(false)
   }
 
-  const guardarNotas = async () => {
-    setGuardando(true)
+  const guardarNota = async (evalId, nota) => {
     try {
-      for (const [evalId, nota] of Object.entries(notas)) {
-        if (nota !== '' && nota !== null) {
-          await fetch(`${API}/evaluaciones/${evalId}/nota`, {
-            method: 'PUT',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nota: parseFloat(nota) })
-          })
-        }
-      }
+      await fetch(`${API}/evaluaciones/${evalId}/nota`, {
+        method: 'PUT', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nota: nota !== '' ? parseFloat(nota) : null })
+      })
       await cargarRamos()
-      const ramoActualizado = ramos.find(r => r.id === ramoActivo.id)
-      if (ramoActualizado) setRamoActivo(ramoActualizado)
-      showToast('Notas guardadas ✅')
-    } catch { showToast('Error al guardar notas', 'error') }
-    setGuardando(false)
+      setEditando(prev => { const n = {...prev}; delete n[evalId]; return n })
+      setNotas(prev => { const n = {...prev}; delete n[evalId]; return n })
+      showToast('Nota guardada ✅')
+    } catch { showToast('Error al guardar nota', 'error') }
   }
 
   const eliminarRamo = async (id) => {
     try {
       await fetch(`${API}/ramos/${id}`, { method: 'DELETE', credentials: 'include' })
       setRamos(ramos.filter(r => r.id !== id))
-      setVista('dashboard')
-      showToast('Ramo eliminado')
+      setVista('dashboard'); showToast('Ramo eliminado')
     } catch { showToast('Error al eliminar', 'error') }
   }
 
@@ -199,26 +204,17 @@ function App() {
                 <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, margin: 0 }}>Hola de nuevo 👋</p>
                 <p style={{ color: 'white', fontSize: 20, fontWeight: 700, margin: 0 }}>{user.name?.split(' ')[0]}</p>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                {user.picture
-                  ? <img src={user.picture} style={{ width: 40, height: 40, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.4)' }} />
-                  : <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700 }}>{user.name?.[0]}</div>
-                }
-              </div>
+              {user.picture
+                ? <img src={user.picture} style={{ width: 40, height: 40, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.4)' }} />
+                : <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700 }}>{user.name?.[0]}</div>
+              }
             </div>
             <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 16, padding: '16px 20px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, textAlign: 'center' }}>
-              <div>
-                <p style={{ color: 'white', fontSize: 24, fontWeight: 700, margin: 0 }}>{ramos.length}</p>
-                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, margin: 0 }}>Ramos</p>
-              </div>
+              <div><p style={{ color: 'white', fontSize: 24, fontWeight: 700, margin: 0 }}>{ramos.length}</p><p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, margin: 0 }}>Ramos</p></div>
               <div style={{ borderLeft: '1px solid rgba(255,255,255,0.2)', borderRight: '1px solid rgba(255,255,255,0.2)' }}>
-                <p style={{ color: '#86efac', fontSize: 24, fontWeight: 700, margin: 0 }}>{ramosAprobados}</p>
-                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, margin: 0 }}>Al día</p>
+                <p style={{ color: '#86efac', fontSize: 24, fontWeight: 700, margin: 0 }}>{ramosAprobados}</p><p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, margin: 0 }}>Al día</p>
               </div>
-              <div>
-                <p style={{ color: ramosCriticos > 0 ? '#fca5a5' : '#fde68a', fontSize: 24, fontWeight: 700, margin: 0 }}>{ramosCriticos || ramosEnRiesgo}</p>
-                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, margin: 0 }}>{ramosCriticos > 0 ? 'Críticos' : 'En riesgo'}</p>
-              </div>
+              <div><p style={{ color: ramosCriticos > 0 ? '#fca5a5' : '#fde68a', fontSize: 24, fontWeight: 700, margin: 0 }}>{ramosCriticos || ramosEnRiesgo}</p><p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, margin: 0 }}>{ramosCriticos > 0 ? 'Críticos' : 'En riesgo'}</p></div>
             </div>
           </div>
 
@@ -238,18 +234,27 @@ function App() {
                 const promedio = calcularPromedio(ramo)
                 const necesaria = calcularNecesaria(ramo)
                 const progreso = promedio ? Math.min((promedio / 7) * 100, 100) : 0
+                const proximaEv = (ramo.evaluaciones || [])
+                  .filter(e => !e.nota && e.fecha)
+                  .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))[0]
                 return (
-                  <div key={ramo.id} onClick={() => { setRamoActivo(ramo); setNotas({}); setVista('ramo') }}
+                  <div key={ramo.id} onClick={() => { setRamoActivo(ramo); setNotas({}); setEditando({}); setVista('ramo') }}
                     style={{ background: 'white', borderRadius: 18, padding: '16px', borderLeft: `4px solid ${cfg.border}`, cursor: 'pointer' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                       <div>
                         <p style={{ fontSize: 14, fontWeight: 600, color: '#1a1a2e', margin: 0 }}>{ramo.nombre}</p>
                         <p style={{ fontSize: 11, color: '#888', margin: '3px 0 0' }}>{ramo.evaluaciones?.length || 0} evaluaciones · mín {ramo.min_aprobacion}</p>
                       </div>
                       <span style={{ background: cfg.bg, color: cfg.text, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 20 }}>
-                        {estado === 'aprobado' || estado === 'al_dia' ? `✅ ${promedio?.toFixed(1) || '-'}` : necesaria ? `💪 ${necesaria.toFixed(1)}` : cfg.label}
+                        {estado === 'aprobado' || estado === 'al_dia' ? `✅ ${promedio?.toFixed(1) || '-'}` : necesaria ? `💪 ${necesaria.toFixed(1)}` : cfg.text}
                       </span>
                     </div>
+                    {proximaEv && (
+                      <div style={{ marginBottom: 8 }}>
+                        <BadgeFecha fecha={proximaEv.fecha} />
+                        <span style={{ fontSize: 10, color: '#888', marginLeft: 6 }}>{proximaEv.nombre}</span>
+                      </div>
+                    )}
                     <div style={{ height: 6, borderRadius: 3, background: '#e8e6ff', overflow: 'hidden' }}>
                       <div style={{ height: '100%', borderRadius: 3, background: cfg.color, width: `${progreso}%`, transition: 'width 0.4s' }} />
                     </div>
@@ -261,7 +266,7 @@ function App() {
               style={{ width: '100%', background: '#6c63ff', color: 'white', border: 'none', borderRadius: 16, padding: '14px', fontSize: 14, fontWeight: 600, marginTop: 16, cursor: 'pointer' }}>
               + Agregar ramo
             </button>
-            <button onClick={() => { fetch(`${API}/auth/logout`, { method: 'POST', credentials: 'include' }).then(() => setUser(null)) }}
+            <button onClick={() => fetch(`${API}/auth/logout`, { method: 'POST', credentials: 'include' }).then(() => setUser(null))}
               style={{ width: '100%', background: 'transparent', color: '#aaa', border: 'none', padding: '12px', fontSize: 12, cursor: 'pointer', marginTop: 4 }}>
               Cerrar sesión
             </button>
@@ -275,7 +280,6 @@ function App() {
         const promedio = calcularPromedio(ramo)
         const estado = getEstado(ramo)
         const cfg = estadoConfig[estado]
-        const pesoPendiente = ramo.evaluaciones.filter(e => !e.nota).reduce((s, e) => s + e.ponderacion, 0)
         return (
           <>
             <div style={{ background: '#6c63ff', padding: '48px 20px 48px' }}>
@@ -300,41 +304,65 @@ function App() {
             <div style={{ background: '#f4f3ff', borderRadius: '24px 24px 0 0', marginTop: -20, padding: '24px 16px' }}>
               <p style={{ fontSize: 14, fontWeight: 600, color: '#1a1a2e', marginBottom: 14 }}>Evaluaciones</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {ramo.evaluaciones?.map(ev => {
+                {(ramo.evaluaciones || []).map(ev => {
                   const tieneNota = ev.nota !== null && ev.nota !== undefined && ev.nota !== ''
-                  const notaNecesariaEv = !tieneNota && necesaria !== null ? necesaria : null
+                  const estaEditando = editando[ev.id]
+                  const necesariaEv = !tieneNota && necesaria !== null ? necesaria : null
                   return (
-                    <div key={ev.id} style={{ background: 'white', borderRadius: 16, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, border: tieneNota ? 'none' : '1.5px dashed #e0deff' }}>
-                      <div style={{ width: 44, height: 44, background: tieneNota ? '#dcfce7' : '#ede9fe', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: tieneNota ? '#16a34a' : '#6c63ff', flexShrink: 0 }}>
-                        {tieneNota ? parseFloat(ev.nota).toFixed(1) : notaNecesariaEv ? notaNecesariaEv.toFixed(1) : '?'}
+                    <div key={ev.id} style={{ background: 'white', borderRadius: 16, padding: '14px 16px', border: tieneNota && !estaEditando ? 'none' : '1.5px dashed #e0deff' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ width: 44, height: 44, background: tieneNota && !estaEditando ? '#dcfce7' : '#ede9fe', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: tieneNota && !estaEditando ? '#16a34a' : '#6c63ff', flexShrink: 0 }}>
+                          {tieneNota && !estaEditando ? parseFloat(ev.nota).toFixed(1) : necesariaEv ? necesariaEv.toFixed(1) : '?'}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <p style={{ fontSize: 13, fontWeight: 600, color: '#1a1a2e', margin: 0 }}>{ev.nombre}</p>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                            <p style={{ fontSize: 11, color: '#888', margin: 0 }}>{ev.ponderacion}% del ramo</p>
+                            {ev.fecha && <BadgeFecha fecha={ev.fecha} />}
+                          </div>
+                        </div>
+                        {estaEditando ? (
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                            <input
+                              type="number" min="1" max="7" step="0.1"
+                              placeholder="Nota"
+                              value={notas[ev.id] ?? (tieneNota ? ev.nota : '')}
+                              onChange={e => setNotas({ ...notas, [ev.id]: e.target.value })}
+                              autoFocus
+                              style={{ width: 64, border: '1.5px solid #6c63ff', borderRadius: 10, padding: '8px', fontSize: 13, textAlign: 'center', outline: 'none' }}
+                            />
+                            <button onClick={() => guardarNota(ev.id, notas[ev.id] ?? ev.nota)}
+                              style={{ background: '#6c63ff', border: 'none', color: 'white', borderRadius: 10, padding: '8px 10px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>✓</button>
+                            <button onClick={() => { setEditando(prev => { const n={...prev}; delete n[ev.id]; return n }); setNotas(prev => { const n={...prev}; delete n[ev.id]; return n }) }}
+                              style={{ background: '#fee2e2', border: 'none', color: '#ef4444', borderRadius: 10, padding: '8px 10px', cursor: 'pointer', fontSize: 12 }}>✕</button>
+                          </div>
+                        ) : tieneNota ? (
+                          <button onClick={() => setEditando({ ...editando, [ev.id]: true })}
+                            style={{ background: '#f3f4f6', border: 'none', color: '#6b7280', borderRadius: 10, padding: '6px 10px', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+                            ✏️ Editar
+                          </button>
+                        ) : (
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                            <input
+                              type="number" min="1" max="7" step="0.1"
+                              placeholder="Nota"
+                              value={notas[ev.id] || ''}
+                              onChange={e => setNotas({ ...notas, [ev.id]: e.target.value })}
+                              style={{ width: 64, border: '1.5px solid #e0deff', borderRadius: 10, padding: '8px', fontSize: 13, textAlign: 'center', outline: 'none' }}
+                            />
+                            {notas[ev.id] && (
+                              <button onClick={() => guardarNota(ev.id, notas[ev.id])}
+                                style={{ background: '#6c63ff', border: 'none', color: 'white', borderRadius: 10, padding: '8px 10px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>✓</button>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <div style={{ flex: 1 }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: '#1a1a2e', margin: 0 }}>{ev.nombre}</p>
-                        <p style={{ fontSize: 11, color: '#888', margin: '2px 0 0' }}>{ev.ponderacion}% del ramo</p>
-                      </div>
-                      {!tieneNota ? (
-                        <input
-                          type="number" min="1" max="7" step="0.1"
-                          placeholder="Nota"
-                          value={notas[ev.id] || ''}
-                          onChange={e => setNotas({ ...notas, [ev.id]: e.target.value })}
-                          style={{ width: 64, border: '1.5px solid #e0deff', borderRadius: 10, padding: '8px', fontSize: 13, textAlign: 'center', outline: 'none' }}
-                        />
-                      ) : (
-                        <span style={{ background: '#dcfce7', color: '#16a34a', fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 20 }}>✓ Rendida</span>
-                      )}
                     </div>
                   )
                 })}
               </div>
-              {Object.keys(notas).some(k => notas[k] !== '') && (
-                <button onClick={guardarNotas} disabled={guardando}
-                  style={{ width: '100%', background: '#6c63ff', color: 'white', border: 'none', borderRadius: 16, padding: '14px', fontSize: 14, fontWeight: 600, marginTop: 16, cursor: 'pointer', opacity: guardando ? 0.7 : 1 }}>
-                  {guardando ? 'Guardando...' : 'Guardar notas ✅'}
-                </button>
-              )}
               <button onClick={() => eliminarRamo(ramo.id)}
-                style={{ width: '100%', background: 'transparent', color: '#ef4444', border: '1.5px solid #fee2e2', borderRadius: 16, padding: '12px', fontSize: 13, fontWeight: 600, marginTop: 10, cursor: 'pointer' }}>
+                style={{ width: '100%', background: 'transparent', color: '#ef4444', border: '1.5px solid #fee2e2', borderRadius: 16, padding: '12px', fontSize: 13, fontWeight: 600, marginTop: 16, cursor: 'pointer' }}>
                 Eliminar ramo
               </button>
             </div>
@@ -354,10 +382,10 @@ function App() {
                 <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   {i > 0 && <div style={{ width: 20, height: 1, background: 'rgba(255,255,255,0.3)' }} />}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: step > i + 1 ? '#86efac' : step === i + 1 ? 'white' : 'rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: step === i + 1 ? '#6c63ff' : step > i + 1 ? '#16a34a' : 'white' }}>
-                      {step > i + 1 ? '✓' : i + 1}
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: step > i+1 ? '#86efac' : step === i+1 ? 'white' : 'rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: step === i+1 ? '#6c63ff' : step > i+1 ? '#16a34a' : 'white' }}>
+                      {step > i+1 ? '✓' : i+1}
                     </div>
-                    <span style={{ color: step === i + 1 ? 'white' : 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: step === i + 1 ? 600 : 400 }}>{label}</span>
+                    <span style={{ color: step === i+1 ? 'white' : 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: step === i+1 ? 600 : 400 }}>{label}</span>
                   </div>
                 </div>
               ))}
@@ -399,7 +427,10 @@ function App() {
                     <div key={i} style={{ background: 'white', borderRadius: 14, padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
                         <p style={{ fontSize: 13, fontWeight: 600, color: '#1a1a2e', margin: 0 }}>{ev.nombre}</p>
-                        <p style={{ fontSize: 11, color: '#888', margin: 0 }}>{ev.ponderacion}%</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                          <p style={{ fontSize: 11, color: '#888', margin: 0 }}>{ev.ponderacion}%</p>
+                          {ev.fecha && <BadgeFecha fecha={ev.fecha} />}
+                        </div>
                       </div>
                       <button onClick={() => setEvaluaciones(evaluaciones.filter((_, j) => j !== i))}
                         style={{ background: '#fee2e2', border: 'none', color: '#ef4444', borderRadius: 8, width: 28, height: 28, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>✕</button>
@@ -410,7 +441,7 @@ function App() {
                   <input value={evalTemp.nombre} onChange={e => setEvalTemp({ ...evalTemp, nombre: e.target.value })}
                     placeholder="Nombre de la evaluación"
                     style={{ width: '100%', border: '1.5px solid #e0deff', borderRadius: 10, padding: '10px 12px', fontSize: 13, outline: 'none', boxSizing: 'border-box', marginBottom: 10 }} />
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
                     <input type="number" value={evalTemp.ponderacion} onChange={e => setEvalTemp({ ...evalTemp, ponderacion: e.target.value })}
                       placeholder="%" min="1" max="100"
                       style={{ width: 70, border: '1.5px solid #e0deff', borderRadius: 10, padding: '10px 12px', fontSize: 13, outline: 'none' }} />
@@ -419,8 +450,13 @@ function App() {
                     </div>
                     <span style={{ fontSize: 12, fontWeight: 600, color: ponderacionRestante === 0 ? '#22c55e' : '#6c63ff', minWidth: 36 }}>{ponderacionRestante}%</span>
                   </div>
+                  <div style={{ marginBottom: 10 }}>
+                    <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>📅 Fecha de la prueba (opcional)</label>
+                    <input type="date" value={evalTemp.fecha} onChange={e => setEvalTemp({ ...evalTemp, fecha: e.target.value })}
+                      style={{ width: '100%', border: '1.5px solid #e0deff', borderRadius: 10, padding: '10px 12px', fontSize: 13, outline: 'none', boxSizing: 'border-box', color: evalTemp.fecha ? '#1a1a2e' : '#aaa' }} />
+                  </div>
                   <button onClick={agregarEval} disabled={!evalTemp.nombre || !evalTemp.ponderacion || ponderacionRestante <= 0}
-                    style={{ width: '100%', background: '#ede9fe', color: '#6c63ff', border: 'none', borderRadius: 10, padding: '10px', fontSize: 13, fontWeight: 600, marginTop: 10, cursor: 'pointer' }}>
+                    style={{ width: '100%', background: '#ede9fe', color: '#6c63ff', border: 'none', borderRadius: 10, padding: '10px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                     + Agregar
                   </button>
                 </div>
@@ -441,7 +477,10 @@ function App() {
                     <div key={i} style={{ background: 'white', borderRadius: 14, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, border: '1.5px dashed #e0deff' }}>
                       <div style={{ flex: 1 }}>
                         <p style={{ fontSize: 13, fontWeight: 600, color: '#1a1a2e', margin: 0 }}>{ev.nombre}</p>
-                        <p style={{ fontSize: 11, color: '#888', margin: '2px 0 0' }}>{ev.ponderacion}%</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                          <p style={{ fontSize: 11, color: '#888', margin: 0 }}>{ev.ponderacion}%</p>
+                          {ev.fecha && <BadgeFecha fecha={ev.fecha} />}
+                        </div>
                       </div>
                       <input type="number" min="1" max="7" step="0.1" placeholder="Nota"
                         value={notas[i] || ''}
