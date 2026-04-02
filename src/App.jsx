@@ -2,19 +2,6 @@ import { useState, useEffect } from 'react'
 
 const API = import.meta.env.VITE_API_URL
 
-function calcularNecesariaIndividual(evaluaciones, notaMinima, evalId) {
-  const conNota = evaluaciones.filter(e => e.nota !== null && e.nota !== '' && e.id !== evalId)
-  const sinNota = evaluaciones.filter(e => (e.nota === null || e.nota === '') && e.id !== evalId)
-  const pesoRestante = evaluaciones.find(e => e.id === evalId)?.ponderacion || 0
-  const sumaActual = conNota.reduce((s, e) => s + (Number(e.nota) * Number(e.ponderacion) / 100), 0)
-  const pesoPendienteTotal = sinNota.reduce((s, e) => s + Number(e.ponderacion), 0) + pesoRestante
-  // Asumiendo que las demás pendientes sacan nota mínima
-  const necesaria = (Number(notaMinima) - sumaActual) / (pesoRestante / 100)
-  if (necesaria > 7) return null
-  if (necesaria <= 1) return 1.0
-  return Math.ceil(necesaria * 10) / 10
-}
-
 function calcular(evaluaciones, notaMinima) {
   const conNota = evaluaciones.filter(e => e.nota !== null && e.nota !== '')
   const sinNota = evaluaciones.filter(e => e.nota === null || e.nota === '')
@@ -75,7 +62,7 @@ export default function App() {
   }
 
   const guardarRamo = async () => {
-    const res = await fetch(`${API}/ramos`, {
+    await fetch(`${API}/ramos`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -262,6 +249,25 @@ export default function App() {
     const r = ramos.find(r => r.id === ramoActivo)
     const evals = r.evaluaciones?.filter(Boolean) || []
     const resultado = calcular(evals, r.nota_minima)
+
+    const notaPorEval = (e) => {
+      if (e.nota !== null && e.nota !== '') return null
+      if (resultado.tipo === 'aprobado_seguro') return { valor: 1.0, color: 'text-green-500' }
+      if (resultado.tipo === 'imposible') {
+        // Calcular cuánto necesita solo en esta eval ignorando las demás pendientes
+        const conNota = evals.filter(ev => ev.nota !== null && ev.nota !== '' && ev.id !== e.id)
+        const sumaActual = conNota.reduce((s, ev) => s + (Number(ev.nota) * Number(ev.ponderacion) / 100), 0)
+        const necesaria = (Number(r.nota_minima) - sumaActual) / (Number(e.ponderacion) / 100)
+        return { valor: necesaria.toFixed(1), color: 'text-red-500', imposible: necesaria > 7 }
+      }
+      if (resultado.tipo === 'posible') {
+        const necesaria = Number(resultado.necesaria)
+        const color = necesaria >= 6 ? 'text-red-500' : necesaria >= 5 ? 'text-yellow-500' : 'text-green-500'
+        return { valor: necesaria.toFixed(1), color }
+      }
+      return null
+    }
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-4">
         <div className="max-w-lg mx-auto space-y-4">
@@ -276,8 +282,8 @@ export default function App() {
             </div>
             <div className="space-y-3">
               {evals.map(e => {
+                const info = notaPorEval(e)
                 const esPendiente = e.nota === null || e.nota === ''
-                const necesaria = esPendiente ? calcularNecesariaIndividual(evals, r.nota_minima, e.id) : null
                 return (
                   <div key={e.id} className="flex items-center gap-3">
                     <div className="flex-1">
@@ -288,20 +294,15 @@ export default function App() {
                       className="w-24 border border-gray-200 rounded-xl px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800"
                       placeholder="—" value={e.nota || ''}
                       onChange={ev => actualizarNota(r.id, e.id, ev.target.value)} />
-                    {esPendiente && necesaria !== null && (
-                      <div className="text-right min-w-[60px]">
+                    {esPendiente && info && (
+                      <div className="text-right min-w-[64px]">
                         <p className="text-xs text-gray-400">necesitas</p>
-                        <p className={`text-sm font-bold ${necesaria > 5.5 ? 'text-red-500' : necesaria > 4 ? 'text-yellow-500' : 'text-green-500'}`}>
-                          {necesaria.toFixed(1)}
+                        <p className={`text-sm font-bold ${info.imposible ? 'text-red-500' : info.color}`}>
+                          {info.imposible ? '> 7.0' : info.valor}
                         </p>
                       </div>
                     )}
-                    {esPendiente && necesaria === null && (
-                      <div className="text-right min-w-[60px]">
-                        <p className="text-xs text-red-400">imposible</p>
-                      </div>
-                    )}
-                    {!esPendiente && <div className="min-w-[60px]" />}
+                    {!esPendiente && <div className="min-w-[64px]" />}
                   </div>
                 )
               })}
@@ -311,7 +312,7 @@ export default function App() {
               {resultado.tipo === 'aprobado_seguro' && <><p className="text-2xl">😎</p><p className="font-bold text-green-600">¡Ya tienes el ramo aunque saques 1.0!</p></>}
               {resultado.tipo === 'posible' && <><p className="text-2xl">💪</p><p className="font-bold text-indigo-600">Necesitas un <span className="text-3xl">{resultado.necesaria}</span> en {resultado.pendientes} evaluación{resultado.pendientes > 1 ? 'es' : ''} pendiente{resultado.pendientes > 1 ? 's' : ''}</p></>}
               {resultado.tipo === 'reprobado' && <><p className="text-2xl">😔</p><p className="font-bold text-red-500">Ramo reprobado. Promedio: {resultado.promedio}</p></>}
-              {resultado.tipo === 'imposible' && <><p className="text-2xl">😬</p><p className="font-bold text-red-500">Necesitarías un {resultado.necesaria}, fuera de escala</p></>}
+              {resultado.tipo === 'imposible' && <><p className="text-2xl">😬</p><p className="font-bold text-red-500">Necesitarías un {resultado.necesaria} en promedio, fuera de escala</p></>}
             </div>
           </div>
         </div>
