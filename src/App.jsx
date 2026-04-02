@@ -2,6 +2,19 @@ import { useState, useEffect } from 'react'
 
 const API = import.meta.env.VITE_API_URL
 
+function calcularNecesariaIndividual(evaluaciones, notaMinima, evalId) {
+  const conNota = evaluaciones.filter(e => e.nota !== null && e.nota !== '' && e.id !== evalId)
+  const sinNota = evaluaciones.filter(e => (e.nota === null || e.nota === '') && e.id !== evalId)
+  const pesoRestante = evaluaciones.find(e => e.id === evalId)?.ponderacion || 0
+  const sumaActual = conNota.reduce((s, e) => s + (Number(e.nota) * Number(e.ponderacion) / 100), 0)
+  const pesoPendienteTotal = sinNota.reduce((s, e) => s + Number(e.ponderacion), 0) + pesoRestante
+  // Asumiendo que las demás pendientes sacan nota mínima
+  const necesaria = (Number(notaMinima) - sumaActual) / (pesoRestante / 100)
+  if (necesaria > 7) return null
+  if (necesaria <= 1) return 1.0
+  return Math.ceil(necesaria * 10) / 10
+}
+
 function calcular(evaluaciones, notaMinima) {
   const conNota = evaluaciones.filter(e => e.nota !== null && e.nota !== '')
   const sinNota = evaluaciones.filter(e => e.nota === null || e.nota === '')
@@ -68,13 +81,10 @@ export default function App() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ nombre: nuevoRamo.nombre, nota_minima: nuevoRamo.notaMinima, evaluaciones })
     })
-    const ramo = await res.json()
-    const ramosRes = await fetch(`${API}/ramos`, { credentials: 'include' })
-    setRamos(await ramosRes.json())
-    setView('dashboard')
-    setStep(0)
-    setNuevoRamo({ nombre: '', notaMinima: 4.0 })
-    setEvaluaciones([])
+    await fetch(`${API}/ramos`, { credentials: 'include' })
+      .then(r => r.json()).then(setRamos)
+    setView('dashboard'); setStep(0)
+    setNuevoRamo({ nombre: '', notaMinima: 4.0 }); setEvaluaciones([])
   }
 
   const actualizarNota = async (ramoId, evalId, nota) => {
@@ -85,8 +95,7 @@ export default function App() {
     setRamos(updatedRamos)
     const ramo = updatedRamos.find(r => r.id === ramoId)
     await fetch(`${API}/ramos/${ramoId}`, {
-      method: 'PUT',
-      credentials: 'include',
+      method: 'PUT', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ evaluaciones: ramo.evaluaciones })
     })
@@ -94,8 +103,7 @@ export default function App() {
 
   const eliminarRamo = async (id) => {
     await fetch(`${API}/ramos/${id}`, { method: 'DELETE', credentials: 'include' })
-    setRamos(ramos.filter(r => r.id !== id))
-    setView('dashboard')
+    setRamos(ramos.filter(r => r.id !== id)); setView('dashboard')
   }
 
   if (loading) return (
@@ -132,20 +140,18 @@ export default function App() {
           <h1 className="text-4xl font-extrabold text-indigo-700">APPrueba</h1>
           <p className="text-gray-500 mt-1">Calcula cuánto necesitas para aprobar 🎓</p>
         </div>
-        {step < 3 && (
-          <div className="flex items-center justify-center mb-6 gap-2">
-            {['Ramo', 'Evaluaciones', 'Notas'].map((label, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all
-                  ${step === i ? 'bg-indigo-600 text-white scale-110' : step > i ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
-                  {step > i ? '✓' : i + 1}
-                </div>
-                <span className={`text-sm font-medium ${step === i ? 'text-indigo-600' : 'text-gray-400'}`}>{label}</span>
-                {i < 2 && <div className={`w-8 h-0.5 ${step > i ? 'bg-green-400' : 'bg-gray-200'}`} />}
+        <div className="flex items-center justify-center mb-6 gap-2">
+          {['Ramo', 'Evaluaciones', 'Notas'].map((label, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all
+                ${step === i ? 'bg-indigo-600 text-white scale-110' : step > i ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                {step > i ? '✓' : i + 1}
               </div>
-            ))}
-          </div>
-        )}
+              <span className={`text-sm font-medium ${step === i ? 'text-indigo-600' : 'text-gray-400'}`}>{label}</span>
+              {i < 2 && <div className={`w-8 h-0.5 ${step > i ? 'bg-green-400' : 'bg-gray-200'}`} />}
+            </div>
+          ))}
+        </div>
         <div className="bg-white rounded-2xl shadow-xl p-6">
           {step === 0 && (
             <div className="space-y-4">
@@ -269,18 +275,36 @@ export default function App() {
               <p className="text-sm text-gray-400">Nota mínima: {r.nota_minima}</p>
             </div>
             <div className="space-y-3">
-              {evals.map(e => (
-                <div key={e.id} className="flex items-center justify-between gap-3">
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-700">{e.nombre}</p>
-                    <p className="text-xs text-gray-400">{e.ponderacion}%</p>
+              {evals.map(e => {
+                const esPendiente = e.nota === null || e.nota === ''
+                const necesaria = esPendiente ? calcularNecesariaIndividual(evals, r.nota_minima, e.id) : null
+                return (
+                  <div key={e.id} className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-700">{e.nombre}</p>
+                      <p className="text-xs text-gray-400">{e.ponderacion}%</p>
+                    </div>
+                    <input type="number" min="1" max="7" step="0.1"
+                      className="w-24 border border-gray-200 rounded-xl px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800"
+                      placeholder="—" value={e.nota || ''}
+                      onChange={ev => actualizarNota(r.id, e.id, ev.target.value)} />
+                    {esPendiente && necesaria !== null && (
+                      <div className="text-right min-w-[60px]">
+                        <p className="text-xs text-gray-400">necesitas</p>
+                        <p className={`text-sm font-bold ${necesaria > 5.5 ? 'text-red-500' : necesaria > 4 ? 'text-yellow-500' : 'text-green-500'}`}>
+                          {necesaria.toFixed(1)}
+                        </p>
+                      </div>
+                    )}
+                    {esPendiente && necesaria === null && (
+                      <div className="text-right min-w-[60px]">
+                        <p className="text-xs text-red-400">imposible</p>
+                      </div>
+                    )}
+                    {!esPendiente && <div className="min-w-[60px]" />}
                   </div>
-                  <input type="number" min="1" max="7" step="0.1"
-                    className="w-24 border border-gray-200 rounded-xl px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800"
-                    placeholder="—" value={e.nota || ''}
-                    onChange={ev => actualizarNota(r.id, e.id, ev.target.value)} />
-                </div>
-              ))}
+                )
+              })}
             </div>
             <div className={`rounded-xl p-4 text-center ${resultado.tipo === 'aprobado' || resultado.tipo === 'aprobado_seguro' ? 'bg-green-50' : resultado.tipo === 'posible' ? 'bg-indigo-50' : 'bg-red-50'}`}>
               {resultado.tipo === 'aprobado' && <><p className="text-2xl">🎉</p><p className="font-bold text-green-600">¡Aprobaste! Promedio: {resultado.promedio}</p></>}
