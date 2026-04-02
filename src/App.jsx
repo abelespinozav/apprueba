@@ -1,208 +1,262 @@
 import { useState } from 'react'
 
+const STEPS = ['ramo', 'evaluaciones', 'notas', 'resultado']
+
 export default function App() {
-  const [notaMinima, setNotaMinima] = useState(4.0)
+  const [step, setStep] = useState(0)
+  const [ramo, setRamo] = useState({ nombre: '', notaMinima: 4.0 })
   const [evaluaciones, setEvaluaciones] = useState([])
-  const [nombre, setNombre] = useState('')
-  const [ponderacion, setPonderacion] = useState('')
-  const [nota, setNota] = useState('')
-  const [step, setStep] = useState('setup')
+  const [newEval, setNewEval] = useState({ nombre: '', ponderacion: '' })
 
-  const totalPonderacion = evaluaciones.reduce((acc, e) => acc + e.ponderacion, 0)
+  const totalPonderacion = evaluaciones.reduce((s, e) => s + Number(e.ponderacion), 0)
+  const restante = 100 - totalPonderacion
 
-  const agregarEvaluacion = () => {
-    const p = parseFloat(ponderacion)
-    if (!nombre || isNaN(p) || p <= 0 || totalPonderacion + p > 100) return
-    setEvaluaciones([...evaluaciones, { nombre, ponderacion: p, nota: null }])
-    setNombre('')
-    setPonderacion('')
+  const agregarEval = () => {
+    if (!newEval.nombre || !newEval.ponderacion) return
+    if (totalPonderacion + Number(newEval.ponderacion) > 100) return
+    setEvaluaciones([...evaluaciones, { ...newEval, nota: '' }])
+    setNewEval({ nombre: '', ponderacion: '' })
   }
 
-  const iniciarSemestre = () => {
-    if (evaluaciones.length === 0 || Math.abs(totalPonderacion - 100) > 0.01) return
-    setStep('notas')
+  const updateNota = (i, val) => {
+    const updated = [...evaluaciones]
+    updated[i].nota = val
+    setEvaluaciones(updated)
   }
 
-  const ingresarNota = (index) => {
-    const n = parseFloat(nota)
-    if (isNaN(n) || n < 1 || n > 7) return
-    const nuevas = [...evaluaciones]
-    nuevas[index].nota = n
-    setEvaluaciones(nuevas)
-    setNota('')
+  const calcular = () => {
+    const conNota = evaluaciones.filter(e => e.nota !== '')
+    const sinNota = evaluaciones.filter(e => e.nota === '')
+    const pesoConNota = conNota.reduce((s, e) => s + Number(e.ponderacion), 0)
+    const pesoSinNota = sinNota.reduce((s, e) => s + Number(e.ponderacion), 0)
+    const promedioActual = conNota.reduce((s, e) => s + (Number(e.nota) * Number(e.ponderacion) / 100), 0)
+    const notaMin = Number(ramo.notaMinima)
+
+    if (pesoSinNota === 0) {
+      const promFinal = promedioActual
+      return promFinal >= notaMin
+        ? { tipo: 'aprobado', promedio: promFinal.toFixed(1) }
+        : { tipo: 'reprobado', promedio: promFinal.toFixed(1) }
+    }
+
+    const necesaria = (notaMin - promedioActual) / (pesoSinNota / 100)
+    if (necesaria > 7) return { tipo: 'imposible', necesaria: necesaria.toFixed(1) }
+    if (necesaria <= 1) return { tipo: 'aprobado_seguro', promedio: promedioActual.toFixed(1) }
+    return { tipo: 'posible', necesaria: necesaria.toFixed(1), pendientes: sinNota.length }
   }
 
-  const calcularNotaMinima = () => {
-    const rendidas = evaluaciones.filter(e => e.nota !== null)
-    const pendientes = evaluaciones.filter(e => e.nota === null)
-    if (pendientes.length === 0) return null
-
-    const puntajeObtenido = rendidas.reduce((acc, e) => acc + (e.nota * e.ponderacion / 100), 0)
-    const ponderacionPendiente = pendientes.reduce((acc, e) => acc + e.ponderacion, 0)
-    const necesario = (notaMinima - puntajeObtenido) / (ponderacionPendiente / 100)
-
-    return necesario
-  }
-
-  const notaNecesaria = calcularNotaMinima()
-  const rendidas = evaluaciones.filter(e => e.nota !== null)
-  const pendientes = evaluaciones.filter(e => e.nota === null)
-  const promedioActual = rendidas.length > 0
-    ? rendidas.reduce((acc, e) => acc + (e.nota * e.ponderacion / 100), 0) /
-      (rendidas.reduce((acc, e) => acc + e.ponderacion, 0) / 100)
-    : null
-
-  const notaFinal = pendientes.length === 0
-    ? evaluaciones.reduce((acc, e) => acc + (e.nota * e.ponderacion / 100), 0)
-    : null
+  const resultado = step === 3 ? calcular() : null
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-lg mx-auto">
-        <div className="text-center mb-8 pt-6">
-          <h1 className="text-4xl font-bold text-indigo-700">APPrueba</h1>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-lg">
+
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-extrabold text-indigo-700 tracking-tight">APPrueba</h1>
           <p className="text-gray-500 mt-1">Calcula cuánto necesitas para aprobar 🎓</p>
         </div>
 
-        {step === 'setup' && (
-          <div className="bg-white rounded-2xl shadow-md p-6">
-            <h2 className="text-lg font-semibold text-gray-700 mb-4">Configura tu ramo</h2>
-
-            <div className="mb-4">
-              <label className="text-sm text-gray-500">Nota mínima de aprobación</label>
-              <input
-                type="number" step="0.1" min="1" max="7"
-                value={notaMinima}
-                onChange={e => setNotaMinima(parseFloat(e.target.value))}
-                className="w-full border rounded-lg px-3 py-2 mt-1 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-              />
-            </div>
-
-            <div className="mb-2">
-              <label className="text-sm text-gray-500">Nombre de la evaluación</label>
-              <input
-                type="text" placeholder="Ej: Certamen 1"
-                value={nombre}
-                onChange={e => setNombre(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 mt-1 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-              />
-            </div>
-            <div className="mb-4">
-              <label className="text-sm text-gray-500">Ponderación (%)</label>
-              <input
-                type="number" placeholder="Ej: 30"
-                value={ponderacion}
-                onChange={e => setPonderacion(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 mt-1 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-              />
-            </div>
-
-            <button
-              onClick={agregarEvaluacion}
-              disabled={totalPonderacion >= 100}
-              className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 rounded-lg mb-4 disabled:opacity-40"
-            >
-              + Agregar evaluación
-            </button>
-
-            {evaluaciones.length > 0 && (
-              <div className="mb-4">
-                <p className="text-sm text-gray-500 mb-2">Evaluaciones agregadas:</p>
-                {evaluaciones.map((e, i) => (
-                  <div key={i} className="flex justify-between items-center bg-indigo-50 rounded-lg px-3 py-2 mb-1">
-                    <span className="text-gray-700">{e.nombre}</span>
-                    <span className="text-indigo-600 font-semibold">{e.ponderacion}%</span>
-                  </div>
-                ))}
-                <p className="text-right text-sm mt-1 font-semibold text-gray-600">
-                  Total: <span className={totalPonderacion === 100 ? 'text-green-500' : 'text-orange-400'}>{totalPonderacion}%</span>
-                </p>
-              </div>
-            )}
-
-            <button
-              onClick={iniciarSemestre}
-              disabled={Math.abs(totalPonderacion - 100) > 0.01}
-              className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-2 rounded-lg disabled:opacity-40"
-            >
-              ¡Comenzar semestre! 🚀
-            </button>
-            {evaluaciones.length > 0 && Math.abs(totalPonderacion - 100) > 0.01 && (
-              <p className="text-center text-xs text-orange-400 mt-2">La ponderación total debe ser exactamente 100%</p>
-            )}
-          </div>
-        )}
-
-        {step === 'notas' && (
-          <div className="bg-white rounded-2xl shadow-md p-6">
-            <h2 className="text-lg font-semibold text-gray-700 mb-4">Ingresa tus notas</h2>
-
-            {evaluaciones.map((e, i) => (
-              <div key={i} className="mb-3 p-3 rounded-xl border border-gray-100 bg-gray-50">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="font-medium text-gray-700">{e.nombre}</p>
-                    <p className="text-xs text-gray-400">{e.ponderacion}%</p>
-                  </div>
-                  {e.nota !== null ? (
-                    <span className={`text-lg font-bold ${e.nota >= notaMinima ? 'text-green-500' : 'text-red-400'}`}>
-                      {e.nota.toFixed(1)}
-                    </span>
-                  ) : (
-                    <div className="flex gap-2 items-center">
-                      <input
-                        type="number" step="0.1" min="1" max="7"
-                        placeholder="1.0-7.0"
-                        value={nota}
-                        onChange={e => setNota(e.target.value)}
-                        className="w-24 border rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                      />
-                      <button
-                        onClick={() => ingresarNota(i)}
-                        className="bg-indigo-500 hover:bg-indigo-600 text-white text-sm px-3 py-1 rounded-lg"
-                      >
-                        OK
-                      </button>
-                    </div>
-                  )}
+        {/* Stepper */}
+        {step < 3 && (
+          <div className="flex items-center justify-center mb-6 gap-2">
+            {['Ramo', 'Evaluaciones', 'Notas'].map((label, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all
+                  ${step === i ? 'bg-indigo-600 text-white scale-110' : step > i ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                  {step > i ? '✓' : i + 1}
                 </div>
+                <span className={`text-sm font-medium ${step === i ? 'text-indigo-600' : 'text-gray-400'}`}>{label}</span>
+                {i < 2 && <div className={`w-8 h-0.5 ${step > i ? 'bg-green-400' : 'bg-gray-200'}`} />}
               </div>
             ))}
-
-            {notaFinal !== null ? (
-              <div className={`mt-4 p-4 rounded-xl text-center ${notaFinal >= notaMinima ? 'bg-green-100' : 'bg-red-100'}`}>
-                <p className="text-sm text-gray-500">Nota final</p>
-                <p className={`text-4xl font-bold ${notaFinal >= notaMinima ? 'text-green-600' : 'text-red-500'}`}>
-                  {notaFinal.toFixed(1)}
-                </p>
-                <p className={`text-sm font-semibold mt-1 ${notaFinal >= notaMinima ? 'text-green-600' : 'text-red-500'}`}>
-                  {notaFinal >= notaMinima ? '¡Aprobaste el ramo! 🎉' : 'Reprobaste el ramo 😔'}
-                </p>
-              </div>
-            ) : (
-              <>
-                {rendidas.length > 0 && notaNecesaria !== null && (
-                  <div className={`mt-4 p-4 rounded-xl text-center ${notaNecesaria > 7 ? 'bg-red-100' : notaNecesaria <= 1 ? 'bg-green-100' : 'bg-indigo-50'}`}>
-                    <p className="text-sm text-gray-500">Necesitas sacar en promedio</p>
-                    <p className={`text-4xl font-bold ${notaNecesaria > 7 ? 'text-red-500' : notaNecesaria <= 1 ? 'text-green-500' : 'text-indigo-600'}`}>
-                      {notaNecesaria > 7 ? '+7.0' : notaNecesaria < 1 ? '1.0' : notaNecesaria.toFixed(1)}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1">en las {pendientes.length} evaluación(es) restante(s)</p>
-                    {notaNecesaria > 7 && <p className="text-red-500 text-sm font-semibold mt-1">Ya no es posible aprobar 😔</p>}
-                    {notaNecesaria <= 1 && <p className="text-green-500 text-sm font-semibold mt-1">¡Ya tienes el ramo aprobado! 🎉</p>}
-                  </div>
-                )}
-              </>
-            )}
-
-            <button
-              onClick={() => { setEvaluaciones([]); setStep('setup') }}
-              className="w-full mt-4 border border-gray-300 text-gray-500 hover:bg-gray-50 py-2 rounded-lg text-sm"
-            >
-              Empezar de nuevo
-            </button>
           </div>
         )}
+
+        {/* Card */}
+        <div className="bg-white rounded-2xl shadow-xl p-6">
+
+          {/* PASO 1: Ramo */}
+          {step === 0 && (
+            <div className="space-y-4">
+              <h2 className="text-xl font-bold text-gray-800">📚 Tu ramo</h2>
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-1">Nombre del ramo</label>
+                <input
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800"
+                  placeholder="Ej: Cálculo II"
+                  value={ramo.nombre}
+                  onChange={e => setRamo({ ...ramo, nombre: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-1">Nota mínima para aprobar</label>
+                <input
+                  type="number" min="1" max="7" step="0.1"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800"
+                  value={ramo.notaMinima}
+                  onChange={e => setRamo({ ...ramo, notaMinima: e.target.value })}
+                />
+              </div>
+              <button
+                disabled={!ramo.nombre}
+                onClick={() => setStep(1)}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-semibold py-3 rounded-xl transition-all">
+                Siguiente →
+              </button>
+            </div>
+          )}
+
+          {/* PASO 2: Evaluaciones */}
+          {step === 1 && (
+            <div className="space-y-4">
+              <h2 className="text-xl font-bold text-gray-800">📝 Evaluaciones de <span className="text-indigo-600">{ramo.nombre}</span></h2>
+
+              {/* Barra de progreso */}
+              <div>
+                <div className="flex justify-between text-xs text-gray-500 mb-1">
+                  <span>Ponderación asignada</span>
+                  <span className={totalPonderacion === 100 ? 'text-green-600 font-bold' : 'text-indigo-600 font-bold'}>{totalPonderacion}% / 100%</span>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-2">
+                  <div className={`h-2 rounded-full transition-all ${totalPonderacion === 100 ? 'bg-green-500' : 'bg-indigo-500'}`}
+                    style={{ width: `${Math.min(totalPonderacion, 100)}%` }} />
+                </div>
+              </div>
+
+              {/* Lista de evaluaciones */}
+              {evaluaciones.length > 0 && (
+                <div className="space-y-2">
+                  {evaluaciones.map((e, i) => (
+                    <div key={i} className="flex items-center justify-between bg-indigo-50 rounded-xl px-4 py-2">
+                      <span className="text-sm font-medium text-gray-700">{e.nombre}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-indigo-600 font-bold">{e.ponderacion}%</span>
+                        <button onClick={() => setEvaluaciones(evaluaciones.filter((_, j) => j !== i))}
+                          className="text-red-400 hover:text-red-600 text-xs">✕</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Agregar evaluación */}
+              {restante > 0 && (
+                <div className="space-y-2">
+                  <input
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800"
+                    placeholder="Nombre (Ej: Certamen 1)"
+                    value={newEval.nombre}
+                    onChange={e => setNewEval({ ...newEval, nombre: e.target.value })}
+                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="number" min="1" max={restante}
+                      className="flex-1 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800"
+                      placeholder={`Ponderación (máx ${restante}%)`}
+                      value={newEval.ponderacion}
+                      onChange={e => setNewEval({ ...newEval, ponderacion: e.target.value })}
+                    />
+                    <button onClick={agregarEval}
+                      disabled={!newEval.nombre || !newEval.ponderacion}
+                      className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 text-white px-4 rounded-xl font-bold transition-all">
+                      +
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-2">
+                <button onClick={() => setStep(0)} className="flex-1 border border-gray-200 text-gray-500 font-semibold py-3 rounded-xl hover:bg-gray-50 transition-all">← Volver</button>
+                <button
+                  disabled={totalPonderacion !== 100 || evaluaciones.length === 0}
+                  onClick={() => setStep(2)}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-semibold py-3 rounded-xl transition-all">
+                  Siguiente →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* PASO 3: Notas */}
+          {step === 2 && (
+            <div className="space-y-4">
+              <h2 className="text-xl font-bold text-gray-800">🎯 Ingresa tus notas</h2>
+              <p className="text-sm text-gray-500">Deja en blanco las evaluaciones pendientes</p>
+              <div className="space-y-3">
+                {evaluaciones.map((e, i) => (
+                  <div key={i} className="flex items-center justify-between gap-3">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-700">{e.nombre}</p>
+                      <p className="text-xs text-gray-400">{e.ponderacion}%</p>
+                    </div>
+                    <input
+                      type="number" min="1" max="7" step="0.1"
+                      className="w-24 border border-gray-200 rounded-xl px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800"
+                      placeholder="—"
+                      value={e.nota}
+                      onChange={ev => updateNota(i, ev.target.value)}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button onClick={() => setStep(1)} className="flex-1 border border-gray-200 text-gray-500 font-semibold py-3 rounded-xl hover:bg-gray-50 transition-all">← Volver</button>
+                <button onClick={() => setStep(3)}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition-all">
+                  Calcular 🚀
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* PASO 4: Resultado */}
+          {step === 3 && resultado && (
+            <div className="text-center space-y-4">
+              {resultado.tipo === 'aprobado' && (
+                <>
+                  <div className="text-6xl">🎉</div>
+                  <h2 className="text-2xl font-extrabold text-green-600">¡Aprobaste!</h2>
+                  <p className="text-gray-600">Tu promedio final es <span className="font-bold text-green-600">{resultado.promedio}</span></p>
+                </>
+              )}
+              {resultado.tipo === 'aprobado_seguro' && (
+                <>
+                  <div className="text-6xl">😎</div>
+                  <h2 className="text-2xl font-extrabold text-green-600">¡Ya tienes el ramo!</h2>
+                  <p className="text-gray-600">Con lo que llevas ({resultado.promedio}) ya aprobas aunque saques un 1.0</p>
+                </>
+              )}
+              {resultado.tipo === 'posible' && (
+                <>
+                  <div className="text-6xl">💪</div>
+                  <h2 className="text-2xl font-extrabold text-indigo-600">¡Puedes lograrlo!</h2>
+                  <p className="text-gray-600">Necesitas sacar un promedio de</p>
+                  <div className="text-5xl font-extrabold text-indigo-700">{resultado.necesaria}</div>
+                  <p className="text-gray-500 text-sm">en {resultado.pendientes} evaluación{resultado.pendientes > 1 ? 'es' : ''} pendiente{resultado.pendientes > 1 ? 's' : ''}</p>
+                </>
+              )}
+              {resultado.tipo === 'reprobado' && (
+                <>
+                  <div className="text-6xl">😔</div>
+                  <h2 className="text-2xl font-extrabold text-red-500">Ramo reprobado</h2>
+                  <p className="text-gray-600">Tu promedio final fue <span className="font-bold text-red-500">{resultado.promedio}</span></p>
+                </>
+              )}
+              {resultado.tipo === 'imposible' && (
+                <>
+                  <div className="text-6xl">😬</div>
+                  <h2 className="text-2xl font-extrabold text-red-500">Muy difícil...</h2>
+                  <p className="text-gray-600">Necesitarías un <span className="font-bold text-red-500">{resultado.necesaria}</span>, lo cual está fuera de la escala</p>
+                </>
+              )}
+              <button onClick={() => { setStep(0); setRamo({ nombre: '', notaMinima: 4.0 }); setEvaluaciones([]); setNewEval({ nombre: '', ponderacion: '' }) }}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition-all mt-4">
+                Calcular otro ramo 🔄
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
