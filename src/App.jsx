@@ -56,30 +56,40 @@ function App() {
     setTimeout(() => setToast(null), 3000)
   }
 
+  const calcularPromedioFinal = (ramo) => {
+    const evs = (ramo.evaluaciones || []).filter(e => e.nota !== null && e.nota !== undefined && e.nota !== '')
+    if (evs.length === 0) return null
+    const pesoTotal = evs.reduce((s, e) => s + Number(e.ponderacion), 0)
+    const suma = evs.reduce((s, e) => s + (parseFloat(e.nota) * Number(e.ponderacion)), 0)
+    return suma / pesoTotal
+  }
+
+  const todasRendidas = (ramo) => {
+    const evs = ramo.evaluaciones || []
+    return evs.length > 0 && evs.every(e => e.nota !== null && e.nota !== undefined && e.nota !== '')
+  }
+
   const calcularNecesaria = (ramo) => {
+    if (todasRendidas(ramo)) return null
     const evs = ramo.evaluaciones || []
     const evsPendientes = evs.filter(e => e.nota === null || e.nota === undefined || e.nota === '')
     const evsRendidas = evs.filter(e => e.nota !== null && e.nota !== undefined && e.nota !== '')
     if (evsPendientes.length === 0) return null
-    const pesoPendiente = evsPendientes.reduce((s, e) => s + e.ponderacion, 0)
-    const sumaRendida = evsRendidas.reduce((s, e) => s + (parseFloat(e.nota) * e.ponderacion), 0)
-    const min = ramo.min_aprobacion || 4.0
+    const pesoPendiente = evsPendientes.reduce((s, e) => s + Number(e.ponderacion), 0)
+    const sumaRendida = evsRendidas.reduce((s, e) => s + (parseFloat(e.nota) * Number(e.ponderacion)), 0)
+    const min = Number(ramo.min_aprobacion) || 4.0
     return (min * 100 - sumaRendida) / pesoPendiente
   }
 
-  const calcularPromedio = (ramo) => {
-    const rendidas = (ramo.evaluaciones || []).filter(e => e.nota !== null && e.nota !== undefined && e.nota !== '')
-    if (rendidas.length === 0) return null
-    const pesoTotal = rendidas.reduce((s, e) => s + e.ponderacion, 0)
-    const suma = rendidas.reduce((s, e) => s + (parseFloat(e.nota) * e.ponderacion), 0)
-    return suma / pesoTotal
-  }
-
   const getEstado = (ramo) => {
+    const min = Number(ramo.min_aprobacion) || 4.0
+    if (todasRendidas(ramo)) {
+      const promedio = calcularPromedioFinal(ramo)
+      return promedio >= min ? 'aprobado' : 'reprobado'
+    }
     const necesaria = calcularNecesaria(ramo)
-    const promedio = calcularPromedio(ramo)
-    if (necesaria === null) return promedio >= (ramo.min_aprobacion || 4.0) ? 'aprobado' : 'reprobado'
-    if (necesaria <= (ramo.min_aprobacion || 4.0)) return 'al_dia'
+    if (necesaria === null) return 'al_dia'
+    if (necesaria <= min) return 'al_dia'
     if (necesaria <= 5.5) return 'en_riesgo'
     return 'critico'
   }
@@ -231,7 +241,7 @@ function App() {
               {ramos.map(ramo => {
                 const estado = getEstado(ramo)
                 const cfg = estadoConfig[estado]
-                const promedio = calcularPromedio(ramo)
+                const promedio = calcularPromedioFinal(ramo)
                 const necesaria = calcularNecesaria(ramo)
                 const progreso = promedio ? Math.min((promedio / 7) * 100, 100) : 0
                 const proximaEv = (ramo.evaluaciones || [])
@@ -246,7 +256,10 @@ function App() {
                         <p style={{ fontSize: 11, color: '#888', margin: '3px 0 0' }}>{ramo.evaluaciones?.length || 0} evaluaciones · mín {ramo.min_aprobacion}</p>
                       </div>
                       <span style={{ background: cfg.bg, color: cfg.text, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 20 }}>
-                        {estado === 'aprobado' || estado === 'al_dia' ? `✅ ${promedio?.toFixed(1) || '-'}` : necesaria ? `💪 ${necesaria.toFixed(1)}` : cfg.text}
+                        {estado === 'aprobado' ? `✅ ${promedio?.toFixed(1)}` :
+                         estado === 'reprobado' ? `❌ ${promedio?.toFixed(1)}` :
+                         estado === 'al_dia' ? `✅ ${promedio?.toFixed(1) || 'OK'}` :
+                         necesaria ? `💪 ${necesaria.toFixed(1)}` : '—'}
                       </span>
                     </div>
                     {proximaEv && (
@@ -277,28 +290,48 @@ function App() {
       {vista === 'ramo' && ramoActivo && (() => {
         const ramo = ramos.find(r => r.id === ramoActivo.id) || ramoActivo
         const necesaria = calcularNecesaria(ramo)
-        const promedio = calcularPromedio(ramo)
+        const promedio = calcularPromedioFinal(ramo)
         const estado = getEstado(ramo)
         const cfg = estadoConfig[estado]
+        const min = Number(ramo.min_aprobacion) || 4.0
+        const terminado = todasRendidas(ramo)
         return (
           <>
-            <div style={{ background: '#6c63ff', padding: '48px 20px 48px' }}>
+            <div style={{ background: estado === 'aprobado' ? '#16a34a' : estado === 'reprobado' ? '#dc2626' : '#6c63ff', padding: '48px 20px 48px', transition: 'background 0.4s' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
                 <button onClick={() => setVista('dashboard')} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: 10, padding: '8px 12px', cursor: 'pointer', fontSize: 16 }}>←</button>
                 <p style={{ color: 'white', fontSize: 17, fontWeight: 700, margin: 0 }}>{ramo.nombre}</p>
               </div>
-              <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 16, padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, margin: 0 }}>Promedio actual</p>
-                  <p style={{ color: 'white', fontSize: 32, fontWeight: 700, margin: 0 }}>{promedio ? promedio.toFixed(1) : '—'}</p>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, margin: 0 }}>Necesitas</p>
-                  <p style={{ color: necesaria > 6 ? '#fca5a5' : necesaria > 5 ? '#fde68a' : '#86efac', fontSize: 32, fontWeight: 700, margin: 0 }}>
-                    {necesaria === null ? (promedio >= ramo.min_aprobacion ? '✅' : '❌') : necesaria > 7 ? '+7.0' : necesaria.toFixed(1)}
+
+              {terminado ? (
+                <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 16, padding: '20px', textAlign: 'center' }}>
+                  <p style={{ fontSize: 48, margin: '0 0 8px' }}>{estado === 'aprobado' ? '🎉' : '😔'}</p>
+                  <p style={{ color: 'white', fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>
+                    {estado === 'aprobado' ? '¡Ramo aprobado!' : 'Ramo reprobado'}
                   </p>
+                  <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, margin: '0 0 12px' }}>
+                    {estado === 'aprobado'
+                      ? `Promedio final: ${promedio?.toFixed(1)} · mín era ${min}`
+                      : `Promedio final: ${promedio?.toFixed(1)} · necesitabas ${min}`}
+                  </p>
+                  <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 10, padding: '8px 16px', display: 'inline-block' }}>
+                    <span style={{ color: 'white', fontSize: 32, fontWeight: 700 }}>{promedio?.toFixed(1)}</span>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 16, padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, margin: 0 }}>Promedio actual</p>
+                    <p style={{ color: 'white', fontSize: 32, fontWeight: 700, margin: 0 }}>{promedio ? promedio.toFixed(1) : '—'}</p>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, margin: 0 }}>Necesitas</p>
+                    <p style={{ color: necesaria > 6 ? '#fca5a5' : necesaria > 5 ? '#fde68a' : '#86efac', fontSize: 32, fontWeight: 700, margin: 0 }}>
+                      {necesaria === null ? '✅' : necesaria > 7 ? '+7.0' : necesaria.toFixed(1)}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div style={{ background: '#f4f3ff', borderRadius: '24px 24px 0 0', marginTop: -20, padding: '24px 16px' }}>
