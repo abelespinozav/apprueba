@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -20,6 +20,145 @@ function BadgeFecha({ fecha }) {
   return <span style={{ fontSize: 10, background: '#ede9fe', color: '#6c63ff', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>En {dias} días</span>
 }
 
+function PlanEstudio({ ev, onClose, onUpdate }) {
+  const [plan, setPlan] = useState(ev.plan_estudio || null)
+  const [completadas, setCompletadas] = useState(ev.tareas_completadas || [])
+  const [generando, setGenerando] = useState(false)
+  const [subiendo, setSubiendo] = useState(false)
+  const [archivos, setArchivos] = useState(ev.archivos || [])
+  const fileRef = useRef()
+
+  const subirArchivo = async (file) => {
+    setSubiendo(true)
+    const formData = new FormData()
+    formData.append('archivo', file)
+    try {
+      const r = await fetch(`${API}/evaluaciones/${ev.id}/archivos`, { method: 'POST', credentials: 'include', body: formData })
+      const d = await r.json()
+      setArchivos(prev => [...prev, d])
+      onUpdate()
+    } catch {}
+    setSubiendo(false)
+  }
+
+  const eliminarArchivo = async (id) => {
+    try {
+      await fetch(`${API}/archivos/${id}`, { method: 'DELETE', credentials: 'include' })
+      setArchivos(prev => prev.filter(a => a.id !== id))
+      onUpdate()
+    } catch {}
+  }
+
+  const generarPlan = async () => {
+    setGenerando(true)
+    try {
+      const r = await fetch(`${API}/evaluaciones/${ev.id}/plan-estudio`, { method: 'POST', credentials: 'include' })
+      const d = await r.json()
+      setPlan(d)
+      onUpdate()
+    } catch {}
+    setGenerando(false)
+  }
+
+  const toggleTarea = async (idx) => {
+    const nuevas = completadas.includes(idx) ? completadas.filter(i => i !== idx) : [...completadas, idx]
+    setCompletadas(nuevas)
+    await fetch(`${API}/evaluaciones/${ev.id}/plan-progreso`, {
+      method: 'PUT', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tareasCompletadas: nuevas })
+    })
+  }
+
+  const prioridadColor = { alta: '#ef4444', media: '#f59e0b', baja: '#22c55e' }
+  const progreso = plan ? Math.round((completadas.length / plan.tareas.length) * 100) : 0
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'flex-end' }}>
+      <div style={{ background: 'white', borderRadius: '24px 24px 0 0', width: '100%', maxHeight: '90vh', overflow: 'auto', padding: '24px 16px', maxWidth: 480, margin: '0 auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div>
+            <p style={{ fontSize: 16, fontWeight: 700, color: '#1a1a2e', margin: 0 }}>📚 Plan de estudio</p>
+            <p style={{ fontSize: 12, color: '#888', margin: '2px 0 0' }}>{ev.nombre} · {ev.ponderacion}%</p>
+          </div>
+          <button onClick={onClose} style={{ background: '#f3f4f6', border: 'none', borderRadius: 10, padding: '8px 12px', cursor: 'pointer', fontSize: 16 }}>✕</button>
+        </div>
+
+        {/* Archivos */}
+        <div style={{ marginBottom: 20 }}>
+          <p style={{ fontSize: 13, fontWeight: 600, color: '#1a1a2e', marginBottom: 10 }}>📎 Material de estudio</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
+            {archivos.map(a => (
+              <div key={a.id} style={{ background: '#f8f7ff', borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 18 }}>
+                    {a.tipo?.includes('pdf') ? '📄' : a.tipo?.includes('word') || a.tipo?.includes('document') ? '📝' : a.tipo?.includes('sheet') || a.tipo?.includes('excel') ? '📊' : a.tipo?.includes('presentation') || a.tipo?.includes('powerpoint') ? '📑' : '📎'}
+                  </span>
+                  <p style={{ fontSize: 12, color: '#1a1a2e', margin: 0, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.nombre}</p>
+                </div>
+                <button onClick={() => eliminarArchivo(a.id)} style={{ background: '#fee2e2', border: 'none', color: '#ef4444', borderRadius: 8, width: 26, height: 26, cursor: 'pointer', fontSize: 12 }}>✕</button>
+              </div>
+            ))}
+          </div>
+          <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt" style={{ display: 'none' }}
+            onChange={e => e.target.files[0] && subirArchivo(e.target.files[0])} />
+          <button onClick={() => fileRef.current.click()} disabled={subiendo}
+            style={{ width: '100%', background: '#ede9fe', color: '#6c63ff', border: '1.5px dashed #c4b5fd', borderRadius: 12, padding: '12px', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: subiendo ? 0.7 : 1 }}>
+            {subiendo ? '⏳ Subiendo...' : '+ Subir archivo (PDF, Word, PPT, Excel)'}
+          </button>
+        </div>
+
+        {/* Generar plan */}
+        <button onClick={generarPlan} disabled={generando}
+          style={{ width: '100%', background: generando ? '#e0deff' : '#6c63ff', color: generando ? '#6c63ff' : 'white', border: 'none', borderRadius: 14, padding: '14px', fontSize: 14, fontWeight: 600, cursor: generando ? 'not-allowed' : 'pointer', marginBottom: 20 }}>
+          {generando ? '🤖 Generando plan con IA...' : plan ? '🔄 Regenerar plan con IA' : '✨ Generar plan de estudio con IA'}
+        </button>
+
+        {/* Plan generado */}
+        {plan && (
+          <>
+            <div style={{ background: '#f8f7ff', borderRadius: 14, padding: '14px', marginBottom: 16 }}>
+              <p style={{ fontSize: 12, color: '#6c63ff', fontWeight: 600, margin: '0 0 4px' }}>📋 Resumen</p>
+              <p style={{ fontSize: 13, color: '#1a1a2e', margin: '0 0 8px' }}>{plan.resumen}</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ flex: 1, height: 6, borderRadius: 3, background: '#e0deff', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', borderRadius: 3, background: '#6c63ff', width: `${progreso}%`, transition: 'width 0.3s' }} />
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#6c63ff' }}>{progreso}%</span>
+              </div>
+              <p style={{ fontSize: 11, color: '#888', margin: '4px 0 0' }}>{completadas.length}/{plan.tareas.length} tareas completadas</p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {plan.tareas.map((tarea, i) => (
+                <div key={i} onClick={() => toggleTarea(i)}
+                  style={{ background: completadas.includes(i) ? '#f0fdf4' : 'white', borderRadius: 14, padding: '14px', border: `1.5px solid ${completadas.includes(i) ? '#86efac' : '#e0deff'}`, cursor: 'pointer', transition: 'all 0.2s' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <div style={{ width: 22, height: 22, borderRadius: '50%', border: `2px solid ${completadas.includes(i) ? '#22c55e' : '#c4b5fd'}`, background: completadas.includes(i) ? '#22c55e' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
+                      {completadas.includes(i) && <span style={{ color: 'white', fontSize: 12 }}>✓</span>}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: completadas.includes(i) ? '#16a34a' : '#1a1a2e', margin: 0, textDecoration: completadas.includes(i) ? 'line-through' : 'none' }}>{tarea.titulo}</p>
+                        <span style={{ fontSize: 10, background: `${prioridadColor[tarea.prioridad]}20`, color: prioridadColor[tarea.prioridad], padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>{tarea.prioridad}</span>
+                      </div>
+                      <p style={{ fontSize: 12, color: '#666', margin: '0 0 6px' }}>{tarea.descripcion}</p>
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <span style={{ fontSize: 11, color: '#888' }}>📅 {tarea.fecha}</span>
+                        <span style={{ fontSize: 11, color: '#888' }}>⏱ {tarea.duracion} min</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function App() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -34,6 +173,7 @@ function App() {
   const [editando, setEditando] = useState({})
   const [guardando, setGuardando] = useState(false)
   const [toast, setToast] = useState(null)
+  const [planActivo, setPlanActivo] = useState(null)
 
   useEffect(() => {
     fetch(`${API}/auth/me`, { credentials: 'include' })
@@ -174,7 +314,7 @@ function App() {
           {[
             { icon: '📚', title: 'Guarda tus ramos', sub: 'Accede desde cualquier dispositivo' },
             { icon: '📊', title: 'Calcula al instante', sub: 'Sabe exactamente qué necesitas' },
-            { icon: '🎯', title: 'Nunca más sorpresas', sub: 'Planifica con tiempo tus evaluaciones' },
+            { icon: '🤖', title: 'Plan de estudio con IA', sub: 'Sube tu materia y Gemini te ayuda' },
           ].map(f => (
             <div key={f.title} style={{ display: 'flex', alignItems: 'center', gap: 14, background: '#f8f7ff', borderRadius: 14, padding: '14px 16px' }}>
               <span style={{ fontSize: 22 }}>{f.icon}</span>
@@ -204,6 +344,14 @@ function App() {
         <div style={{ position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)', background: toast.tipo === 'error' ? '#ef4444' : '#22c55e', color: 'white', padding: '10px 20px', borderRadius: 12, fontSize: 13, fontWeight: 600, zIndex: 1000, boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
           {toast.msg}
         </div>
+      )}
+
+      {planActivo && (
+        <PlanEstudio
+          ev={planActivo}
+          onClose={() => { setPlanActivo(null); cargarRamos() }}
+          onUpdate={cargarRamos}
+        />
       )}
 
       {vista === 'dashboard' && (
@@ -302,17 +450,12 @@ function App() {
                 <button onClick={() => setVista('dashboard')} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: 10, padding: '8px 12px', cursor: 'pointer', fontSize: 16 }}>←</button>
                 <p style={{ color: 'white', fontSize: 17, fontWeight: 700, margin: 0 }}>{ramo.nombre}</p>
               </div>
-
               {terminado ? (
                 <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 16, padding: '20px', textAlign: 'center' }}>
                   <p style={{ fontSize: 48, margin: '0 0 8px' }}>{estado === 'aprobado' ? '🎉' : '😔'}</p>
-                  <p style={{ color: 'white', fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>
-                    {estado === 'aprobado' ? '¡Ramo aprobado!' : 'Ramo reprobado'}
-                  </p>
+                  <p style={{ color: 'white', fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>{estado === 'aprobado' ? '¡Ramo aprobado!' : 'Ramo reprobado'}</p>
                   <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, margin: '0 0 12px' }}>
-                    {estado === 'aprobado'
-                      ? `Promedio final: ${promedio?.toFixed(1)} · mín era ${min}`
-                      : `Promedio final: ${promedio?.toFixed(1)} · necesitabas ${min}`}
+                    {estado === 'aprobado' ? `Promedio final: ${promedio?.toFixed(1)} · mín era ${min}` : `Promedio final: ${promedio?.toFixed(1)} · necesitabas ${min}`}
                   </p>
                   <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 10, padding: '8px 16px', display: 'inline-block' }}>
                     <span style={{ color: 'white', fontSize: 32, fontWeight: 700 }}>{promedio?.toFixed(1)}</span>
@@ -341,6 +484,8 @@ function App() {
                   const tieneNota = ev.nota !== null && ev.nota !== undefined && ev.nota !== ''
                   const estaEditando = editando[ev.id]
                   const necesariaEv = !tieneNota && necesaria !== null ? necesaria : null
+                  const tieneArchivos = (ev.archivos || []).length > 0
+                  const tienePlan = !!ev.plan_estudio
                   return (
                     <div key={ev.id} style={{ background: 'white', borderRadius: 16, padding: '14px 16px', border: tieneNota && !estaEditando ? 'none' : '1.5px dashed #e0deff' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -349,21 +494,20 @@ function App() {
                         </div>
                         <div style={{ flex: 1 }}>
                           <p style={{ fontSize: 13, fontWeight: 600, color: '#1a1a2e', margin: 0 }}>{ev.nombre}</p>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'wrap' }}>
                             <p style={{ fontSize: 11, color: '#888', margin: 0 }}>{ev.ponderacion}% del ramo</p>
                             {ev.fecha && <BadgeFecha fecha={ev.fecha} />}
+                            {tieneArchivos && <span style={{ fontSize: 10, background: '#ede9fe', color: '#6c63ff', padding: '2px 6px', borderRadius: 10, fontWeight: 600 }}>📎 {ev.archivos.length}</span>}
+                            {tienePlan && <span style={{ fontSize: 10, background: '#dcfce7', color: '#16a34a', padding: '2px 6px', borderRadius: 10, fontWeight: 600 }}>🤖 Plan listo</span>}
                           </div>
                         </div>
                         {estaEditando ? (
                           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                            <input
-                              type="number" min="1" max="7" step="0.1"
-                              placeholder="Nota"
+                            <input type="number" min="1" max="7" step="0.1" placeholder="Nota"
                               value={notas[ev.id] ?? (tieneNota ? ev.nota : '')}
                               onChange={e => setNotas({ ...notas, [ev.id]: e.target.value })}
                               autoFocus
-                              style={{ width: 64, border: '1.5px solid #6c63ff', borderRadius: 10, padding: '8px', fontSize: 13, textAlign: 'center', outline: 'none' }}
-                            />
+                              style={{ width: 64, border: '1.5px solid #6c63ff', borderRadius: 10, padding: '8px', fontSize: 13, textAlign: 'center', outline: 'none' }} />
                             <button onClick={() => guardarNota(ev.id, notas[ev.id] ?? ev.nota)}
                               style={{ background: '#6c63ff', border: 'none', color: 'white', borderRadius: 10, padding: '8px 10px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>✓</button>
                             <button onClick={() => { setEditando(prev => { const n={...prev}; delete n[ev.id]; return n }); setNotas(prev => { const n={...prev}; delete n[ev.id]; return n }) }}
@@ -376,13 +520,10 @@ function App() {
                           </button>
                         ) : (
                           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                            <input
-                              type="number" min="1" max="7" step="0.1"
-                              placeholder="Nota"
+                            <input type="number" min="1" max="7" step="0.1" placeholder="Nota"
                               value={notas[ev.id] || ''}
                               onChange={e => setNotas({ ...notas, [ev.id]: e.target.value })}
-                              style={{ width: 64, border: '1.5px solid #e0deff', borderRadius: 10, padding: '8px', fontSize: 13, textAlign: 'center', outline: 'none' }}
-                            />
+                              style={{ width: 64, border: '1.5px solid #e0deff', borderRadius: 10, padding: '8px', fontSize: 13, textAlign: 'center', outline: 'none' }} />
                             {notas[ev.id] && (
                               <button onClick={() => guardarNota(ev.id, notas[ev.id])}
                                 style={{ background: '#6c63ff', border: 'none', color: 'white', borderRadius: 10, padding: '8px 10px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>✓</button>
@@ -390,6 +531,11 @@ function App() {
                           </div>
                         )}
                       </div>
+                      {/* Botón plan de estudio */}
+                      <button onClick={() => setPlanActivo({ ...ev, archivos: ev.archivos || [], plan_estudio: ev.plan_estudio || null, tareas_completadas: ev.tareas_completadas || [] })}
+                        style={{ width: '100%', marginTop: 10, background: tienePlan ? '#f0fdf4' : '#f8f7ff', color: tienePlan ? '#16a34a' : '#6c63ff', border: `1px solid ${tienePlan ? '#86efac' : '#e0deff'}`, borderRadius: 10, padding: '8px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                        {tienePlan ? '📋 Ver plan de estudio' : '✨ Crear plan de estudio con IA'}
+                      </button>
                     </div>
                   )
                 })}
