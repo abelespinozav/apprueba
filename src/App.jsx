@@ -1,7 +1,5 @@
 import { useState } from 'react'
 
-const STEPS = ['ramo', 'evaluaciones', 'notas', 'resultado']
-
 export default function App() {
   const [step, setStep] = useState(0)
   const [ramo, setRamo] = useState({ nombre: '', notaMinima: 4.0 })
@@ -27,21 +25,25 @@ export default function App() {
   const calcular = () => {
     const conNota = evaluaciones.filter(e => e.nota !== '')
     const sinNota = evaluaciones.filter(e => e.nota === '')
-    const pesoConNota = conNota.reduce((s, e) => s + Number(e.ponderacion), 0)
     const pesoSinNota = sinNota.reduce((s, e) => s + Number(e.ponderacion), 0)
-    const promedioActual = conNota.reduce((s, e) => s + (Number(e.nota) * Number(e.ponderacion) / 100), 0)
     const notaMin = Number(ramo.notaMinima)
 
+    // Suma ponderada de notas ya ingresadas
+    const sumaActual = conNota.reduce((s, e) => s + (Number(e.nota) * Number(e.ponderacion) / 100), 0)
+
+    // Si no hay pendientes, calcular promedio final directo
     if (pesoSinNota === 0) {
-      const promFinal = promedioActual
-      return promFinal >= notaMin
-        ? { tipo: 'aprobado', promedio: promFinal.toFixed(1) }
-        : { tipo: 'reprobado', promedio: promFinal.toFixed(1) }
+      return sumaActual >= notaMin
+        ? { tipo: 'aprobado', promedio: sumaActual.toFixed(1) }
+        : { tipo: 'reprobado', promedio: sumaActual.toFixed(1) }
     }
 
-    const necesaria = (notaMin - promedioActual) / (pesoSinNota / 100)
+    // Nota necesaria en las evaluaciones pendientes para alcanzar notaMin
+    // notaMin = sumaActual + (notaNecesaria * pesoSinNota / 100)
+    const necesaria = (notaMin - sumaActual) / (pesoSinNota / 100)
+
     if (necesaria > 7) return { tipo: 'imposible', necesaria: necesaria.toFixed(1) }
-    if (necesaria <= 1) return { tipo: 'aprobado_seguro', promedio: promedioActual.toFixed(1) }
+    if (necesaria <= 1) return { tipo: 'aprobado_seguro', necesaria: 1.0, pendientes: sinNota.length }
     return { tipo: 'posible', necesaria: necesaria.toFixed(1), pendientes: sinNota.length }
   }
 
@@ -51,13 +53,11 @@ export default function App() {
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
 
-        {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-extrabold text-indigo-700 tracking-tight">APPrueba</h1>
           <p className="text-gray-500 mt-1">Calcula cuánto necesitas para aprobar 🎓</p>
         </div>
 
-        {/* Stepper */}
         {step < 3 && (
           <div className="flex items-center justify-center mb-6 gap-2">
             {['Ramo', 'Evaluaciones', 'Notas'].map((label, i) => (
@@ -73,10 +73,8 @@ export default function App() {
           </div>
         )}
 
-        {/* Card */}
         <div className="bg-white rounded-2xl shadow-xl p-6">
 
-          {/* PASO 1: Ramo */}
           {step === 0 && (
             <div className="space-y-4">
               <h2 className="text-xl font-bold text-gray-800">📚 Tu ramo</h2>
@@ -107,12 +105,9 @@ export default function App() {
             </div>
           )}
 
-          {/* PASO 2: Evaluaciones */}
           {step === 1 && (
             <div className="space-y-4">
               <h2 className="text-xl font-bold text-gray-800">📝 Evaluaciones de <span className="text-indigo-600">{ramo.nombre}</span></h2>
-
-              {/* Barra de progreso */}
               <div>
                 <div className="flex justify-between text-xs text-gray-500 mb-1">
                   <span>Ponderación asignada</span>
@@ -124,7 +119,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Lista de evaluaciones */}
               {evaluaciones.length > 0 && (
                 <div className="space-y-2">
                   {evaluaciones.map((e, i) => (
@@ -140,7 +134,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* Agregar evaluación */}
               {restante > 0 && (
                 <div className="space-y-2">
                   <input
@@ -178,7 +171,6 @@ export default function App() {
             </div>
           )}
 
-          {/* PASO 3: Notas */}
           {step === 2 && (
             <div className="space-y-4">
               <h2 className="text-xl font-bold text-gray-800">🎯 Ingresa tus notas</h2>
@@ -210,7 +202,6 @@ export default function App() {
             </div>
           )}
 
-          {/* PASO 4: Resultado */}
           {step === 3 && resultado && (
             <div className="text-center space-y-4">
               {resultado.tipo === 'aprobado' && (
@@ -224,7 +215,7 @@ export default function App() {
                 <>
                   <div className="text-6xl">😎</div>
                   <h2 className="text-2xl font-extrabold text-green-600">¡Ya tienes el ramo!</h2>
-                  <p className="text-gray-600">Con lo que llevas ({resultado.promedio}) ya aprobas aunque saques un 1.0</p>
+                  <p className="text-gray-600">Aunque saques 1.0 en todo lo que queda, igual aprobas 💪</p>
                 </>
               )}
               {resultado.tipo === 'posible' && (
