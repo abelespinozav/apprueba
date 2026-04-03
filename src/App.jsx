@@ -26,7 +26,26 @@ function PlanEstudio({ ev, onClose, onUpdate }) {
   const [generando, setGenerando] = useState(false)
   const [subiendo, setSubiendo] = useState(false)
   const [archivos, setArchivos] = useState(ev.archivos || [])
+  const [guia, setGuia] = useState(null)
+  const [tareaSeleccionada, setTareaSeleccionada] = useState(null)
+  const [generandoGuia, setGenerandoGuia] = useState(false)
   const fileRef = useRef()
+
+  const generarGuia = async (tarea) => {
+    setTareaSeleccionada(tarea)
+    setGuia(null)
+    setGenerandoGuia(true)
+    try {
+      const r = await fetch(`${API}/evaluaciones/${ev.id}/guia-tarea`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tarea })
+      })
+      const d = await r.json()
+      setGuia(d)
+    } catch {}
+    setGenerandoGuia(false)
+  }
 
   const subirArchivo = async (file) => {
     setSubiendo(true)
@@ -143,9 +162,10 @@ function PlanEstudio({ ev, onClose, onUpdate }) {
                         <span style={{ fontSize: 10, background: `${prioridadColor[tarea.prioridad]}20`, color: prioridadColor[tarea.prioridad], padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>{tarea.prioridad}</span>
                       </div>
                       <p style={{ fontSize: 12, color: '#666', margin: '0 0 6px' }}>{tarea.descripcion}</p>
-                      <div style={{ display: 'flex', gap: 10 }}>
+                      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                         <span style={{ fontSize: 11, color: '#888' }}>📅 {tarea.fecha}</span>
                         <span style={{ fontSize: 11, color: '#888' }}>⏱ {tarea.duracion} min</span>
+                        <button onClick={e => { e.stopPropagation(); generarGuia(tarea) }} style={{ fontSize: 11, background: '#6c63ff', color: 'white', border: 'none', borderRadius: 20, padding: '3px 10px', cursor: 'pointer', marginLeft: 'auto' }}>📖 Ver guía</button>
                       </div>
                     </div>
                   </div>
@@ -155,6 +175,60 @@ function PlanEstudio({ ev, onClose, onUpdate }) {
           </>
         )}
       </div>
+    {(tareaSeleccionada) && (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => { setTareaSeleccionada(null); setGuia(null) }}>
+        <div style={{ background: 'white', borderRadius: '24px 24px 0 0', width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto', padding: '24px 16px 32px' }} onClick={e => e.stopPropagation()}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h3 style={{ margin: 0, fontSize: 16, color: '#1a1a2e' }}>📖 {tareaSeleccionada.titulo}</h3>
+            <button onClick={() => { setTareaSeleccionada(null); setGuia(null) }} style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', fontSize: 16 }}>✕</button>
+          </div>
+          {generandoGuia && <div style={{ textAlign: 'center', padding: 40, color: '#6c63ff' }}>🤖 Generando guía con IA...</div>}
+          {guia && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ background: '#f8f7ff', borderRadius: 12, padding: 14 }}>
+                <p style={{ fontSize: 12, color: '#6c63ff', fontWeight: 600, margin: '0 0 6px' }}>📝 Introducción</p>
+                <p style={{ fontSize: 13, color: '#1a1a2e', margin: 0, lineHeight: 1.6 }}>{guia.introduccion}</p>
+              </div>
+              <div>
+                <p style={{ fontSize: 12, color: '#6c63ff', fontWeight: 600, margin: '0 0 8px' }}>🔑 Conceptos Clave</p>
+                {guia.conceptos_clave?.map((c, i) => (
+                  <div key={i} style={{ background: 'white', border: '1.5px solid #e0deff', borderRadius: 10, padding: '10px 12px', marginBottom: 8 }}>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: '#1a1a2e', margin: '0 0 4px' }}>{c.termino}</p>
+                    <p style={{ fontSize: 12, color: '#666', margin: 0 }}>{c.definicion}</p>
+                  </div>
+                ))}
+              </div>
+              <div style={{ background: '#f8f7ff', borderRadius: 12, padding: 14 }}>
+                <p style={{ fontSize: 12, color: '#6c63ff', fontWeight: 600, margin: '0 0 6px' }}>📚 Desarrollo</p>
+                <p style={{ fontSize: 13, color: '#1a1a2e', margin: 0, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{guia.desarrollo}</p>
+              </div>
+              <div>
+                <p style={{ fontSize: 12, color: '#6c63ff', fontWeight: 600, margin: '0 0 8px' }}>💡 Ejemplos Resueltos</p>
+                {guia.ejemplos?.map((e, i) => (
+                  <div key={i} style={{ background: '#fffbeb', border: '1.5px solid #fde68a', borderRadius: 10, padding: '10px 12px', marginBottom: 8 }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: '#92400e', margin: '0 0 6px' }}>Ejemplo {i+1}: {e.enunciado}</p>
+                    <p style={{ fontSize: 12, color: '#78350f', margin: 0, lineHeight: 1.5 }}>✅ {e.solucion}</p>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <p style={{ fontSize: 12, color: '#6c63ff', fontWeight: 600, margin: '0 0 8px' }}>✏️ Ejercicios de Práctica</p>
+                {guia.ejercicios_practica?.map((e, i) => (
+                  <div key={i} style={{ background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: 10, padding: '10px 12px', marginBottom: 8 }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: '#166534', margin: '0 0 4px' }}>Ejercicio {i+1}: {e.enunciado}</p>
+                    <p style={{ fontSize: 11, color: '#15803d', margin: 0 }}>💡 Pista: {e.pista}</p>
+                  </div>
+                ))}
+              </div>
+              <div style={{ background: '#1a1a2e', borderRadius: 12, padding: 14 }}>
+                <p style={{ fontSize: 12, color: '#a78bfa', fontWeight: 600, margin: '0 0 6px' }}>🎯 Resumen Final</p>
+                <p style={{ fontSize: 13, color: 'white', margin: 0, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{guia.resumen_final}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    )}
     </div>
   )
 }
