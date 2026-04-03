@@ -49,45 +49,27 @@ function PlanEstudio({ ev, onClose, onUpdate }) {
     setGenerandoGuia(false)
   }
 
-  const descargarGuia = async () => {
-    const contenido = document.createElement('div')
-    contenido.style.cssText = 'font-family: system-ui, sans-serif; max-width: 700px; margin: 0 auto; color: #1a1a2e; line-height: 1.6; padding: 32px; background: white; position: fixed; left: -9999px; top: 0;'
-    contenido.innerHTML = `
-      <h1 style="color:#6c63ff;border-bottom:2px solid #6c63ff;padding-bottom:8px;font-size:20px;">📖 ${guia.titulo || tareaSeleccionada.titulo}</h1>
-      <h2 style="color:#6c63ff;margin-top:24px;font-size:14px;">📝 Introducción</h2>
-      <p style="font-size:13px;margin:6px 0;">${guia.introduccion}</p>
-      <h2 style="color:#6c63ff;margin-top:24px;font-size:14px;">🔑 Conceptos Clave</h2>
-      ${guia.conceptos_clave?.map(c => `<div style="background:#f8f7ff;border-left:4px solid #6c63ff;padding:10px 14px;margin:8px 0;border-radius:4px;"><strong style="font-size:13px;">${c.termino}</strong><p style="font-size:12px;margin:4px 0 0;color:#444;">${c.definicion}</p></div>`).join('') || ''}
-      <h2 style="color:#6c63ff;margin-top:24px;font-size:14px;">📚 Desarrollo</h2>
-      <p style="font-size:13px;margin:6px 0;">${guia.desarrollo?.replace(/\\n/g, '<br>')}</p>
-      <h2 style="color:#6c63ff;margin-top:24px;font-size:14px;">💡 Ejemplos Resueltos</h2>
-      ${guia.ejemplos?.map((e,i) => `<div style="background:#fffbeb;border-left:4px solid #f59e0b;padding:10px 14px;margin:8px 0;border-radius:4px;"><strong style="font-size:12px;color:#92400e;">Ejemplo ${i+1}: ${e.enunciado}</strong><p style="font-size:12px;color:#78350f;margin:6px 0 0;">✅ ${e.solucion}</p></div>`).join('') || ''}
-      <h2 style="color:#6c63ff;margin-top:24px;font-size:14px;">✏️ Ejercicios de Práctica</h2>
-      ${guia.ejercicios_practica?.map((e,i) => `<div style="background:#f0fdf4;border-left:4px solid #22c55e;padding:10px 14px;margin:8px 0;border-radius:4px;"><strong style="font-size:12px;color:#166534;">Ejercicio ${i+1}: ${e.enunciado}</strong><p style="font-size:11px;color:#15803d;margin:4px 0 0;">💡 Pista: ${e.pista}</p></div>`).join('') || ''}
-      <div style="background:#1a1a2e;color:white;padding:16px;border-radius:8px;margin-top:20px;">
-        <strong style="font-size:13px;color:#a78bfa;">🎯 Resumen Final</strong>
-        <p style="font-size:13px;margin:8px 0 0;">${guia.resumen_final?.replace(/\\n/g, '<br>')}</p>
-      </div>
-    `
-    document.body.appendChild(contenido)
-    try {
-      const canvas = await html2canvas(contenido, { scale: 2, useCORS: true, backgroundColor: '#ffffff' })
-      const imgData = canvas.toDataURL('image/png')
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-      const pageW = pdf.internal.pageSize.getWidth()
-      const pageH = pdf.internal.pageSize.getHeight()
-      const imgW = pageW
-      const imgH = (canvas.height * imgW) / canvas.width
-      let y = 0
-      while (y < imgH) {
-        if (y > 0) pdf.addPage()
-        pdf.addImage(imgData, 'PNG', 0, -y, imgW, imgH)
-        y += pageH
-      }
-      pdf.save(`guia-${(tareaSeleccionada.titulo || 'estudio').replace(/\s+/g, '-').toLowerCase()}.pdf`)
-    } finally {
-      document.body.removeChild(contenido)
-    }
+  const descargarGuia = () => {
+    const titulo = guia.titulo || tareaSeleccionada.titulo
+    const conceptos = (guia.conceptos_clave || []).map(c => '<div class="concepto"><strong>' + c.termino + '</strong><p>' + c.definicion + '</p></div>').join('')
+    const ejemplos = (guia.ejemplos || []).map((e,i) => '<div class="ejemplo"><strong>Ejemplo ' + (i+1) + ': ' + e.enunciado + '</strong><p>\u2705 ' + e.solucion + '</p></div>').join('')
+    const ejercicios = (guia.ejercicios_practica || []).map((e,i) => '<div class="ejercicio"><strong>Ejercicio ' + (i+1) + ': ' + e.enunciado + '</strong><p>\ud83d\udca1 Pista: ' + e.pista + '</p></div>').join('')
+    const desarrollo = (guia.desarrollo || '').replace(/\n/g, '<br>')
+    const resumen = (guia.resumen_final || '').replace(/\n/g, '<br>')
+    const html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + titulo + '</title><style>@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}body{font-family:system-ui,sans-serif;max-width:720px;margin:32px auto;color:#1a1a2e;line-height:1.6;padding:0 24px}h1{color:#6c63ff;border-bottom:2px solid #6c63ff;padding-bottom:8px;font-size:20px}h2{color:#6c63ff;margin-top:24px;font-size:14px}p{font-size:13px;margin:6px 0}.concepto{background:#f8f7ff;border-left:4px solid #6c63ff;padding:10px 14px;margin:8px 0;border-radius:4px}.concepto strong{font-size:13px;color:#1a1a2e}.concepto p{font-size:12px;margin:4px 0 0;color:#444}.ejemplo{background:#fffbeb;border-left:4px solid #f59e0b;padding:10px 14px;margin:8px 0;border-radius:4px}.ejemplo strong{font-size:12px;color:#92400e}.ejemplo p{font-size:12px;color:#78350f;margin:6px 0 0}.ejercicio{background:#f0fdf4;border-left:4px solid #22c55e;padding:10px 14px;margin:8px 0;border-radius:4px}.ejercicio strong{font-size:12px;color:#166534}.ejercicio p{font-size:11px;color:#15803d;margin:4px 0 0}.resumen{background:#1a1a2e;color:white;padding:16px;border-radius:8px;margin-top:20px}.resumen strong{font-size:13px;color:#a78bfa}.resumen p{font-size:13px;margin:8px 0 0}</style></head><body>'
+      + '<h1>\ud83d\udcd6 ' + titulo + '</h1>'
+      + '<h2>\ud83d\udcdd Introducci\u00f3n</h2><p>' + guia.introduccion + '</p>'
+      + '<h2>\ud83d\udd11 Conceptos Clave</h2>' + conceptos
+      + '<h2>\ud83d\udcda Desarrollo</h2><p>' + desarrollo + '</p>'
+      + '<h2>\ud83d\udca1 Ejemplos Resueltos</h2>' + ejemplos
+      + '<h2>\u270f\ufe0f Ejercicios de Pr\u00e1ctica</h2>' + ejercicios
+      + '<div class="resumen"><strong>\ud83c\udfaf Resumen Final</strong><p>' + resumen + '</p></div>'
+      + '</body></html>'
+    const w = window.open('', '_blank')
+    w.document.write(html)
+    w.document.close()
+    w.focus()
+    setTimeout(() => { w.print() }, 600)
   }
 
   const subirArchivo = async (file) => {
