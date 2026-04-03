@@ -31,15 +31,15 @@ function PlanEstudio({ ev, onClose, onUpdate }) {
   const [generandoGuia, setGenerandoGuia] = useState(false)
   const fileRef = useRef()
 
-  const generarGuia = async (tarea) => {
-    setTareaSeleccionada(tarea)
+  const generarGuia = async (tarea, index, forzar = false) => {
+    setTareaSeleccionada({ ...tarea, index })
     setGuia(null)
     setGenerandoGuia(true)
     try {
       const r = await fetch(`${API}/evaluaciones/${ev.id}/guia-tarea`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tarea })
+        body: JSON.stringify({ tarea, tareaIndex: index, forzar })
       })
       const d = await r.json()
       setGuia(d)
@@ -201,7 +201,7 @@ function PlanEstudio({ ev, onClose, onUpdate }) {
                       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                         <span style={{ fontSize: 11, color: '#888' }}>📅 {tarea.fecha}</span>
                         <span style={{ fontSize: 11, color: '#888' }}>⏱ {tarea.duracion} min</span>
-                        <button onClick={e => { e.stopPropagation(); generarGuia(tarea) }} style={{ fontSize: 11, background: '#6c63ff', color: 'white', border: 'none', borderRadius: 20, padding: '3px 10px', cursor: 'pointer', marginLeft: 'auto' }}>📖 Ver guía</button>
+                        <button onClick={e => { e.stopPropagation(); generarGuia(tarea, i) }} style={{ fontSize: 11, background: '#6c63ff', color: 'white', border: 'none', borderRadius: 20, padding: '3px 10px', cursor: 'pointer', marginLeft: 'auto' }}>📖 Ver guía</button>
                       </div>
                     </div>
                   </div>
@@ -217,6 +217,8 @@ function PlanEstudio({ ev, onClose, onUpdate }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <h3 style={{ margin: 0, fontSize: 16, color: '#1a1a2e' }}>📖 {tareaSeleccionada.titulo}</h3>
             <div style={{ display: 'flex', gap: 8 }}>
+              {guia?.cached && <span style={{ fontSize: 10, color: '#888', alignSelf: 'center' }}>guardada</span>}
+              {guia && <button onClick={() => generarGuia(tareaSeleccionada, tareaSeleccionada.index, true)} style={{ background: '#f3f4f6', color: '#666', border: 'none', borderRadius: 20, padding: '6px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>🔄 Regenerar</button>}
               {guia && <button onClick={descargarGuia} style={{ background: '#6c63ff', color: 'white', border: 'none', borderRadius: 20, padding: '6px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>⬇️ Descargar</button>}
               <button onClick={() => { setTareaSeleccionada(null); setGuia(null) }} style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', fontSize: 16 }}>✕</button>
             </div>
