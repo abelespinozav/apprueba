@@ -59,16 +59,14 @@ function PlanEstudio({ ev, onClose, onUpdate }) {
       <h2 style="color:#6c63ff;margin-top:24px;font-size:14px;">🔑 Conceptos Clave</h2>
       ${guia.conceptos_clave?.map(c => `<div style="background:#f8f7ff;border-left:4px solid #6c63ff;padding:10px 14px;margin:8px 0;border-radius:4px;"><strong style="font-size:13px;">${c.termino}</strong><p style="font-size:12px;margin:4px 0 0;color:#444;">${c.definicion}</p></div>`).join('') || ''}
       <h2 style="color:#6c63ff;margin-top:24px;font-size:14px;">📚 Desarrollo</h2>
-      <p style="font-size:13px;margin:6px 0;">${guia.desarrollo?.replace(/
-/g, '<br>')}</p>
+      <p style="font-size:13px;margin:6px 0;">${guia.desarrollo?.replace(/\\n/g, '<br>')}</p>
       <h2 style="color:#6c63ff;margin-top:24px;font-size:14px;">💡 Ejemplos Resueltos</h2>
       ${guia.ejemplos?.map((e,i) => `<div style="background:#fffbeb;border-left:4px solid #f59e0b;padding:10px 14px;margin:8px 0;border-radius:4px;"><strong style="font-size:12px;color:#92400e;">Ejemplo ${i+1}: ${e.enunciado}</strong><p style="font-size:12px;color:#78350f;margin:6px 0 0;">✅ ${e.solucion}</p></div>`).join('') || ''}
       <h2 style="color:#6c63ff;margin-top:24px;font-size:14px;">✏️ Ejercicios de Práctica</h2>
       ${guia.ejercicios_practica?.map((e,i) => `<div style="background:#f0fdf4;border-left:4px solid #22c55e;padding:10px 14px;margin:8px 0;border-radius:4px;"><strong style="font-size:12px;color:#166534;">Ejercicio ${i+1}: ${e.enunciado}</strong><p style="font-size:11px;color:#15803d;margin:4px 0 0;">💡 Pista: ${e.pista}</p></div>`).join('') || ''}
       <div style="background:#1a1a2e;color:white;padding:16px;border-radius:8px;margin-top:20px;">
         <strong style="font-size:13px;color:#a78bfa;">🎯 Resumen Final</strong>
-        <p style="font-size:13px;margin:8px 0 0;">${guia.resumen_final?.replace(/
-/g, '<br>')}</p>
+        <p style="font-size:13px;margin:8px 0 0;">${guia.resumen_final?.replace(/\\n/g, '<br>')}</p>
       </div>
     `
     document.body.appendChild(contenido)
