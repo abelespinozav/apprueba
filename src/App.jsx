@@ -47,6 +47,42 @@ function PlanEstudio({ ev, onClose, onUpdate }) {
     setGenerandoGuia(false)
   }
 
+  const descargarGuia = () => {
+    const contenido = `
+      <html><head><meta charset="utf-8">
+      <title>${guia.titulo || tareaSeleccionada.titulo}</title>
+      <style>
+        body { font-family: system-ui, sans-serif; max-width: 700px; margin: 40px auto; color: #1a1a2e; line-height: 1.6; }
+        h1 { color: #6c63ff; border-bottom: 2px solid #6c63ff; padding-bottom: 8px; }
+        h2 { color: #6c63ff; margin-top: 28px; font-size: 15px; }
+        .concepto { background: #f8f7ff; border-left: 4px solid #6c63ff; padding: 10px 14px; margin: 8px 0; border-radius: 4px; }
+        .ejemplo { background: #fffbeb; border-left: 4px solid #f59e0b; padding: 10px 14px; margin: 8px 0; border-radius: 4px; }
+        .ejercicio { background: #f0fdf4; border-left: 4px solid #22c55e; padding: 10px 14px; margin: 8px 0; border-radius: 4px; }
+        .resumen { background: #1a1a2e; color: white; padding: 16px; border-radius: 8px; margin-top: 20px; }
+        p { margin: 6px 0; }
+        strong { font-weight: 700; }
+      </style></head><body>
+      <h1>📖 ${guia.titulo || tareaSeleccionada.titulo}</h1>
+      <h2>📝 Introducción</h2><p>${guia.introduccion}</p>
+      <h2>🔑 Conceptos Clave</h2>
+      ${guia.conceptos_clave?.map(c => `<div class="concepto"><strong>${c.termino}</strong><p>${c.definicion}</p></div>`).join('') || ''}
+      <h2>📚 Desarrollo</h2><p>${guia.desarrollo?.replace(/\n/g, '<br>')}</p>
+      <h2>💡 Ejemplos Resueltos</h2>
+      ${guia.ejemplos?.map((e,i) => `<div class="ejemplo"><strong>Ejemplo ${i+1}:</strong> ${e.enunciado}<br>✅ ${e.solucion}</div>`).join('') || ''}
+      <h2>✏️ Ejercicios de Práctica</h2>
+      ${guia.ejercicios_practica?.map((e,i) => `<div class="ejercicio"><strong>Ejercicio ${i+1}:</strong> ${e.enunciado}<br>💡 Pista: ${e.pista}</div>`).join('') || ''}
+      <div class="resumen"><strong>🎯 Resumen Final</strong><p>${guia.resumen_final?.replace(/\n/g, '<br>')}</p></div>
+      </body></html>
+    `
+    const blob = new Blob([contenido], { type: 'text/html' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `guia-${(tareaSeleccionada.titulo || 'estudio').replace(/\s+/g, '-').toLowerCase()}.html`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const subirArchivo = async (file) => {
     setSubiendo(true)
     const formData = new FormData()
@@ -180,7 +216,10 @@ function PlanEstudio({ ev, onClose, onUpdate }) {
         <div style={{ background: 'white', borderRadius: '24px 24px 0 0', width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto', padding: '24px 16px 32px' }} onClick={e => e.stopPropagation()}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <h3 style={{ margin: 0, fontSize: 16, color: '#1a1a2e' }}>📖 {tareaSeleccionada.titulo}</h3>
-            <button onClick={() => { setTareaSeleccionada(null); setGuia(null) }} style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', fontSize: 16 }}>✕</button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {guia && <button onClick={descargarGuia} style={{ background: '#6c63ff', color: 'white', border: 'none', borderRadius: 20, padding: '6px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>⬇️ Descargar</button>}
+              <button onClick={() => { setTareaSeleccionada(null); setGuia(null) }} style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', fontSize: 16 }}>✕</button>
+            </div>
           </div>
           {generandoGuia && <div style={{ textAlign: 'center', padding: 40, color: '#6c63ff' }}>🤖 Generando guía con IA...</div>}
           {guia && (
