@@ -19,7 +19,7 @@ function BadgeFecha({ fecha }) {
   if (dias === 1) return <span style={{ fontSize: 10, background: '#fee2e2', color: '#dc2626', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>¡Mañana!</span>
   if (dias <= 7) return <span style={{ fontSize: 10, background: '#fee2e2', color: '#dc2626', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>En {dias} días</span>
   if (dias <= 14) return <span style={{ fontSize: 10, background: '#fef3c7', color: '#d97706', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>En {dias} días</span>
-  return <span style={{ fontSize: 10, background: '#ede9fe', color: '#6c63ff', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>En {dias} días</span>
+  return <span style={{ fontSize: 10, background: 'rgba(108,99,255,0.2)', color: '#a78bfa', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>En {dias} días</span>
 }
 
 function PlanEstudio({ ev, onClose, onUpdate }) {
@@ -119,26 +119,26 @@ function PlanEstudio({ ev, onClose, onUpdate }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'flex-end' }}>
-      <div style={{ background: 'white', borderRadius: '24px 24px 0 0', width: '100%', maxHeight: '90vh', overflow: 'auto', padding: '24px 16px', maxWidth: 480, margin: '0 auto' }}>
+      <div style={{ background: '#111122', borderRadius: '24px 24px 0 0', width: '100%', maxHeight: '90vh', overflow: 'auto', padding: '24px 16px', maxWidth: 480, margin: '0 auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
-            <p style={{ fontSize: 16, fontWeight: 700, color: '#1a1a2e', margin: 0 }}>📚 Plan de estudio</p>
-            <p style={{ fontSize: 12, color: '#888', margin: '2px 0 0' }}>{ev.nombre} · {ev.ponderacion}%</p>
+            <p style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0', margin: 0 }}>📚 Plan de estudio</p>
+            <p style={{ fontSize: 12, color: '#4a4a6a', margin: '2px 0 0' }}>{ev.nombre} · {ev.ponderacion}%</p>
           </div>
           <button onClick={onClose} style={{ background: '#f3f4f6', border: 'none', borderRadius: 10, padding: '8px 12px', cursor: 'pointer', fontSize: 16 }}>✕</button>
         </div>
 
         {/* Archivos */}
         <div style={{ marginBottom: 20 }}>
-          <p style={{ fontSize: 13, fontWeight: 600, color: '#1a1a2e', marginBottom: 10 }}>📎 Material de estudio</p>
+          <p style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', marginBottom: 10 }}>📎 Material de estudio</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
             {archivos.map(a => (
-              <div key={a.id} style={{ background: '#f8f7ff', borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div key={a.id} style={{ background: '#1a1a2e', borderRadius: 12, padding: '10px 14px', border: '1px solid rgba(108,99,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 18 }}>
                     {a.tipo?.includes('pdf') ? '📄' : a.tipo?.includes('word') || a.tipo?.includes('document') ? '📝' : a.tipo?.includes('sheet') || a.tipo?.includes('excel') ? '📊' : a.tipo?.includes('presentation') || a.tipo?.includes('powerpoint') ? '📑' : '📎'}
                   </span>
-                  <p style={{ fontSize: 12, color: '#1a1a2e', margin: 0, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.nombre}</p>
+                  <p style={{ fontSize: 12, color: '#e2e8f0', margin: 0, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.nombre}</p>
                 </div>
                 <button onClick={() => eliminarArchivo(a.id)} style={{ background: '#fee2e2', border: 'none', color: '#ef4444', borderRadius: 8, width: 26, height: 26, cursor: 'pointer', fontSize: 12 }}>✕</button>
               </div>
@@ -147,7 +147,7 @@ function PlanEstudio({ ev, onClose, onUpdate }) {
           <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt" style={{ display: 'none' }}
             onChange={e => e.target.files[0] && subirArchivo(e.target.files[0])} />
           <button onClick={() => fileRef.current.click()} disabled={subiendo}
-            style={{ width: '100%', background: '#ede9fe', color: '#6c63ff', border: '1.5px dashed #c4b5fd', borderRadius: 12, padding: '12px', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: subiendo ? 0.7 : 1 }}>
+            style={{ width: '100%', background: 'rgba(108,99,255,0.1)', color: '#a78bfa', border: '1.5px dashed rgba(108,99,255,0.4)', borderRadius: 12, padding: '12px', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: subiendo ? 0.7 : 1 }}>
             {subiendo ? '⏳ Subiendo...' : '+ Subir archivo (PDF, Word, PPT, Excel)'}
           </button>
         </div>
@@ -161,16 +161,16 @@ function PlanEstudio({ ev, onClose, onUpdate }) {
         {/* Plan generado */}
         {plan && (
           <>
-            <div style={{ background: '#f8f7ff', borderRadius: 14, padding: '14px', marginBottom: 16 }}>
+            <div style={{ background: '#1a1a2e', borderRadius: 14, padding: '14px', marginBottom: 16, border: '1px solid rgba(108,99,255,0.2)' }}>
               <p style={{ fontSize: 12, color: '#6c63ff', fontWeight: 600, margin: '0 0 4px' }}>📋 Resumen</p>
-              <p style={{ fontSize: 13, color: '#1a1a2e', margin: '0 0 8px' }}>{plan.resumen}</p>
+              <p style={{ fontSize: 13, color: '#c4b5fd', margin: '0 0 8px' }}>{plan.resumen}</p>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ flex: 1, height: 6, borderRadius: 3, background: '#e0deff', overflow: 'hidden' }}>
                   <div style={{ height: '100%', borderRadius: 3, background: '#6c63ff', width: `${progreso}%`, transition: 'width 0.3s' }} />
                 </div>
                 <span style={{ fontSize: 12, fontWeight: 600, color: '#6c63ff' }}>{progreso}%</span>
               </div>
-              <p style={{ fontSize: 11, color: '#888', margin: '4px 0 0' }}>{completadas.length}/{plan.tareas.length} tareas completadas</p>
+              <p style={{ fontSize: 11, color: '#4a4a6a', margin: '4px 0 0' }}>{completadas.length}/{plan.tareas.length} tareas completadas</p>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -188,9 +188,9 @@ function PlanEstudio({ ev, onClose, onUpdate }) {
                       </div>
                       <p style={{ fontSize: 12, color: '#666', margin: '0 0 6px' }}>{tarea.descripcion}</p>
                       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: 11, color: '#888' }}>📅 {tarea.fecha}</span>
-                        <span style={{ fontSize: 11, color: '#888' }}>⏱ {tarea.duracion} min</span>
-                        <button onClick={e => { e.stopPropagation(); generarGuia(tarea, i) }} style={{ fontSize: 11, background: '#6c63ff', color: 'white', border: 'none', borderRadius: 20, padding: '3px 10px', cursor: 'pointer', marginLeft: 'auto' }}>📖 Ver guía</button>
+                        <span style={{ fontSize: 11, color: '#4a4a6a' }}>📅 {tarea.fecha}</span>
+                        <span style={{ fontSize: 11, color: '#4a4a6a' }}>⏱ {tarea.duracion} min</span>
+                        <button onClick={e => { e.stopPropagation(); generarGuia(tarea, i) }} style={{ fontSize: 11, background: '#6c63ff', color: 'white', border: '1px solid rgba(108,99,255,0.4)', borderRadius: 20, padding: '3px 10px', cursor: 'pointer', marginLeft: 'auto' }}>📖 Ver guía</button>
                       </div>
                     </div>
                   </div>
@@ -202,9 +202,9 @@ function PlanEstudio({ ev, onClose, onUpdate }) {
       </div>
     {(tareaSeleccionada) && (
       <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => { setTareaSeleccionada(null); setGuia(null) }}>
-        <div style={{ background: 'white', borderRadius: '24px 24px 0 0', width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto', padding: '24px 16px 32px' }} onClick={e => e.stopPropagation()}>
+        <div style={{ background: '#111122', borderRadius: '24px 24px 0 0', width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto', padding: '24px 16px 32px' }} onClick={e => e.stopPropagation()}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h3 style={{ margin: 0, fontSize: 16, color: '#1a1a2e' }}>📖 {tareaSeleccionada.titulo}</h3>
+            <h3 style={{ margin: 0, fontSize: 16, color: '#e2e8f0' }}>📖 {tareaSeleccionada.titulo}</h3>
             <div style={{ display: 'flex', gap: 8 }}>
               {guia?.cached && <span style={{ fontSize: 10, color: '#888', alignSelf: 'center' }}>guardada</span>}
               {guia && <button onClick={() => generarGuia(tareaSeleccionada, tareaSeleccionada.index, true)} style={{ background: '#f3f4f6', color: '#666', border: 'none', borderRadius: 20, padding: '6px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>🔄 Regenerar</button>}
@@ -215,22 +215,22 @@ function PlanEstudio({ ev, onClose, onUpdate }) {
           {generandoGuia && <div style={{ textAlign: 'center', padding: 40, color: '#6c63ff' }}>🤖 Generando guía con IA...</div>}
           {guia && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ background: '#f8f7ff', borderRadius: 12, padding: 14 }}>
+              <div style={{ background: '#1a1a2e', borderRadius: 12, padding: 14, border: '1px solid rgba(108,99,255,0.15)' }}>
                 <p style={{ fontSize: 12, color: '#6c63ff', fontWeight: 600, margin: '0 0 6px' }}>📝 Introducción</p>
-                <p style={{ fontSize: 13, color: '#1a1a2e', margin: 0, lineHeight: 1.6 }}>{guia.introduccion}</p>
+                <p style={{ fontSize: 13, color: '#c4b5fd', margin: 0, lineHeight: 1.6 }}>{guia.introduccion}</p>
               </div>
               <div>
                 <p style={{ fontSize: 12, color: '#6c63ff', fontWeight: 600, margin: '0 0 8px' }}>🔑 Conceptos Clave</p>
                 {guia.conceptos_clave?.map((c, i) => (
-                  <div key={i} style={{ background: 'white', border: '1.5px solid #e0deff', borderRadius: 10, padding: '10px 12px', marginBottom: 8 }}>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: '#1a1a2e', margin: '0 0 4px' }}>{c.termino}</p>
+                  <div key={i} style={{ background: '#1a1a2e', border: '1.5px solid rgba(108,99,255,0.3)', borderRadius: 10, padding: '10px 12px', marginBottom: 8 }}>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', margin: '0 0 4px' }}>{c.termino}</p>
                     <p style={{ fontSize: 12, color: '#666', margin: 0 }}>{c.definicion}</p>
                   </div>
                 ))}
               </div>
               <div style={{ background: '#f8f7ff', borderRadius: 12, padding: 14 }}>
                 <p style={{ fontSize: 12, color: '#6c63ff', fontWeight: 600, margin: '0 0 6px' }}>📚 Desarrollo</p>
-                <p style={{ fontSize: 13, color: '#1a1a2e', margin: 0, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{guia.desarrollo}</p>
+                <p style={{ fontSize: 13, color: '#a78bfa', margin: 0, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{guia.desarrollo}</p>
               </div>
               <div>
                 <p style={{ fontSize: 12, color: '#6c63ff', fontWeight: 600, margin: '0 0 8px' }}>💡 Ejemplos Resueltos</p>
@@ -601,7 +601,7 @@ function App() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'wrap' }}>
                             <p style={{ fontSize: 11, color: '#4a4a6a', margin: 0 }}>{ev.ponderacion}% del ramo</p>
                             {ev.fecha && <BadgeFecha fecha={ev.fecha} />}
-                            {tieneArchivos && <span style={{ fontSize: 10, background: '#ede9fe', color: '#6c63ff', padding: '2px 6px', borderRadius: 10, fontWeight: 600 }}>📎 {ev.archivos.length}</span>}
+                            {tieneArchivos && <span style={{ fontSize: 10, background: 'rgba(108,99,255,0.2)', color: '#a78bfa', padding: '2px 6px', borderRadius: 10, fontWeight: 600 }}>📎 {ev.archivos.length}</span>}
                             {tienePlan && <span style={{ fontSize: 10, background: '#dcfce7', color: '#16a34a', padding: '2px 6px', borderRadius: 10, fontWeight: 600 }}>🤖 Plan listo</span>}
                           </div>
                         </div>
@@ -691,7 +691,7 @@ function App() {
                     <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>Nota mínima para aprobar</label>
                     <input type="number" min="1" max="7" step="0.1" value={nuevoRamo.minAprobacion}
                       onChange={e => setNuevoRamo({ ...nuevoRamo, minAprobacion: parseFloat(e.target.value) })}
-                      style={{ width: '100%', border: '1.5px solid #e0deff', borderRadius: 14, padding: '13px 16px', fontSize: 14, outline: 'none', boxSizing: 'border-box', background: 'white' }} />
+                      style={{ width: '100%', border: '1.5px solid #e0deff', borderRadius: 14, padding: '13px 16px', fontSize: 14, outline: 'none', boxSizing: 'border-box', background: '#0d0d1a', color: '#e2e8f0' }} />
                   </div>
                 </div>
                 <button onClick={() => nuevoRamo.nombre && setStep(2)} disabled={!nuevoRamo.nombre}
