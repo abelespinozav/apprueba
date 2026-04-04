@@ -48,7 +48,6 @@ function BackgroundOrbs() {
         @keyframes fadeIn { from{opacity:0} to{opacity:1} }
         @keyframes confettiFall { 0%{transform:translateY(-10px) rotate(0deg);opacity:1} 100%{transform:translateY(100vh) rotate(720deg);opacity:0} }
         @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
       `}</style>
     </div>
   )
@@ -73,7 +72,7 @@ function Confetti({ active }) {
 function WidgetMotivacional() {
   const frase = FRASES[new Date().getDay() % FRASES.length]
   return (
-    <div style={{ background: 'linear-gradient(135deg, rgba(108,99,255,0.15), rgba(139,92,246,0.1))', border: '1px solid rgba(108,99,255,0.25)', borderRadius: 16, padding: '14px 16px', marginBottom: 16, animation: 'slideUp 0.5s ease', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ background: 'linear-gradient(135deg, rgba(108,99,255,0.15), rgba(139,92,246,0.1))', border: '1px solid rgba(108,99,255,0.25)', borderRadius: 16, padding: '14px 16px', marginBottom: 16, animation: 'slideUp 0.5s ease' }}>
       <p style={{ fontSize: 11, fontWeight: 600, color: '#6c63ff', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>💡 Frase del día</p>
       <p style={{ fontSize: 13, color: '#c4b5fd', margin: 0, lineHeight: 1.5, fontStyle: 'italic' }}>{frase}</p>
     </div>
@@ -84,17 +83,20 @@ function calcular(evaluaciones, min) {
   const evs = evaluaciones.map(e => ({ ...e, ponderacion: parseFloat(e.ponderacion) || 0, nota: (e.nota !== null && e.nota !== undefined && e.nota !== '') ? parseFloat(e.nota) : null }))
   const pendientes = evs.filter(e => e.nota === null)
   const completadas = evs.filter(e => e.nota !== null)
-  if (pendientes.length === 0 && completadas.length === 0) return { promedio: null, necesaria: null, estado: null, pendientesCount: 0 }
+  const pesoTotal = evs.reduce((acc, e) => acc + e.ponderacion, 0)
+  const pesoCompleto = Math.abs(pesoTotal - 100) < 0.01
+
+  if (pendientes.length === 0 && completadas.length === 0) return { promedio: null, necesaria: null, estado: null, pendientesCount: 0, pesoCompleto: false, pesoTotal }
   if (pendientes.length === 0) {
     const promedio = completadas.reduce((acc, e) => acc + e.nota * (e.ponderacion / 100), 0)
-    return { promedio, necesaria: null, estado: promedio >= parseFloat(min) ? 'aprobado' : 'reprobado', pendientesCount: 0 }
+    return { promedio, necesaria: null, estado: promedio >= parseFloat(min) ? 'aprobado' : 'reprobado', pendientesCount: 0, pesoCompleto, pesoTotal }
   }
   const pesoCompletado = completadas.reduce((acc, e) => acc + e.ponderacion, 0)
   const pesoPendiente = pendientes.reduce((acc, e) => acc + e.ponderacion, 0)
   const puntajeActual = completadas.reduce((acc, e) => acc + e.nota * (e.ponderacion / 100), 0)
   const promedioActual = pesoCompletado > 0 ? (puntajeActual / (pesoCompletado / 100)) : null
-  const necesaria = pesoPendiente > 0 ? ((parseFloat(min) - puntajeActual) / (pesoPendiente / 100)) : null
-  return { promedio: promedioActual, necesaria, estado: null, pendientesCount: pendientes.length }
+  const necesaria = (pesoCompleto && pesoPendiente > 0) ? ((parseFloat(min) - puntajeActual) / (pesoPendiente / 100)) : null
+  return { promedio: promedioActual, necesaria, estado: null, pendientesCount: pendientes.length, pesoCompleto, pesoTotal }
 }
 
 function notaColor(nota) {
@@ -181,7 +183,9 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, usuario }) {
                               {calc.necesaria > 7 ? '+7.0' : calc.necesaria.toFixed(1)}
                             </p>
                           </div>
-                        ) : null
+                        ) : (
+                          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', textAlign: 'right' }}>Faltan evaluaciones</span>
+                        )
                       ) : (
                         <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)' }}>Sin notas</span>
                       )}
@@ -201,8 +205,8 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, usuario }) {
               <p style={{ fontSize: 14, fontWeight: 700, color: 'white', margin: '0 0 16px' }}>Nuevo ramo</p>
               <input value={nuevo} onChange={e => setNuevo(e.target.value)} placeholder="Nombre del ramo" onKeyDown={e => e.key === 'Enter' && agregar()}
                 style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 10, boxSizing: 'border-box' }} />
-              <div style={{ flex: 1, marginBottom: 14 }}>
-                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Nota mínima</p>
+              <div style={{ marginBottom: 14 }}>
+                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Nota mínima de aprobación</p>
                 <input type="number" min="1" max="7" step="0.1" value={min} onChange={e => setMin(e.target.value)}
                   style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', boxSizing: 'border-box' }} />
               </div>
@@ -230,10 +234,11 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete }) {
   const [confetti, setConfetti] = useState(false)
 
   const evs = (ramo.evaluaciones || []).map(e => ({ ...e, ponderacion: parseFloat(e.ponderacion) || 0 }))
-  const { promedio, necesaria, estado, pendientesCount } = calcular(evs, ramo.min_aprobacion)
+  const { promedio, necesaria, estado, pendientesCount, pesoCompleto, pesoTotal } = calcular(evs, ramo.min_aprobacion)
   const pesoUsado = evs.reduce((acc, e) => acc + e.ponderacion, 0)
   const pesoDisponible = Math.round((100 - pesoUsado) * 10) / 10
   const completadasCount = evs.filter(e => e.nota !== null && e.nota !== undefined && e.nota !== '').length
+  const colorNecesaria = necesaria === null ? '#a78bfa' : necesaria > 6 ? '#f87171' : necesaria > 5 ? '#fbbf24' : '#4ade80'
 
   const guardarNota = (ev) => {
     const nota = notas[ev.id]
@@ -262,16 +267,49 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete }) {
   const proximaEv = evs.filter(e => (e.nota === null || e.nota === undefined || e.nota === '') && e.fecha)
     .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))[0]
 
-  // Color de la nota necesaria
-  const colorNecesaria = necesaria === null ? '#4ade80' : necesaria > 6 ? '#f87171' : necesaria > 5 ? '#fbbf24' : '#4ade80'
+  // Mensaje resumen inteligente
+  const MensajeResumen = () => {
+    if (estado) return null
+    // Faltan evaluaciones para llegar al 100%
+    if (!pesoCompleto && pesoDisponible > 0) {
+      return (
+        <div style={{ background: 'rgba(108,99,255,0.08)', border: '1px solid rgba(108,99,255,0.2)', borderRadius: 14, padding: '12px 16px' }}>
+          <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', margin: 0, lineHeight: 1.5 }}>
+            ⚠️ Aún te faltan evaluaciones — llevas <strong style={{ color: '#a78bfa' }}>{pesoTotal}%</strong> del 100% del ramo. Agrega las evaluaciones restantes para calcular tu nota necesaria.
+          </p>
+        </div>
+      )
+    }
+    // 100% cargado, sin notas aún
+    if (pesoCompleto && completadasCount === 0) {
+      return (
+        <div style={{ background: 'rgba(108,99,255,0.08)', border: '1px solid rgba(108,99,255,0.2)', borderRadius: 14, padding: '12px 16px' }}>
+          <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', margin: 0 }}>📌 Ingresa tus notas para ver cuánto necesitas en las restantes</p>
+        </div>
+      )
+    }
+    // 100% cargado, con notas y pendientes
+    if (pesoCompleto && necesaria !== null && pendientesCount > 0) {
+      return (
+        <div style={{ background: necesaria > 6 ? 'rgba(239,68,68,0.1)' : necesaria > 5 ? 'rgba(245,158,11,0.1)' : 'rgba(34,197,94,0.1)', border: `1px solid ${necesaria > 6 ? 'rgba(239,68,68,0.25)' : necesaria > 5 ? 'rgba(245,158,11,0.25)' : 'rgba(34,197,94,0.25)'}`, borderRadius: 14, padding: '12px 16px' }}>
+          <p style={{ fontSize: 13, color: 'white', margin: 0, lineHeight: 1.5 }}>
+            📌 Necesitas <strong style={{ color: colorNecesaria }}>{necesaria.toFixed(1)}</strong> en promedio en {pendientesCount === 1 ? 'la evaluación restante' : `las ${pendientesCount} evaluaciones restantes`}
+            {necesaria <= 4 && <span style={{ color: '#4ade80' }}> — ¡vas muy bien! 🚀</span>}
+            {necesaria > 4 && necesaria <= 5.5 && <span style={{ color: '#fbbf24' }}> — ¡tú puedes! 💪</span>}
+            {necesaria > 5.5 && necesaria <= 6.5 && <span style={{ color: '#fb923c' }}> — va a costar, pero es posible 😤</span>}
+            {necesaria > 6.5 && <span style={{ color: '#f87171' }}> — muy difícil, pero no imposible 😓</span>}
+          </p>
+        </div>
+      )
+    }
+    return null
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: '#0a0a1a', paddingBottom: 100 }}>
       <Confetti active={confetti} />
       <BackgroundOrbs />
       <div style={{ position: 'relative', zIndex: 1 }}>
-
-        {/* Header */}
         <div style={{ background: 'linear-gradient(180deg, #1a1a2e 0%, #0a0a1a 100%)', padding: '56px 20px 24px' }}>
           <button onClick={onBack} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 12, padding: '8px 14px', color: 'rgba(255,255,255,0.6)', fontSize: 13, cursor: 'pointer', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 6 }}>← Volver</button>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
@@ -282,7 +320,6 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete }) {
             <button onClick={() => { if(window.confirm('¿Eliminar este ramo?')) onDelete(ramo.id) }} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 12, padding: '8px 12px', color: '#f87171', fontSize: 12, cursor: 'pointer' }}>🗑</button>
           </div>
 
-          {/* Próxima evaluación */}
           {proximaEv && (
             <div style={{ marginBottom: 20, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 14, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ fontSize: 20 }}>⏰</span>
@@ -293,7 +330,6 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete }) {
             </div>
           )}
 
-          {/* 3 CARDS o estado final */}
           {estado ? (
             <div style={{ background: estado === 'aprobado' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', borderRadius: 20, padding: '20px', border: `1px solid ${estado === 'aprobado' ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`, textAlign: 'center', animation: 'slideUp 0.4s ease' }}>
               <p style={{ fontSize: 32 }}>{estado === 'aprobado' ? '🎉' : '😔'}</p>
@@ -302,51 +338,27 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete }) {
             </div>
           ) : (
             <>
-              {/* 3 cards */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 14 }}>
-                {/* Promedio actual */}
                 <div style={{ background: 'rgba(108,99,255,0.12)', borderRadius: 16, padding: '14px 10px', border: '1px solid rgba(108,99,255,0.2)', textAlign: 'center' }}>
-                  <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px', lineHeight: 1.3 }}>Promedio{'\n'}actual</p>
-                  <p style={{ fontSize: 24, fontWeight: 800, color: promedio ? notaColor(promedio) : 'rgba(255,255,255,0.3)', margin: 0 }}>
-                    {promedio ? promedio.toFixed(1) : '—'}
-                  </p>
+                  <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px', lineHeight: 1.4 }}>Promedio{'\n'}actual</p>
+                  <p style={{ fontSize: 24, fontWeight: 800, color: promedio ? notaColor(promedio) : 'rgba(255,255,255,0.3)', margin: 0 }}>{promedio ? promedio.toFixed(1) : '—'}</p>
                 </div>
-                {/* Nota necesaria */}
                 <div style={{ background: 'rgba(108,99,255,0.12)', borderRadius: 16, padding: '14px 10px', border: '1px solid rgba(108,99,255,0.2)', textAlign: 'center' }}>
-                  <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px', lineHeight: 1.3 }}>Nota{'\n'}necesaria</p>
+                  <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px', lineHeight: 1.4 }}>Nota{'\n'}necesaria</p>
                   <p style={{ fontSize: 24, fontWeight: 800, color: colorNecesaria, margin: 0 }}>
-                    {necesaria === null ? '✅' : necesaria > 7 ? '+7.0' : necesaria.toFixed(1)}
+                    {necesaria === null ? '—' : necesaria.toFixed(1)}
                   </p>
                 </div>
-                {/* Pendientes */}
                 <div style={{ background: 'rgba(108,99,255,0.12)', borderRadius: 16, padding: '14px 10px', border: '1px solid rgba(108,99,255,0.2)', textAlign: 'center' }}>
-                  <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px', lineHeight: 1.3 }}>Evaluaciones{'\n'}pendientes</p>
-                  <p style={{ fontSize: 24, fontWeight: 800, color: pendientesCount === 0 ? '#4ade80' : '#a78bfa', margin: 0 }}>
-                    {pendientesCount}
-                  </p>
+                  <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px', lineHeight: 1.4 }}>Evaluaciones{'\n'}pendientes</p>
+                  <p style={{ fontSize: 24, fontWeight: 800, color: pendientesCount === 0 ? '#4ade80' : '#a78bfa', margin: 0 }}>{pendientesCount}</p>
                 </div>
               </div>
-
-              {/* Mensaje resumen */}
-              {necesaria !== null && pendientesCount > 0 && (
-                <div style={{ background: necesaria > 7 ? 'rgba(239,68,68,0.1)' : necesaria > 6 ? 'rgba(245,158,11,0.1)' : 'rgba(34,197,94,0.1)', border: `1px solid ${necesaria > 7 ? 'rgba(239,68,68,0.25)' : necesaria > 6 ? 'rgba(245,158,11,0.25)' : 'rgba(34,197,94,0.25)'}`, borderRadius: 14, padding: '12px 16px', animation: 'slideUp 0.4s ease' }}>
-                  <p style={{ fontSize: 13, color: 'white', margin: 0, lineHeight: 1.5 }}>
-                    📌 Necesitas <strong style={{ color: colorNecesaria }}>{necesaria > 7 ? 'más de 7.0' : necesaria.toFixed(1)}</strong> en promedio en {pendientesCount === 1 ? 'la evaluación restante' : `las ${pendientesCount} evaluaciones restantes`}
-                    {necesaria > 7 && <span style={{ color: '#f87171' }}> — muy difícil de lograr 😓</span>}
-                    {necesaria <= 4 && necesaria > 0 && <span style={{ color: '#4ade80' }}> — ¡vas muy bien! 🚀</span>}
-                  </p>
-                </div>
-              )}
-              {completadasCount === 0 && evs.length > 0 && (
-                <div style={{ background: 'rgba(108,99,255,0.08)', border: '1px solid rgba(108,99,255,0.2)', borderRadius: 14, padding: '12px 16px' }}>
-                  <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', margin: 0 }}>📌 Ingresa tus notas para ver cuánto necesitas en las restantes</p>
-                </div>
-              )}
+              <MensajeResumen />
             </>
           )}
         </div>
 
-        {/* Lista evaluaciones */}
         <div style={{ padding: '16px 16px 0' }}>
           <p style={{ fontSize: 11, fontWeight: 600, color: '#4a4a6a', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Evaluaciones · {pesoUsado}% usado</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
@@ -357,7 +369,6 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete }) {
               return (
                 <div key={ev.id} style={{ background: '#1a1a2e', borderRadius: 16, padding: '14px 16px', border: tieneNota && !estaEditando ? '1px solid rgba(108,99,255,0.15)' : '1.5px dashed rgba(108,99,255,0.3)', animation: `slideUp 0.3s ${idx * 0.05}s ease both` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    {/* Badge nota grande */}
                     <div style={{ width: 48, height: 48, background: tieneNota && !estaEditando ? `${notaColor(notaVal)}22` : 'rgba(108,99,255,0.15)', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: tieneNota && !estaEditando ? 15 : 18, fontWeight: 800, color: tieneNota && !estaEditando ? notaColor(notaVal) : '#6c63ff', flexShrink: 0, border: tieneNota && !estaEditando ? `1.5px solid ${notaColor(notaVal)}44` : '1.5px solid rgba(108,99,255,0.2)' }}>
                       {tieneNota && !estaEditando ? notaVal.toFixed(1) : '?'}
                     </div>
@@ -400,7 +411,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete }) {
                 <input value={nuevaEv.nombre} onChange={e => setNuevaEv({ ...nuevaEv, nombre: e.target.value })} placeholder="Nombre (ej: Solemne 1)"
                   style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 10, boxSizing: 'border-box' }} />
                 <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-                  <input type="number" min="1" max={pesoDisponible} value={nuevaEv.ponderacion} onChange={e => setNuevaEv({ ...nuevaEv, ponderacion: e.target.value })} placeholder={`Peso % (máx ${pesoDisponible})`}
+                  <input type="number" min="1" max={pesoDisponible} value={nuevaEv.ponderacion} onChange={e => setNuevaEv({ ...nuevaEv, ponderacion: e.target.value })} placeholder={`Ponderación % (máx ${pesoDisponible})`}
                     style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', boxSizing: 'border-box' }} />
                   <input type="date" value={nuevaEv.fecha} onChange={e => setNuevaEv({ ...nuevaEv, fecha: e.target.value })}
                     style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', boxSizing: 'border-box', colorScheme: 'dark' }} />
