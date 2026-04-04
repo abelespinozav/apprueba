@@ -98,7 +98,13 @@ function PlanEstudio({ ev, onClose, onUpdate }) {
     try {
       const r = await fetch(`${API}/evaluaciones/${ev.id}/plan-estudio`, { method: 'POST', headers: authHeaders() })
       const d = await r.json()
-      if (d && d.tareas) { setPlan(d); onUpdate() } else { alert('Error al generar plan. Intenta de nuevo.') }
+      if (d && d.tareas) { 
+        setPlan(d)
+        onUpdate()
+        if (d._archivoNoProcessado) {
+          alert('⚠️ El archivo subido no pudo ser procesado directamente. El plan fue generado basándose en el nombre del archivo y el ramo.')
+        }
+      } else { alert('Error al generar plan. Intenta de nuevo.') }
     } catch {}
     setGenerando(false)
   }
@@ -141,8 +147,8 @@ function PlanEstudio({ ev, onClose, onUpdate }) {
               </div>
             ))}
           </div>
-          <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt" style={{ display: 'none' }}
-            onChange={e => e.target.files[0] && subirArchivo(e.target.files[0])} />
+          <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt" multiple style={{ display: 'none' }}
+            onChange={e => { Array.from(e.target.files).forEach(f => subirArchivo(f)) }} />
           <button onClick={() => fileRef.current.click()} disabled={subiendo}
             style={{ width: '100%', background: 'rgba(108,99,255,0.1)', color: '#a78bfa', border: '1.5px dashed rgba(108,99,255,0.4)', borderRadius: 12, padding: '12px', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: subiendo ? 0.7 : 1 }}>
             {subiendo ? '⏳ Subiendo...' : '+ Subir archivo (PDF, Word, PPT, Excel)'}
