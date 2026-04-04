@@ -3,6 +3,8 @@ import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const getToken = () => localStorage.getItem('token')
+const authHeaders = (extra = {}) => ({ ...extra, 'Authorization': `Bearer ${getToken()}` })
 
 function diasParaPrueba(fecha) {
   if (!fecha) return null
@@ -38,9 +40,7 @@ function PlanEstudio({ ev, onClose, onUpdate }) {
     setGuia(null)
     setGenerandoGuia(true)
     try {
-      const r = await fetch(`${API}/evaluaciones/${ev.id}/guia-tarea`, {
-        method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+      const r = await fetch(`${API}/evaluaciones/${ev.id}/guia-tarea`, { method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ tarea, tareaIndex: index, forzar })
       })
       const d = await r.json()
@@ -77,7 +77,7 @@ function PlanEstudio({ ev, onClose, onUpdate }) {
     const formData = new FormData()
     formData.append('archivo', file)
     try {
-      const r = await fetch(`${API}/evaluaciones/${ev.id}/archivos`, { method: 'POST', credentials: 'include', body: formData })
+      const r = await fetch(`${API}/evaluaciones/${ev.id}/archivos`, { method: 'POST', headers: authHeaders(), body: formData })
       const d = await r.json()
       setArchivos(prev => [...prev, d])
       onUpdate()
@@ -87,7 +87,7 @@ function PlanEstudio({ ev, onClose, onUpdate }) {
 
   const eliminarArchivo = async (id) => {
     try {
-      await fetch(`${API}/archivos/${id}`, { method: 'DELETE', credentials: 'include' })
+      await fetch(`${API}/archivos/${id}`, { method: 'DELETE', headers: authHeaders() })
       setArchivos(prev => prev.filter(a => a.id !== id))
       onUpdate()
     } catch {}
@@ -96,7 +96,7 @@ function PlanEstudio({ ev, onClose, onUpdate }) {
   const generarPlan = async () => {
     setGenerando(true)
     try {
-      const r = await fetch(`${API}/evaluaciones/${ev.id}/plan-estudio`, { method: 'POST', credentials: 'include' })
+      const r = await fetch(`${API}/evaluaciones/${ev.id}/plan-estudio`, { method: 'POST', headers: authHeaders() })
       const d = await r.json()
       setPlan(d)
       onUpdate()
@@ -107,9 +107,7 @@ function PlanEstudio({ ev, onClose, onUpdate }) {
   const toggleTarea = async (idx) => {
     const nuevas = completadas.includes(idx) ? completadas.filter(i => i !== idx) : [...completadas, idx]
     setCompletadas(nuevas)
-    await fetch(`${API}/evaluaciones/${ev.id}/plan-progreso`, {
-      method: 'PUT', credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+    await fetch(`${API}/evaluaciones/${ev.id}/plan-progreso`, { method: 'PUT', headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ tareasCompletadas: nuevas })
     })
   }
@@ -280,16 +278,27 @@ function App() {
   const [planActivo, setPlanActivo] = useState(null)
 
   useEffect(() => {
-    fetch(`${API}/auth/me`, { credentials: 'include' })
+    // Leer token desde URL (callback de Google)
+    const params = new URLSearchParams(window.location.search)
+    const tokenFromUrl = params.get('token')
+    if (tokenFromUrl) {
+      localStorage.setItem('token', tokenFromUrl)
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+    const token = tokenFromUrl || localStorage.getItem('token')
+    if (!token) { setLoading(false); return }
+    fetch(`${API}/auth/me`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
       .then(r => r.json())
-      .then(d => { if (d.user) { setUser(d.user); cargarRamos() } })
+      .then(d => { if (d.user) { setUser(d.user); cargarRamos(token) } })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
 
   const cargarRamos = async () => {
     try {
-      const r = await fetch(`${API}/ramos`, { credentials: 'include' })
+      const r = await fetch(`${API}/ramos`, { headers: authHeaders() })
       const d = await r.json()
       setRamos(d)
     } catch {}
@@ -362,9 +371,7 @@ function App() {
     setGuardando(true)
     try {
       const evsConNotas = evaluaciones.map((e, i) => ({ ...e, nota: notas[i] || null }))
-      const r = await fetch(`${API}/ramos`, {
-        method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+      const r = await fetch(`${API}/ramos`, { method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ nombre: nuevoRamo.nombre, minAprobacion: nuevoRamo.minAprobacion, evaluaciones: evsConNotas })
       })
       const d = await r.json()
@@ -378,9 +385,7 @@ function App() {
 
   const guardarNota = async (evalId, nota) => {
     try {
-      await fetch(`${API}/evaluaciones/${evalId}/nota`, {
-        method: 'PUT', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+      await fetch(`${API}/evaluaciones/${evalId}/nota`, { method: 'PUT', headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ nota: nota !== '' ? parseFloat(nota) : null })
       })
       await cargarRamos()
@@ -392,7 +397,7 @@ function App() {
 
   const eliminarRamo = async (id) => {
     try {
-      await fetch(`${API}/ramos/${id}`, { method: 'DELETE', credentials: 'include' })
+      await fetch(`${API}/ramos/${id}`, { method: 'DELETE', headers: authHeaders() })
       setRamos(ramos.filter(r => r.id !== id))
       setVista('dashboard'); showToast('Ramo eliminado')
     } catch { showToast('Error al eliminar', 'error') }
@@ -531,7 +536,7 @@ function App() {
               style={{ width: '100%', background: 'linear-gradient(135deg, #6c63ff, #8b5cf6)', color: 'white', border: 'none', borderRadius: 16, padding: '14px', fontSize: 14, fontWeight: 600, marginTop: 16, cursor: 'pointer' }}>
               + Agregar ramo
             </button>
-            <button onClick={() => fetch(`${API}/auth/logout`, { method: 'POST', credentials: 'include' }).then(() => setUser(null))}
+            <button onClick={() => fetch(`${API}/auth/logout`, { method: 'POST', headers: authHeaders() }).then(() => setUser(null))}
               style={{ width: '100%', background: 'transparent', color: '#4a4a6a', border: 'none', padding: '12px', fontSize: 12, cursor: 'pointer', marginTop: 4 }}>
               Cerrar sesión
             </button>
