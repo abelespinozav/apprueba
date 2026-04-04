@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import PlanEstudio from './PlanEstudio'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const getToken = () => localStorage.getItem('token')
@@ -226,7 +227,7 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, usuario }) {
   )
 }
 
-function RamoScreen({ ramo, onBack, onUpdate, onDelete }) {
+function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
   const [notas, setNotas] = useState({})
   const [editando, setEditando] = useState({})
   const [nuevaEv, setNuevaEv] = useState({ nombre: '', ponderacion: '', fecha: '' })
@@ -395,6 +396,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete }) {
                         <button onClick={() => setEditando({ ...editando, [ev.id]: true })} style={{ background: 'rgba(108,99,255,0.15)', border: 'none', borderRadius: 10, padding: '8px 12px', color: '#a78bfa', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
                           {tieneNota ? 'Editar' : '+ Nota'}
                         </button>
+                        <button onClick={(e) => { e.stopPropagation(); onPlan(ev) }} style={{ background: 'rgba(108,99,255,0.15)', border: 'none', borderRadius: 10, padding: '8px 10px', color: '#a78bfa', fontSize: 12, cursor: 'pointer' }}>🤖</button>
                         <button onClick={() => eliminarEv(ev.id)} style={{ background: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: 10, padding: '8px 10px', color: '#f87171', fontSize: 12, cursor: 'pointer' }}>🗑</button>
                       </div>
                     )}
@@ -438,6 +440,7 @@ export default function App() {
   const [usuario, setUsuario] = useState(null)
   const [ramos, setRamos] = useState([])
   const [ramoActivo, setRamoActivo] = useState(null)
+  const [planEv, setPlanEv] = useState(null)
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -504,6 +507,7 @@ export default function App() {
 
   if (pantalla === 'login') return <LoginScreen onLogin={handleLogin} />
   if (pantalla === 'ramos') return <RamosScreen ramos={ramos} onSelect={r => { setRamoActivo(r); setPantalla('ramo') }} onAdd={handleAddRamo} onLogout={handleLogout} usuario={usuario} />
-  if (pantalla === 'ramo' && ramoActivo) return <RamoScreen ramo={ramoActivo} onBack={() => setPantalla('ramos')} onUpdate={handleUpdateRamo} onDelete={handleDeleteRamo} />
+  if (pantalla === 'ramo' && ramoActivo) return <RamoScreen ramo={ramoActivo} onBack={() => setPantalla('ramos')} onUpdate={handleUpdateRamo} onDelete={handleDeleteRamo} onPlan={(ev) => { setPlanEv(ev); setPantalla('plan') }} />
+  if (pantalla === 'plan' && planEv && ramoActivo) return <PlanEstudio evaluacion={planEv} ramo={ramoActivo} onBack={() => setPantalla('ramo')} />
   return null
 }
