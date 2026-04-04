@@ -164,6 +164,9 @@ app.delete('/ramos/:id', authMiddleware, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
+const planesRouter = require('./routes/planes')
+app.use('/planes', authMiddleware, planesRouter)
+
 app.get('/health', (req, res) => res.json({ status: 'ok' }))
 
 // ── START ─────────────────────────────────────────────────
