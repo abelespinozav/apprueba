@@ -1,801 +1,406 @@
 import { useState, useEffect, useRef } from 'react'
-import jsPDF from 'jspdf'
-import html2canvas from 'html2canvas'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const getToken = () => localStorage.getItem('token')
 const authHeaders = (extra = {}) => ({ ...extra, 'Authorization': `Bearer ${getToken()}` })
 
+const GlobalStyles = () => (
+  <style>{`
+    @keyframes fall {
+      0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(110vh) rotate(900deg) translateX(var(--drift)); opacity: 0; }
+    }
+    @keyframes orb-move {
+      0%, 100% { transform: translate(0,0) scale(1); }
+      33% { transform: translate(30px,-20px) scale(1.1); }
+      66% { transform: translate(-20px,15px) scale(0.95); }
+    }
+    @keyframes slide-up {
+      from { opacity: 0; transform: translateY(40px) scale(0.94); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes shimmer {
+      0%   { background-position: -200% center; }
+      100% { background-position:  200% center; }
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50%       { transform: translateY(-8px); }
+    }
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 20px rgba(108,99,255,0.3); }
+      50%       { box-shadow: 0 0 50px rgba(108,99,255,0.7); }
+    }
+    @keyframes bounce-in {
+      0%   { opacity:0; transform: scale(0.5) translateY(30px); }
+      60%  { transform: scale(1.08) translateY(-6px); }
+      100% { opacity:1; transform: scale(1) translateY(0); }
+    }
+    * { box-sizing: border-box; }
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  `}</style>
+)
+
+function Confetti({ active }) {
+  const colors = ['#6c63ff','#8b5cf6','#f59e0b','#10b981','#ef4444','#3b82f6','#ec4899']
+  const pieces = Array.from({ length: 80 }, (_, i) => ({
+    id: i, x: Math.random() * 100,
+    color: colors[Math.floor(Math.random() * colors.length)],
+    delay: Math.random() * 1.2, size: Math.random() * 10 + 5,
+    drift: (Math.random() - 0.5) * 120
+  }))
+  if (!active) return null
+  return (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:999, overflow:'hidden' }}>
+      {pieces.map(p => (
+        <div key={p.id} style={{
+          position:'absolute', left:`${p.x}%`, top:-20,
+          width:p.size, height:p.size,
+          borderRadius: p.id%3===0 ? '50%' : 2,
+          background:p.color, '--drift':`${p.drift}px`,
+          animation:`fall 2.2s ease-in ${p.delay}s forwards`
+        }} />
+      ))}
+    </div>
+  )
+}
+
+function BackgroundOrbs() {
+  return (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', overflow:'hidden', zIndex:0 }}>
+      {[
+        { color:'rgba(108,99,255,0.1)',  size:420, top:'-10%', left:'-10%', dur:'8s'  },
+        { color:'rgba(139,92,246,0.07)', size:320, top:'40%',  right:'-15%',dur:'11s' },
+        { color:'rgba(16,185,129,0.05)', size:260, bottom:'10%',left:'20%', dur:'9s'  },
+      ].map((o,i) => (
+        <div key={i} style={{
+          position:'absolute', width:o.size, height:o.size, borderRadius:'50%',
+          background:o.color, top:o.top, left:o.left, right:o.right, bottom:o.bottom,
+          filter:'blur(60px)', animation:`orb-move ${o.dur} ease-in-out infinite`,
+          animationDelay:`${i*2}s`
+        }} />
+      ))}
+    </div>
+  )
+}
+
 function diasParaPrueba(fecha) {
   if (!fecha) return null
   const hoy = new Date(); hoy.setHours(0,0,0,0)
   const d = new Date(fecha + 'T00:00:00')
-  return Math.round((d - hoy) / (1000 * 60 * 60 * 24))
+  return Math.round((d - hoy) / 86400000)
 }
 
 function BadgeFecha({ fecha }) {
   const dias = diasParaPrueba(fecha)
   if (dias === null) return null
-  if (dias < 0) return <span style={{ fontSize: 10, background: '#f3f4f6', color: '#9ca3af', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>Pasada</span>
-  if (dias === 0) return <span style={{ fontSize: 10, background: '#fef3c7', color: '#d97706', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>¡Hoy!</span>
-  if (dias === 1) return <span style={{ fontSize: 10, background: '#fee2e2', color: '#dc2626', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>¡Mañana!</span>
-  if (dias <= 7) return <span style={{ fontSize: 10, background: '#fee2e2', color: '#dc2626', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>En {dias} días</span>
-  if (dias <= 14) return <span style={{ fontSize: 10, background: '#fef3c7', color: '#d97706', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>En {dias} días</span>
-  return <span style={{ fontSize: 10, background: 'rgba(108,99,255,0.2)', color: '#a78bfa', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>En {dias} días</span>
+  const cfg =
+    dias < 0  ? { bg:'rgba(255,255,255,0.08)', color:'#6b7280', label:'Pasada' } :
+    dias === 0 ? { bg:'rgba(245,158,11,0.2)',   color:'#fbbf24', label:'¡Hoy!' } :
+    dias === 1 ? { bg:'rgba(239,68,68,0.2)',    color:'#f87171', label:'¡Mañana!' } :
+    dias <= 7  ? { bg:'rgba(239,68,68,0.15)',   color:'#f87171', label:`En ${dias} días` } :
+    dias <= 14 ? { bg:'rgba(245,158,11,0.15)',  color:'#fbbf24', label:`En ${dias} días` } :
+                 { bg:'rgba(108,99,255,0.2)',   color:'#a78bfa', label:`En ${dias} días` }
+  return (
+    <span style={{ fontSize:10, background:cfg.bg, color:cfg.color,
+      padding:'2px 8px', borderRadius:20, fontWeight:700, border:`1px solid ${cfg.color}33` }}>
+      {cfg.label}
+    </span>
+  )
 }
 
-function PlanEstudio({ ev, onClose, onUpdate }) {
-  const [plan, setPlan] = useState(ev.plan_estudio || null)
-  const [completadas, setCompletadas] = useState(ev.tareas_completadas || [])
-  const [generando, setGenerando] = useState(false)
-  const [subiendo, setSubiendo] = useState(false)
-  const [archivos, setArchivos] = useState(ev.archivos || [])
-  const [guia, setGuia] = useState(null)
-  const [tareaSeleccionada, setTareaSeleccionada] = useState(null)
-  const [generandoGuia, setGenerandoGuia] = useState(false)
-  const fileRef = useRef()
-
-  const generarGuia = async (tarea, index, forzar = false) => {
-    setTareaSeleccionada({ ...tarea, index })
-    setGuia(null)
-    setGenerandoGuia(true)
-    try {
-      const r = await fetch(`${API}/evaluaciones/${ev.id}/guia-tarea`, { method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ tarea, tareaIndex: index, forzar })
-      })
-      const d = await r.json()
-      setGuia(d)
-    } catch {}
-    setGenerandoGuia(false)
-  }
-
-  const descargarGuia = () => {
-    const titulo = guia.titulo || tareaSeleccionada.titulo
-    const conceptos = (guia.conceptos_clave || []).map(c => '<div class="concepto"><strong>' + c.termino + '</strong><p>' + c.definicion + '</p></div>').join('')
-    const ejemplos = (guia.ejemplos || []).map((e,i) => '<div class="ejemplo"><strong>Ejemplo ' + (i+1) + ': ' + e.enunciado + '</strong><p>\u2705 ' + e.solucion + '</p></div>').join('')
-    const ejercicios = (guia.ejercicios_practica || []).map((e,i) => '<div class="ejercicio"><strong>Ejercicio ' + (i+1) + ': ' + e.enunciado + '</strong><p>\ud83d\udca1 Pista: ' + e.pista + '</p></div>').join('')
-    const desarrollo = (guia.desarrollo || '').replace(/\n/g, '<br>')
-    const resumen = (guia.resumen_final || '').replace(/\n/g, '<br>')
-    const html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + titulo + '</title><style>@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}body{font-family:system-ui,sans-serif;max-width:720px;margin:32px auto;color:#1a1a2e;line-height:1.6;padding:0 24px}h1{color:#6c63ff;border-bottom:2px solid #6c63ff;padding-bottom:8px;font-size:20px}h2{color:#6c63ff;margin-top:24px;font-size:14px}p{font-size:13px;margin:6px 0}.concepto{background:#f8f7ff;border-left:4px solid #6c63ff;padding:10px 14px;margin:8px 0;border-radius:4px}.concepto strong{font-size:13px;color:#1a1a2e}.concepto p{font-size:12px;margin:4px 0 0;color:#444}.ejemplo{background:#fffbeb;border-left:4px solid #f59e0b;padding:10px 14px;margin:8px 0;border-radius:4px}.ejemplo strong{font-size:12px;color:#92400e}.ejemplo p{font-size:12px;color:#78350f;margin:6px 0 0}.ejercicio{background:#f0fdf4;border-left:4px solid #22c55e;padding:10px 14px;margin:8px 0;border-radius:4px}.ejercicio strong{font-size:12px;color:#166534}.ejercicio p{font-size:11px;color:#15803d;margin:4px 0 0}.resumen{background:#1a1a2e;color:white;padding:16px;border-radius:8px;margin-top:20px}.resumen strong{font-size:13px;color:#a78bfa}.resumen p{font-size:13px;margin:8px 0 0}</style></head><body>'
-      + '<h1>\ud83d\udcd6 ' + titulo + '</h1>'
-      + '<h2>\ud83d\udcdd Introducci\u00f3n</h2><p>' + guia.introduccion + '</p>'
-      + '<h2>\ud83d\udd11 Conceptos Clave</h2>' + conceptos
-      + '<h2>\ud83d\udcda Desarrollo</h2><p>' + desarrollo + '</p>'
-      + '<h2>\ud83d\udca1 Ejemplos Resueltos</h2>' + ejemplos
-      + '<h2>\u270f\ufe0f Ejercicios de Pr\u00e1ctica</h2>' + ejercicios
-      + '<div class="resumen"><strong>\ud83c\udfaf Resumen Final</strong><p>' + resumen + '</p></div>'
-      + '</body></html>'
-    const w = window.open('', '_blank')
-    w.document.write(html)
-    w.document.close()
-    w.focus()
-    setTimeout(() => { w.print() }, 600)
-  }
-
-  const subirArchivo = async (file) => {
-    setSubiendo(true)
-    const formData = new FormData()
-    formData.append('archivo', file)
-    try {
-      const r = await fetch(`${API}/evaluaciones/${ev.id}/archivos`, { method: 'POST', headers: authHeaders(), body: formData })
-      const d = await r.json()
-      setArchivos(prev => [...prev, d])
-      onUpdate()
-    } catch {}
-    setSubiendo(false)
-  }
-
-  const eliminarArchivo = async (id) => {
-    try {
-      await fetch(`${API}/archivos/${id}`, { method: 'DELETE', headers: authHeaders() })
-      setArchivos(prev => prev.filter(a => a.id !== id))
-      onUpdate()
-    } catch {}
-  }
-
-  const generarPlan = async () => {
-    setGenerando(true)
-    try {
-      const r = await fetch(`${API}/evaluaciones/${ev.id}/plan-estudio`, { method: 'POST', headers: authHeaders() })
-      const d = await r.json()
-      if (d && d.tareas) { 
-        setPlan(d)
-        onUpdate()
-        if (d._archivoNoProcessado) {
-          alert('⚠️ El archivo subido no pudo ser procesado directamente. El plan fue generado basándose en el nombre del archivo y el ramo.')
-        }
-      } else { alert('Error al generar plan. Intenta de nuevo.') }
-    } catch {}
-    setGenerando(false)
-  }
-
-  const toggleTarea = async (idx) => {
-    const nuevas = completadas.includes(idx) ? completadas.filter(i => i !== idx) : [...completadas, idx]
-    setCompletadas(nuevas)
-    await fetch(`${API}/evaluaciones/${ev.id}/plan-progreso`, { method: 'PUT', headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ tareasCompletadas: nuevas })
-    })
-  }
-
-  const prioridadColor = { alta: '#ef4444', media: '#f59e0b', baja: '#22c55e' }
-  const progreso = plan ? Math.round((completadas.length / plan.tareas.length) * 100) : 0
-
+function StatCard({ icon, value, label, color, delay }) {
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'flex-end' }}>
-      <div style={{ background: '#111122', borderRadius: '24px 24px 0 0', width: '100%', maxHeight: '90vh', overflow: 'auto', padding: '24px 16px', maxWidth: 480, margin: '0 auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <div>
-            <p style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0', margin: 0 }}>📚 Plan de estudio</p>
-            <p style={{ fontSize: 12, color: '#4a4a6a', margin: '2px 0 0' }}>{ev.nombre} · {ev.ponderacion}%</p>
-          </div>
-          <button onClick={onClose} style={{ background: '#f3f4f6', border: 'none', borderRadius: 10, padding: '8px 12px', cursor: 'pointer', fontSize: 16 }}>✕</button>
-        </div>
-
-        {/* Archivos */}
-        <div style={{ marginBottom: 20 }}>
-          <p style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', marginBottom: 10 }}>📎 Material de estudio</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
-            {archivos.map(a => (
-              <div key={a.id} style={{ background: '#1a1a2e', borderRadius: 12, padding: '10px 14px', border: '1px solid rgba(108,99,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 18 }}>
-                    {a.tipo?.includes('pdf') ? '📄' : a.tipo?.includes('word') || a.tipo?.includes('document') ? '📝' : a.tipo?.includes('sheet') || a.tipo?.includes('excel') ? '📊' : a.tipo?.includes('presentation') || a.tipo?.includes('powerpoint') ? '📑' : '📎'}
-                  </span>
-                  <p style={{ fontSize: 12, color: '#e2e8f0', margin: 0, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.nombre}</p>
-                </div>
-                <button onClick={() => eliminarArchivo(a.id)} style={{ background: '#fee2e2', border: 'none', color: '#ef4444', borderRadius: 8, width: 26, height: 26, cursor: 'pointer', fontSize: 12 }}>✕</button>
-              </div>
-            ))}
-          </div>
-          <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt" multiple style={{ display: 'none' }}
-            onChange={e => { Array.from(e.target.files).forEach(f => subirArchivo(f)) }} />
-          <button onClick={() => fileRef.current.click()} disabled={subiendo}
-            style={{ width: '100%', background: 'rgba(108,99,255,0.1)', color: '#a78bfa', border: '1.5px dashed rgba(108,99,255,0.4)', borderRadius: 12, padding: '12px', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: subiendo ? 0.7 : 1 }}>
-            {subiendo ? '⏳ Subiendo...' : '+ Subir archivo (PDF, Word, PPT, Excel)'}
-          </button>
-        </div>
-
-        {/* Generar plan */}
-        <button onClick={generarPlan} disabled={generando}
-          style={{ width: '100%', background: generando ? '#e0deff' : '#6c63ff', color: generando ? '#6c63ff' : 'white', border: 'none', borderRadius: 14, padding: '14px', fontSize: 14, fontWeight: 600, cursor: generando ? 'not-allowed' : 'pointer', marginBottom: 20 }}>
-          {generando ? '🤖 Generando plan con IA...' : plan ? '🔄 Regenerar plan con IA' : '✨ Generar plan de estudio con IA'}
-        </button>
-
-        {/* Plan generado */}
-        {plan && (
-          <>
-            <div style={{ background: '#1a1a2e', borderRadius: 14, padding: '14px', marginBottom: 16, border: '1px solid rgba(108,99,255,0.2)' }}>
-              <p style={{ fontSize: 12, color: '#6c63ff', fontWeight: 600, margin: '0 0 4px' }}>📋 Resumen</p>
-              <p style={{ fontSize: 13, color: '#c4b5fd', margin: '0 0 8px' }}>{plan.resumen}</p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ flex: 1, height: 6, borderRadius: 3, background: '#e0deff', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', borderRadius: 3, background: '#6c63ff', width: `${progreso}%`, transition: 'width 0.3s' }} />
-                </div>
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#6c63ff' }}>{progreso}%</span>
-              </div>
-              <p style={{ fontSize: 11, color: '#4a4a6a', margin: '4px 0 0' }}>{completadas.length}/{plan.tareas.length} tareas completadas</p>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {plan.tareas.map((tarea, i) => (
-                <div key={i} onClick={() => toggleTarea(i)}
-                  style={{ background: completadas.includes(i) ? '#f0fdf4' : 'white', borderRadius: 14, padding: '14px', border: `1.5px solid ${completadas.includes(i) ? '#86efac' : '#e0deff'}`, cursor: 'pointer', transition: 'all 0.2s' }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                    <div style={{ width: 22, height: 22, borderRadius: '50%', border: `2px solid ${completadas.includes(i) ? '#22c55e' : '#c4b5fd'}`, background: completadas.includes(i) ? '#22c55e' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
-                      {completadas.includes(i) && <span style={{ color: 'white', fontSize: 12 }}>✓</span>}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: completadas.includes(i) ? '#16a34a' : '#1a1a2e', margin: 0, textDecoration: completadas.includes(i) ? 'line-through' : 'none' }}>{tarea.titulo}</p>
-                        <span style={{ fontSize: 10, background: `${prioridadColor[tarea.prioridad]}20`, color: prioridadColor[tarea.prioridad], padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>{tarea.prioridad}</span>
-                      </div>
-                      <p style={{ fontSize: 12, color: '#666', margin: '0 0 6px' }}>{tarea.descripcion}</p>
-                      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: 11, color: '#4a4a6a' }}>📅 {tarea.fecha}</span>
-                        <span style={{ fontSize: 11, color: '#4a4a6a' }}>⏱ {tarea.duracion} min</span>
-                        <button onClick={e => { e.stopPropagation(); generarGuia(tarea, i) }} style={{ fontSize: 11, background: '#6c63ff', color: 'white', border: '1px solid rgba(108,99,255,0.4)', borderRadius: 20, padding: '3px 10px', cursor: 'pointer', marginLeft: 'auto' }}>📖 Ver guía</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
-    {(tareaSeleccionada) && (
-      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => { setTareaSeleccionada(null); setGuia(null) }}>
-        <div style={{ background: '#111122', borderRadius: '24px 24px 0 0', width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto', padding: '24px 16px 32px' }} onClick={e => e.stopPropagation()}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h3 style={{ margin: 0, fontSize: 16, color: '#e2e8f0' }}>📖 {tareaSeleccionada.titulo}</h3>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {guia?.cached && <span style={{ fontSize: 10, color: '#888', alignSelf: 'center' }}>guardada</span>}
-              {guia && <button onClick={() => generarGuia(tareaSeleccionada, tareaSeleccionada.index, true)} style={{ background: '#f3f4f6', color: '#666', border: 'none', borderRadius: 20, padding: '6px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>🔄 Regenerar</button>}
-              {guia && <button onClick={descargarGuia} style={{ background: '#6c63ff', color: 'white', border: 'none', borderRadius: 20, padding: '6px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>⬇️ Descargar</button>}
-              <button onClick={() => { setTareaSeleccionada(null); setGuia(null) }} style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', fontSize: 16 }}>✕</button>
-            </div>
-          </div>
-          {generandoGuia && <div style={{ textAlign: 'center', padding: 40, color: '#6c63ff' }}>🤖 Generando guía con IA...</div>}
-          {guia && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ background: '#1a1a2e', borderRadius: 12, padding: 14, border: '1px solid rgba(108,99,255,0.15)' }}>
-                <p style={{ fontSize: 12, color: '#6c63ff', fontWeight: 600, margin: '0 0 6px' }}>📝 Introducción</p>
-                <p style={{ fontSize: 13, color: '#c4b5fd', margin: 0, lineHeight: 1.6 }}>{guia.introduccion}</p>
-              </div>
-              <div>
-                <p style={{ fontSize: 12, color: '#6c63ff', fontWeight: 600, margin: '0 0 8px' }}>🔑 Conceptos Clave</p>
-                {guia.conceptos_clave?.map((c, i) => (
-                  <div key={i} style={{ background: '#1a1a2e', border: '1.5px solid rgba(108,99,255,0.3)', borderRadius: 10, padding: '10px 12px', marginBottom: 8 }}>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', margin: '0 0 4px' }}>{c.termino}</p>
-                    <p style={{ fontSize: 12, color: '#666', margin: 0 }}>{c.definicion}</p>
-                  </div>
-                ))}
-              </div>
-              <div style={{ background: '#f8f7ff', borderRadius: 12, padding: 14 }}>
-                <p style={{ fontSize: 12, color: '#6c63ff', fontWeight: 600, margin: '0 0 6px' }}>📚 Desarrollo</p>
-                <p style={{ fontSize: 13, color: '#a78bfa', margin: 0, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{guia.desarrollo}</p>
-              </div>
-              <div>
-                <p style={{ fontSize: 12, color: '#6c63ff', fontWeight: 600, margin: '0 0 8px' }}>💡 Ejemplos Resueltos</p>
-                {guia.ejemplos?.map((e, i) => (
-                  <div key={i} style={{ background: '#fffbeb', border: '1.5px solid #fde68a', borderRadius: 10, padding: '10px 12px', marginBottom: 8 }}>
-                    <p style={{ fontSize: 12, fontWeight: 600, color: '#92400e', margin: '0 0 6px' }}>Ejemplo {i+1}: {e.enunciado}</p>
-                    <p style={{ fontSize: 12, color: '#78350f', margin: 0, lineHeight: 1.5 }}>✅ {e.solucion}</p>
-                  </div>
-                ))}
-              </div>
-              <div>
-                <p style={{ fontSize: 12, color: '#6c63ff', fontWeight: 600, margin: '0 0 8px' }}>✏️ Ejercicios de Práctica</p>
-                {guia.ejercicios_practica?.map((e, i) => (
-                  <div key={i} style={{ background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: 10, padding: '10px 12px', marginBottom: 8 }}>
-                    <p style={{ fontSize: 12, fontWeight: 600, color: '#166534', margin: '0 0 4px' }}>Ejercicio {i+1}: {e.enunciado}</p>
-                    <p style={{ fontSize: 11, color: '#15803d', margin: 0 }}>💡 Pista: {e.pista}</p>
-                  </div>
-                ))}
-              </div>
-              <div style={{ background: '#1a1a2e', borderRadius: 12, padding: 14 }}>
-                <p style={{ fontSize: 12, color: '#a78bfa', fontWeight: 600, margin: '0 0 6px' }}>🎯 Resumen Final</p>
-                <p style={{ fontSize: 13, color: 'white', margin: 0, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{guia.resumen_final}</p>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    )}
+    <div style={{ background:'rgba(255,255,255,0.03)', backdropFilter:'blur(20px)', border:'1px solid rgba(255,255,255,0.06)', borderRadius:18, padding:'16px 12px', textAlign:'center', animation:`slide-up 0.5s cubic-bezier(.34,1.56,.64,1) ${delay}ms both` }}>
+      <p style={{ fontSize:22, margin:'0 0 4px' }}>{icon}</p>
+      <p style={{ fontSize:26, fontWeight:900, color, margin:0, lineHeight:1 }}>{value}</p>
+      <p style={{ fontSize:11, color:'#4a4a6a', margin:'4px 0 0', fontWeight:600 }}>{label}</p>
     </div>
   )
 }
 
-function App() {
+export default function App() {
   const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
   const [ramos, setRamos] = useState([])
-  const [vista, setVista] = useState('dashboard')
-  const [ramoActivo, setRamoActivo] = useState(null)
+  const [vista, setVista] = useState('login')
   const [step, setStep] = useState(1)
-  const [nuevoRamo, setNuevoRamo] = useState({ nombre: '', minAprobacion: 4.0 })
+  const [nuevoRamo, setNuevoRamo] = useState({ nombre:'', minAprobacion:4.0 })
   const [evaluaciones, setEvaluaciones] = useState([])
-  const [evalTemp, setEvalTemp] = useState({ nombre: '', ponderacion: '', fecha: '' })
-  const [notas, setNotas] = useState({})
-  const [editando, setEditando] = useState({})
-  const [guardando, setGuardando] = useState(false)
-  const [toast, setToast] = useState(null)
-  const [planActivo, setPlanActivo] = useState(null)
+  const [ramoActivo, setRamoActivo] = useState(null)
+  const [confetti, setConfetti] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    // Leer token desde URL (callback de Google)
     const params = new URLSearchParams(window.location.search)
-    const tokenFromUrl = params.get('token')
-    if (tokenFromUrl) {
-      localStorage.setItem('token', tokenFromUrl)
-      window.history.replaceState({}, '', window.location.pathname)
+    const token = params.get('token')
+    if (token) {
+      localStorage.setItem('token', token)
+      window.history.replaceState({}, '', '/')
     }
-    const token = tokenFromUrl || localStorage.getItem('token')
-    if (!token) { setLoading(false); return }
-    fetch(`${API}/auth/me`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(r => r.json())
-      .then(d => { if (d.user) { setUser(d.user); cargarRamos(token) } })
-      .catch(() => {})
-      .finally(() => setLoading(false))
+    if (getToken()) fetchUser()
   }, [])
 
-  const cargarRamos = async () => {
+  const fetchUser = async () => {
     try {
-      const r = await fetch(`${API}/ramos`, { headers: authHeaders() })
-      const d = await r.json()
-      setRamos(d)
-    } catch {}
+      const r = await fetch(`${API}/auth/me`, { headers: authHeaders() })
+      if (r.ok) { const d = await r.json(); setUser(d); fetchRamos() }
+      else { localStorage.removeItem('token'); setVista('login') }
+    } catch { setVista('login') }
   }
 
-  const showToast = (msg, tipo = 'success') => {
-    setToast({ msg, tipo })
-    setTimeout(() => setToast(null), 3000)
+  const fetchRamos = async () => {
+    const r = await fetch(`${API}/ramos`, { headers: authHeaders() })
+    if (r.ok) { const d = await r.json(); setRamos(d); setVista('home') }
   }
 
-  const calcularPromedioFinal = (ramo) => {
-    const evs = (ramo.evaluaciones || []).filter(e => e.nota !== null && e.nota !== undefined && e.nota !== '')
-    if (evs.length === 0) return null
-    const pesoTotal = evs.reduce((s, e) => s + Number(e.ponderacion), 0)
-    const suma = evs.reduce((s, e) => s + (parseFloat(e.nota) * Number(e.ponderacion)), 0)
-    return suma / pesoTotal
-  }
-
-  const todasRendidas = (ramo) => {
-    const evs = ramo.evaluaciones || []
-    return evs.length > 0 && evs.every(e => e.nota !== null && e.nota !== undefined && e.nota !== '')
-  }
-
-  const calcularNecesaria = (ramo) => {
-    if (todasRendidas(ramo)) return null
-    const evs = ramo.evaluaciones || []
-    const evsPendientes = evs.filter(e => e.nota === null || e.nota === undefined || e.nota === '')
-    const evsRendidas = evs.filter(e => e.nota !== null && e.nota !== undefined && e.nota !== '')
-    if (evsPendientes.length === 0) return null
-    const pesoPendiente = evsPendientes.reduce((s, e) => s + Number(e.ponderacion), 0)
-    const sumaRendida = evsRendidas.reduce((s, e) => s + (parseFloat(e.nota) * Number(e.ponderacion)), 0)
-    const min = Number(ramo.min_aprobacion) || 4.0
-    return (min * 100 - sumaRendida) / pesoPendiente
-  }
-
-  const getEstado = (ramo) => {
-    const min = Number(ramo.min_aprobacion) || 4.0
-    if (todasRendidas(ramo)) {
-      const promedio = calcularPromedioFinal(ramo)
-      return promedio >= min ? 'aprobado' : 'reprobado'
+  const calcular = (evals, min) => {
+    const completadas = evals.filter(e => e.nota !== '' && e.nota !== null && e.nota !== undefined)
+    const pendientes  = evals.filter(e => e.nota === '' || e.nota === null || e.nota === undefined)
+    if (evals.length === 0) return { estado:'sin_evals' }
+    const pesoTotal = evals.reduce((s,e) => s + Number(e.peso), 0)
+    if (Math.abs(pesoTotal - 100) > 0.01) return { estado:'pesos_incompletos' }
+    if (pendientes.length === 0) {
+      const prom = completadas.reduce((s,e) => s + Number(e.nota) * Number(e.peso)/100, 0)
+      return prom >= min
+        ? { estado:'aprobado', promedio: prom.toFixed(1) }
+        : { estado:'reprobado', promedio: prom.toFixed(1) }
     }
-    const necesaria = calcularNecesaria(ramo)
-    if (necesaria === null) return 'al_dia'
-    if (necesaria <= min) return 'al_dia'
-    if (necesaria <= 5.5) return 'en_riesgo'
-    return 'critico'
-  }
-
-  const estadoConfig = {
-    aprobado: { color: '#22c55e', bg: '#dcfce7', text: '#16a34a', border: '#22c55e' },
-    al_dia:   { color: '#22c55e', bg: '#dcfce7', text: '#16a34a', border: '#22c55e' },
-    en_riesgo:{ color: '#f59e0b', bg: '#fef3c7', text: '#d97706', border: '#f59e0b' },
-    critico:  { color: '#ef4444', bg: '#fee2e2', text: '#dc2626', border: '#ef4444' },
-    reprobado:{ color: '#ef4444', bg: '#fee2e2', text: '#dc2626', border: '#ef4444' },
-  }
-
-  const ponderacionUsada = evaluaciones.reduce((s, e) => s + Number(e.ponderacion), 0)
-  const ponderacionRestante = 100 - ponderacionUsada
-
-  const agregarEval = () => {
-    if (!evalTemp.nombre || !evalTemp.ponderacion) return
-    const p = Number(evalTemp.ponderacion)
-    if (p <= 0 || ponderacionUsada + p > 100) return
-    setEvaluaciones([...evaluaciones, { nombre: evalTemp.nombre, ponderacion: p, fecha: evalTemp.fecha || null }])
-    setEvalTemp({ nombre: '', ponderacion: '', fecha: '' })
+    const pesoCompletado = completadas.reduce((s,e) => s + Number(e.peso), 0)
+    const pesoPendiente  = pendientes.reduce((s,e)  => s + Number(e.peso), 0)
+    const notaAcumulada  = completadas.reduce((s,e) => s + Number(e.nota) * Number(e.peso)/100, 0)
+    const necesaria = (min - notaAcumulada) / (pesoPendiente / 100)
+    if (necesaria > 7) return { estado:'imposible', necesaria: necesaria.toFixed(1) }
+    if (necesaria <= 1) return { estado:'ya_aprobado', necesaria: '1.0' }
+    return { estado:'en_curso', necesaria: necesaria.toFixed(1), pendientes: pendientes.length }
   }
 
   const guardarRamo = async () => {
-    if (ponderacionUsada !== 100) { showToast('Las ponderaciones deben sumar 100%', 'error'); return }
-    setGuardando(true)
-    try {
-      const evsConNotas = evaluaciones.map((e, i) => ({ ...e, nota: notas[i] || null }))
-      const r = await fetch(`${API}/ramos`, { method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ nombre: nuevoRamo.nombre, minAprobacion: nuevoRamo.minAprobacion, evaluaciones: evsConNotas })
-      })
-      const d = await r.json()
-      setRamos(prev => [...prev, d])
-      setVista('dashboard'); setStep(1)
-      setNuevoRamo({ nombre: '', minAprobacion: 4.0 }); setEvaluaciones([]); setNotas({})
-      showToast('Ramo guardado correctamente 🎉')
-    } catch { showToast('Error al guardar', 'error') }
-    setGuardando(false)
+    setLoading(true); setError('')
+    const pesoTotal = evaluaciones.reduce((s,e) => s + Number(e.peso), 0)
+    if (Math.abs(pesoTotal - 100) > 0.01) { setError('Los pesos deben sumar 100%'); setLoading(false); return }
+    const body = { ...nuevoRamo, evaluaciones }
+    const r = await fetch(`${API}/ramos`, { method:'POST', headers: authHeaders({'Content-Type':'application/json'}), body: JSON.stringify(body) })
+    if (r.ok) { await fetchRamos(); setVista('home'); setStep(1); setEvaluaciones([]) }
+    else setError('Error al guardar')
+    setLoading(false)
   }
 
-  const guardarNota = async (evalId, nota) => {
-    try {
-      await fetch(`${API}/evaluaciones/${evalId}/nota`, { method: 'PUT', headers: authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ nota: nota !== '' ? parseFloat(nota) : null })
-      })
-      await cargarRamos()
-      setEditando(prev => { const n = {...prev}; delete n[evalId]; return n })
-      setNotas(prev => { const n = {...prev}; delete n[evalId]; return n })
-      showToast('Nota guardada ✅')
-    } catch { showToast('Error al guardar nota', 'error') }
+  const actualizarNota = async (ramoId, evalId, nota) => {
+    await fetch(`${API}/ramos/${ramoId}/evaluaciones/${evalId}`, {
+      method:'PATCH', headers: authHeaders({'Content-Type':'application/json'}),
+      body: JSON.stringify({ nota })
+    })
+    setRamos(prev => prev.map(r => r.id === ramoId
+      ? { ...r, evaluaciones: r.evaluaciones.map(e => e.id === evalId ? { ...e, nota } : e) }
+      : r
+    ))
+    if (ramoActivo?.id === ramoId) {
+      setRamoActivo(prev => ({ ...prev, evaluaciones: prev.evaluaciones.map(e => e.id === evalId ? { ...e, nota } : e) }))
+    }
   }
 
   const eliminarRamo = async (id) => {
-    try {
-      await fetch(`${API}/ramos/${id}`, { method: 'DELETE', headers: authHeaders() })
-      setRamos(ramos.filter(r => r.id !== id))
-      setVista('dashboard'); showToast('Ramo eliminado')
-    } catch { showToast('Error al eliminar', 'error') }
+    await fetch(`${API}/ramos/${id}`, { method:'DELETE', headers: authHeaders() })
+    setRamos(prev => prev.filter(r => r.id !== id))
+    setRamoActivo(null)
   }
 
-  if (loading) return (
-    <div style={{ minHeight: '100vh', background: '#0d0d1a', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
-      <div style={{ width: 64, height: 64, background: 'rgba(108,99,255,0.2)', border: '1px solid rgba(108,99,255,0.4)', borderRadius: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>🎓</div>
-      <p style={{ color: 'white', fontSize: 14 }}>Cargando...</p>
-    </div>
-  )
+  const pesoUsado = evaluaciones.reduce((s,e) => s + Number(e.peso||0), 0)
+  const pesoRestante = 100 - pesoUsado
 
-  if (!user) return (
-    <div style={{ minHeight: '100vh', background: 'radial-gradient(ellipse at 50% 0%, rgba(108,99,255,0.15) 0%, transparent 70%), linear-gradient(160deg, #0d0d1a 0%, #1a1a3e 100%)', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ padding: '60px 24px 40px', textAlign: 'center' }}>
-        <div style={{ width: 72, height: 72, background: 'rgba(108,99,255,0.15)', border: '1.5px solid rgba(108,99,255,0.5)', borderRadius: 22, margin: '0 auto 20px', boxShadow: '0 0 24px rgba(108,99,255,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}>🎓</div>
-        <h1 style={{ color: 'white', fontSize: 32, fontWeight: 700, letterSpacing: '-0.5px', margin: 0, background: 'linear-gradient(135deg, #a78bfa, #6c63ff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>APPrueba</h1>
-        <p style={{ color: '#6a6a9a', fontSize: 14, marginTop: 8 }}>Calcula lo que necesitas para aprobar</p>
-      </div>
-      <div style={{ background: '#111122', borderRadius: '28px 28px 0 0', flex: 1, padding: '32px 24px', borderTop: '1px solid rgba(108,99,255,0.2)' }}>
-        <p style={{ fontSize: 18, fontWeight: 700, color: '#e2e8f0', marginBottom: 24, letterSpacing: '-0.3px' }}>Bienvenido 👋</p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}>
-          {[
-            { icon: '📚', title: 'Guarda tus ramos', sub: 'Accede desde cualquier dispositivo' },
-            { icon: '📊', title: 'Calcula al instante', sub: 'Sabe exactamente qué necesitas' },
-            { icon: '🤖', title: 'Plan de estudio con IA', sub: 'Sube tu materia y Gemini te ayuda' },
-          ].map(f => (
-            <div key={f.title} style={{ display: 'flex', alignItems: 'center', gap: 14, background: 'rgba(108,99,255,0.08)', borderRadius: 14, padding: '14px 16px', border: '1px solid rgba(108,99,255,0.35)', boxShadow: '0 2px 12px rgba(108,99,255,0.1)' }}>
-              <span style={{ fontSize: 22 }}>{f.icon}</span>
-              <div>
-                <p style={{ fontSize: 14, fontWeight: 600, color: '#e2e8f0', margin: 0 }}>{f.title}</p>
-                <p style={{ fontSize: 12, color: '#4a4a6a', margin: 0 }}>{f.sub}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-        <a href={`${API}/auth/google`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, background: 'linear-gradient(135deg, rgba(108,99,255,0.2), rgba(139,92,246,0.15))', border: '1.5px solid rgba(108,99,255,0.6)', borderRadius: 16, padding: '14px 20px', textDecoration: 'none', color: '#e2e8f0', boxShadow: '0 0 20px rgba(108,99,255,0.25)', fontSize: 14, fontWeight: 600 }}>
-          <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-          Continuar con Google
+  const card = { background:'rgba(255,255,255,0.04)', backdropFilter:'blur(20px)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:24, padding:24, marginBottom:16, animation:'slide-up 0.5s cubic-bezier(.34,1.56,.64,1) both' }
+  const inp  = { width:'100%', background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:12, padding:'12px 14px', color:'white', fontSize:15, outline:'none' }
+  const btn  = (bg='#6c63ff') => ({ background:bg, color:'white', border:'none', borderRadius:14, padding:'13px 20px', fontSize:14, fontWeight:700, cursor:'pointer', transition:'all 0.2s' })
+
+  if (vista === 'login') return (
+    <div style={{ minHeight:'100vh', background:'#0a0a1a', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:"'Inter',sans-serif", position:'relative' }}>
+      <GlobalStyles /><BackgroundOrbs />
+      <div style={{ ...card, textAlign:'center', maxWidth:380, width:'90%', padding:40, position:'relative', zIndex:1 }}>
+        <div style={{ fontSize:64, animation:'float 3s ease-in-out infinite' }}>📚</div>
+        <h1 style={{ fontSize:32, fontWeight:900, background:'linear-gradient(135deg,#6c63ff,#a78bfa)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', margin:'12px 0 6px' }}>APPrueba</h1>
+        <p style={{ color:'#4a4a6a', fontSize:14, marginBottom:32 }}>Controla tus notas universitarias</p>
+        <a href={`${API}/auth/google`} style={{ display:'block', background:'white', color:'#1a1a2e', borderRadius:14, padding:'14px 20px', fontWeight:700, fontSize:15, textDecoration:'none', boxShadow:'0 4px 20px rgba(0,0,0,0.3)' }}>
+          🔑 Continuar con Google
         </a>
       </div>
     </div>
   )
 
-  const ramosAprobados = ramos.filter(r => ['aprobado', 'al_dia'].includes(getEstado(r))).length
-  const ramosEnRiesgo = ramos.filter(r => getEstado(r) === 'en_riesgo').length
-  const ramosCriticos = ramos.filter(r => ['critico', 'reprobado'].includes(getEstado(r))).length
+  if (vista === 'nuevo') return (
+    <div style={{ minHeight:'100vh', background:'#0a0a1a', fontFamily:"'Inter',sans-serif", position:'relative', zIndex:1 }}>
+      <GlobalStyles /><BackgroundOrbs />
+      <div style={{ maxWidth:480, margin:'0 auto', padding:'24px 16px' }}>
+        <button onClick={()=>setVista('home')} style={{ background:'none', border:'none', color:'#6c63ff', fontSize:14, fontWeight:700, cursor:'pointer', marginBottom:16 }}>← Volver</button>
+        <div style={{ display:'flex', gap:8, marginBottom:24 }}>
+          {['Tu ramo','Evaluaciones','Notas'].map((s,i) => (
+            <div key={i} style={{ flex:1, textAlign:'center' }}>
+              <div style={{ height:4, borderRadius:2, background: step>i ? 'linear-gradient(90deg,#6c63ff,#8b5cf6)' : 'rgba(255,255,255,0.08)', marginBottom:6, transition:'all 0.3s' }} />
+              <span style={{ fontSize:10, color: step>i ? '#a78bfa' : '#3a3a5a', fontWeight:700 }}>{s}</span>
+            </div>
+          ))}
+        </div>
+
+        {step===1 && (
+          <div style={card}>
+            <h2 style={{ color:'white', fontWeight:800, marginBottom:20 }}>📖 Tu ramo</h2>
+            <label style={{ color:'#6b7280', fontSize:12, fontWeight:600 }}>NOMBRE DEL RAMO</label>
+            <input style={{ ...inp, marginTop:6, marginBottom:16 }} placeholder="Ej: Cálculo II" value={nuevoRamo.nombre} onChange={e=>setNuevoRamo({...nuevoRamo,nombre:e.target.value})} />
+            <label style={{ color:'#6b7280', fontSize:12, fontWeight:600 }}>NOTA MÍNIMA PARA APROBAR</label>
+            <input type="number" min="1" max="7" step="0.1" style={{ ...inp, marginTop:6 }} value={nuevoRamo.minAprobacion} onChange={e=>setNuevoRamo({...nuevoRamo,minAprobacion:parseFloat(e.target.value)})} />
+            <button onClick={()=>nuevoRamo.nombre.trim() && setStep(2)} style={{ ...btn(), width:'100%', marginTop:20, opacity: nuevoRamo.nombre.trim()?1:0.4 }}>Siguiente →</button>
+          </div>
+        )}
+
+        {step===2 && (
+          <div style={card}>
+            <h2 style={{ color:'white', fontWeight:800, marginBottom:4 }}>⚖️ Evaluaciones</h2>
+            <p style={{ color: Math.abs(pesoRestante)<0.01 ? '#10b981' : '#f59e0b', fontSize:13, fontWeight:700, marginBottom:16 }}>
+              {Math.abs(pesoRestante)<0.01 ? '✅ Pesos completos (100%)' : `Restante: ${pesoRestante.toFixed(0)}%`}
+            </p>
+            {evaluaciones.map((ev,i) => (
+              <div key={i} style={{ background:'rgba(255,255,255,0.04)', borderRadius:14, padding:14, marginBottom:10 }}>
+                <div style={{ display:'flex', gap:8, marginBottom:8 }}>
+                  <input style={{ ...inp, flex:2 }} placeholder="Nombre (ej: Solemne 1)" value={ev.nombre} onChange={e=>{ const a=[...evaluaciones]; a[i].nombre=e.target.value; setEvaluaciones(a) }} />
+                  <input type="number" style={{ ...inp, flex:1 }} placeholder="%" min="1" max="100" value={ev.peso} onChange={e=>{ const a=[...evaluaciones]; a[i].peso=e.target.value; setEvaluaciones(a) }} />
+                </div>
+                <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                  <input type="date" style={{ ...inp, flex:1, fontSize:13 }} value={ev.fecha||''} onChange={e=>{ const a=[...evaluaciones]; a[i].fecha=e.target.value; setEvaluaciones(a) }} />
+                  <button onClick={()=>setEvaluaciones(evaluaciones.filter((_,j)=>j!==i))} style={{ background:'rgba(239,68,68,0.2)', color:'#f87171', border:'none', borderRadius:10, padding:'8px 12px', cursor:'pointer', fontWeight:700 }}>✕</button>
+                </div>
+              </div>
+            ))}
+            <button onClick={()=>setEvaluaciones([...evaluaciones,{nombre:'',peso:'',fecha:''}])} style={{ ...btn('rgba(108,99,255,0.2)'), width:'100%', color:'#a78bfa', marginBottom:12 }}>+ Agregar evaluación</button>
+            <button onClick={()=>setStep(3)} style={{ ...btn(), width:'100%', opacity: Math.abs(pesoRestante)<0.01 && evaluaciones.length>0 ? 1:0.4 }} disabled={!(Math.abs(pesoRestante)<0.01 && evaluaciones.length>0)}>Siguiente →</button>
+          </div>
+        )}
+
+        {step===3 && (
+          <div style={card}>
+            <h2 style={{ color:'white', fontWeight:800, marginBottom:4 }}>🎯 Tus notas</h2>
+            <p style={{ color:'#4a4a6a', fontSize:13, marginBottom:16 }}>Deja en blanco las evaluaciones pendientes</p>
+            {evaluaciones.map((ev,i) => (
+              <div key={i} style={{ display:'flex', alignItems:'center', gap:12, marginBottom:12 }}>
+                <div style={{ flex:1 }}>
+                  <p style={{ color:'white', fontSize:14, fontWeight:600, margin:'0 0 2px' }}>{ev.nombre}</p>
+                  <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                    <span style={{ color:'#4a4a6a', fontSize:12 }}>{ev.peso}%</span>
+                    <BadgeFecha fecha={ev.fecha} />
+                  </div>
+                </div>
+                <input type="number" min="1" max="7" step="0.1" style={{ ...inp, width:80, textAlign:'center' }} placeholder="–" value={ev.nota||''} onChange={e=>{ const a=[...evaluaciones]; a[i].nota=e.target.value; setEvaluaciones(a) }} />
+              </div>
+            ))}
+            {error && <p style={{ color:'#f87171', fontSize:13, marginBottom:8 }}>{error}</p>}
+            <button onClick={guardarRamo} style={{ ...btn(), width:'100%', marginTop:8, opacity:loading?0.6:1 }} disabled={loading}>{loading?'Guardando...':'💾 Guardar ramo'}</button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+
+  if (ramoActivo) {
+    const res = calcular(ramoActivo.evaluaciones, ramoActivo.minAprobacion)
+    const completadas = ramoActivo.evaluaciones.filter(e=>e.nota!==''&&e.nota!==null&&e.nota!==undefined)
+    const promActual = completadas.length ? (completadas.reduce((s,e)=>s+Number(e.nota)*Number(e.peso)/100,0) / (completadas.reduce((s,e)=>s+Number(e.peso),0)/100)).toFixed(1) : '–'
+    return (
+      <div style={{ minHeight:'100vh', background:'#0a0a1a', fontFamily:"'Inter',sans-serif", position:'relative' }}>
+        <GlobalStyles /><BackgroundOrbs /><Confetti active={confetti} />
+        <div style={{ maxWidth:480, margin:'0 auto', padding:'24px 16px', position:'relative', zIndex:1 }}>
+          <button onClick={()=>setRamoActivo(null)} style={{ background:'none', border:'none', color:'#6c63ff', fontSize:14, fontWeight:700, cursor:'pointer', marginBottom:16 }}>← Volver</button>
+          <div style={{ ...card, background:'linear-gradient(135deg,rgba(108,99,255,0.15),rgba(139,92,246,0.1))' }}>
+            <h2 style={{ color:'white', fontWeight:900, fontSize:22, margin:'0 0 4px' }}>{ramoActivo.nombre}</h2>
+            <p style={{ color:'#4a4a6a', fontSize:13, margin:'0 0 16px' }}>Mínimo para aprobar: {ramoActivo.minAprobacion}</p>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:16 }}>
+              <StatCard icon="📊" value={promActual} label="Prom. actual" color="#a78bfa" delay={0} />
+              <StatCard icon="🎯" value={res.necesaria||res.promedio||'–'} label={res.estado==='aprobado'||res.estado==='reprobado'?'Promedio final':'Nota necesaria'} color={res.estado==='aprobado'?'#10b981':res.estado==='imposible'?'#ef4444':'#f59e0b'} delay={100} />
+              <StatCard icon="📝" value={ramoActivo.evaluaciones.filter(e=>e.nota===''||e.nota===null||e.nota===undefined).length} label="Pendientes" color="#6c63ff" delay={200} />
+            </div>
+            <div style={{ borderRadius:14, padding:14, textAlign:'center', background:
+              res.estado==='aprobado'   ? 'rgba(16,185,129,0.15)' :
+              res.estado==='reprobado'  ? 'rgba(239,68,68,0.15)'  :
+              res.estado==='imposible'  ? 'rgba(239,68,68,0.1)'   :
+              res.estado==='ya_aprobado'? 'rgba(16,185,129,0.1)'  : 'rgba(108,99,255,0.1)' }}>
+              <p style={{ color:'white', fontWeight:800, fontSize:15, margin:0 }}>
+                {res.estado==='aprobado'    && `🎉 ¡Aprobado con ${res.promedio}!`}
+                {res.estado==='reprobado'   && `😞 Reprobado con ${res.promedio}`}
+                {res.estado==='imposible'   && `💀 Necesitarías ${res.necesaria} — imposible`}
+                {res.estado==='ya_aprobado' && `✅ ¡Ya aprobaste! Solo necesitas un 1.0`}
+                {res.estado==='en_curso'    && `📌 Necesitas ${res.necesaria} en promedio en las ${res.pendientes} restantes`}
+                {res.estado==='sin_evals'   && `➕ Agrega evaluaciones para calcular`}
+                {res.estado==='pesos_incompletos' && `⚠️ Los pesos no suman 100%`}
+              </p>
+            </div>
+          </div>
+          {ramoActivo.evaluaciones.map((ev,i) => (
+            <div key={ev.id||i} style={{ ...card, padding:16 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                <div style={{ flex:1 }}>
+                  <p style={{ color:'white', fontSize:15, fontWeight:700, margin:'0 0 2px' }}>{ev.nombre}</p>
+                  <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+                    <span style={{ color:'#4a4a6a', fontSize:12 }}>{ev.peso}%</span>
+                    <BadgeFecha fecha={ev.fecha} />
+                  </div>
+                </div>
+                <input type="number" min="1" max="7" step="0.1" style={{ ...inp, width:80, textAlign:'center' }} placeholder="–" value={ev.nota||''} onChange={e=>actualizarNota(ramoActivo.id, ev.id, e.target.value)} />
+              </div>
+            </div>
+          ))}
+          <button onClick={()=>eliminarRamo(ramoActivo.id)} style={{ ...btn('rgba(239,68,68,0.15)'), width:'100%', color:'#f87171', marginTop:8 }}>🗑 Eliminar ramo</button>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0d0d1a', maxWidth: 480, margin: '0 auto', fontFamily: 'system-ui, sans-serif' }}>
-
-      {toast && (
-        <div style={{ position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)', background: toast.tipo === 'error' ? '#ef4444' : '#22c55e', color: 'white', padding: '10px 20px', borderRadius: 12, fontSize: 13, fontWeight: 600, zIndex: 1000, boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
-          {toast.msg}
+    <div style={{ minHeight:'100vh', background:'#0a0a1a', fontFamily:"'Inter',sans-serif", position:'relative' }}>
+      <GlobalStyles /><BackgroundOrbs />
+      <div style={{ maxWidth:480, margin:'0 auto', padding:'24px 16px', position:'relative', zIndex:1 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24 }}>
+          <div>
+            <h1 style={{ fontSize:26, fontWeight:900, background:'linear-gradient(135deg,#6c63ff,#a78bfa)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', margin:0 }}>APPrueba</h1>
+            <p style={{ color:'#4a4a6a', fontSize:13, margin:'2px 0 0' }}>Hola, {user?.nombre?.split(' ')[0]} 👋</p>
+          </div>
+          <img src={user?.foto} alt="" style={{ width:40, height:40, borderRadius:'50%', border:'2px solid #6c63ff' }} />
         </div>
-      )}
-
-      {planActivo && (
-        <PlanEstudio
-          ev={planActivo}
-          onClose={() => { setPlanActivo(null); cargarRamos() }}
-          onUpdate={cargarRamos}
-        />
-      )}
-
-      {vista === 'dashboard' && (
-        <>
-          <div style={{ background: 'linear-gradient(135deg, #1a1a3e 0%, #0d0d1a 100%)', padding: '48px 20px 48px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <div>
-                <p style={{ color: '#6a6a9a', fontSize: 13, margin: 0 }}>Hola de nuevo 👋</p>
-                <p style={{ color: 'white', fontSize: 20, fontWeight: 700, margin: 0 }}>{user.name?.split(' ')[0]}</p>
-              </div>
-              {user.picture
-                ? <img src={user.picture} style={{ width: 40, height: 40, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.4)' }} />
-                : <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700 }}>{user.name?.[0]}</div>
-              }
-            </div>
-            <div style={{ background: 'rgba(108,99,255,0.12)', borderRadius: 16, padding: '16px 20px', border: '1px solid rgba(108,99,255,0.25)', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, textAlign: 'center' }}>
-              <div><p style={{ color: 'white', fontSize: 24, fontWeight: 700, margin: 0 }}>{ramos.length}</p><p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, margin: 0 }}>Ramos</p></div>
-              <div style={{ borderLeft: '1px solid rgba(255,255,255,0.2)', borderRight: '1px solid rgba(255,255,255,0.2)' }}>
-                <p style={{ color: '#86efac', fontSize: 24, fontWeight: 700, margin: 0 }}>{ramosAprobados}</p><p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, margin: 0 }}>Al día</p>
-              </div>
-              <div><p style={{ color: ramosCriticos > 0 ? '#fca5a5' : '#fde68a', fontSize: 24, fontWeight: 700, margin: 0 }}>{ramosCriticos || ramosEnRiesgo}</p><p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, margin: 0 }}>{ramosCriticos > 0 ? 'Críticos' : 'En riesgo'}</p></div>
-            </div>
+        {ramos.length===0 ? (
+          <div style={{ ...card, textAlign:'center', padding:40 }}>
+            <div style={{ fontSize:48, marginBottom:12, animation:'float 3s ease-in-out infinite' }}>📚</div>
+            <p style={{ color:'white', fontWeight:700, fontSize:18 }}>Sin ramos aún</p>
+            <p style={{ color:'#4a4a6a', fontSize:14 }}>Agrega tu primer ramo para empezar</p>
           </div>
-
-          <div style={{ background: '#111122', borderRadius: '24px 24px 0 0', marginTop: -20, padding: '24px 16px', minHeight: 'calc(100vh - 200px)', background: '#111122' }}>
-            <p style={{ fontSize: 11, fontWeight: 600, color: '#4a4a6a', marginBottom: 16, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Mis ramos</p>
-            {ramos.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '48px 20px' }}>
-                <p style={{ fontSize: 40, marginBottom: 12 }}>📚</p>
-                <p style={{ fontSize: 15, fontWeight: 600, color: '#e2e8f0', marginBottom: 6 }}>Sin ramos aún</p>
-                <p style={{ fontSize: 13, color: '#4a4a6a' }}>Agrega tu primer ramo para comenzar</p>
-              </div>
-            )}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {ramos.map(ramo => {
-                const estado = getEstado(ramo)
-                const cfg = estadoConfig[estado]
-                const promedio = calcularPromedioFinal(ramo)
-                const necesaria = calcularNecesaria(ramo)
-                const progreso = promedio ? Math.min((promedio / 7) * 100, 100) : 0
-                const proximaEv = (ramo.evaluaciones || [])
-                  .filter(e => !e.nota && e.fecha)
-                  .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))[0]
-                return (
-                  <div key={ramo.id} onClick={() => { setRamoActivo(ramo); setNotas({}); setEditando({}); setVista('ramo') }}
-                    style={{ background: '#1a1a2e', borderRadius: 18, padding: '16px', borderLeft: `4px solid ${cfg.border}`, cursor: 'pointer' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                      <div>
-                        <p style={{ fontSize: 14, fontWeight: 600, color: '#e2e8f0', margin: 0 }}>{ramo.nombre}</p>
-                        <p style={{ fontSize: 11, color: '#4a4a6a', margin: '3px 0 0' }}>{ramo.evaluaciones?.length || 0} evaluaciones · mín {ramo.min_aprobacion}</p>
-                      </div>
-                      <span style={{ background: cfg.bg, color: cfg.text, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 20 }}>
-                        {estado === 'aprobado' ? `✅ ${promedio?.toFixed(1)}` :
-                         estado === 'reprobado' ? `❌ ${promedio?.toFixed(1)}` :
-                         estado === 'al_dia' ? `✅ ${promedio?.toFixed(1) || 'OK'}` :
-                         necesaria ? `💪 ${necesaria.toFixed(1)}` : '—'}
-                      </span>
-                    </div>
-                    {proximaEv && (
-                      <div style={{ marginBottom: 8 }}>
-                        <BadgeFecha fecha={proximaEv.fecha} />
-                        <span style={{ fontSize: 10, color: '#888', marginLeft: 6 }}>{proximaEv.nombre}</span>
-                      </div>
-                    )}
-                    <div style={{ height: 3, borderRadius: 3, background: 'rgba(108,99,255,0.2)', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', borderRadius: 3, background: 'linear-gradient(90deg,#6c63ff,#a78bfa)', width: `${progreso}%`, transition: 'width 0.4s' }} />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-            <button onClick={() => { setVista('nuevo'); setStep(1); setNuevoRamo({ nombre: '', minAprobacion: 4.0 }); setEvaluaciones([]) }}
-              style={{ width: '100%', background: 'linear-gradient(135deg, #6c63ff, #8b5cf6)', color: 'white', border: 'none', borderRadius: 16, padding: '14px', fontSize: 14, fontWeight: 600, marginTop: 16, cursor: 'pointer' }}>
-              + Agregar ramo
-            </button>
-            <button onClick={() => fetch(`${API}/auth/logout`, { method: 'POST', headers: authHeaders() }).then(() => setUser(null))}
-              style={{ width: '100%', background: 'transparent', color: '#4a4a6a', border: 'none', padding: '12px', fontSize: 12, cursor: 'pointer', marginTop: 4 }}>
-              Cerrar sesión
-            </button>
-          </div>
-        </>
-      )}
-
-      {vista === 'ramo' && ramoActivo && (() => {
-        const ramo = ramos.find(r => r.id === ramoActivo.id) || ramoActivo
-        const necesaria = calcularNecesaria(ramo)
-        const promedio = calcularPromedioFinal(ramo)
-        const estado = getEstado(ramo)
-        const cfg = estadoConfig[estado]
-        const min = Number(ramo.min_aprobacion) || 4.0
-        const terminado = todasRendidas(ramo)
-        return (
-          <>
-            <div style={{ background: estado === 'aprobado' ? 'linear-gradient(135deg,#052e16,#14532d)' : estado === 'reprobado' ? 'linear-gradient(135deg,#1c0a0a,#450a0a)' : 'linear-gradient(135deg,#1a1a3e,#0d0d1a)', padding: '48px 20px 48px', transition: 'background 0.4s' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-                <button onClick={() => setVista('dashboard')} style={{ background: 'rgba(108,99,255,0.2)', border: '1px solid rgba(108,99,255,0.3)', color: 'white', borderRadius: 10, padding: '8px 12px', cursor: 'pointer', fontSize: 16 }}>←</button>
-                <p style={{ color: '#e2e8f0', fontSize: 17, fontWeight: 700, margin: 0 }}>{ramo.nombre}</p>
-              </div>
-              {terminado ? (
-                <div style={{ background: 'rgba(108,99,255,0.1)', borderRadius: 16, padding: '20px', textAlign: 'center', border: '1px solid rgba(108,99,255,0.2)' }}>
-                  <p style={{ fontSize: 48, margin: '0 0 8px' }}>{estado === 'aprobado' ? '🎉' : '😔'}</p>
-                  <p style={{ color: 'white', fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>{estado === 'aprobado' ? '¡Ramo aprobado!' : 'Ramo reprobado'}</p>
-                  <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, margin: '0 0 12px' }}>
-                    {estado === 'aprobado' ? `Promedio final: ${promedio?.toFixed(1)} · mín era ${min}` : `Promedio final: ${promedio?.toFixed(1)} · necesitabas ${min}`}
+        ) : ramos.map((r,i) => {
+          const res = calcular(r.evaluaciones||[], r.minAprobacion)
+          const color = res.estado==='aprobado'||res.estado==='ya_aprobado' ? '#10b981' : res.estado==='reprobado'||res.estado==='imposible' ? '#ef4444' : '#f59e0b'
+          return (
+            <div key={r.id} onClick={()=>setRamoActivo(r)} style={{ ...card, cursor:'pointer', animationDelay:`${i*80}ms`, borderLeft:`3px solid ${color}` }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <div>
+                  <p style={{ color:'white', fontWeight:800, fontSize:16, margin:'0 0 4px' }}>{r.nombre}</p>
+                  <p style={{ color:'#4a4a6a', fontSize:12, margin:0 }}>Mín: {r.minAprobacion} · {(r.evaluaciones||[]).length} evaluaciones</p>
+                </div>
+                <div style={{ textAlign:'right' }}>
+                  <p style={{ color, fontWeight:900, fontSize:20, margin:'0 0 2px' }}>
+                    {res.estado==='aprobado'||res.estado==='reprobado' ? res.promedio : res.necesaria||'–'}
                   </p>
-                  <div style={{ background: 'rgba(108,99,255,0.2)', borderRadius: 10, padding: '8px 16px', display: 'inline-block', border: '1px solid rgba(108,99,255,0.3)' }}>
-                    <span style={{ color: 'white', fontSize: 32, fontWeight: 700 }}>{promedio?.toFixed(1)}</span>
-                  </div>
+                  <p style={{ color:'#4a4a6a', fontSize:10, margin:0 }}>
+                    {res.estado==='aprobado'?'✅ Aprobado':res.estado==='reprobado'?'❌ Reprobado':res.estado==='imposible'?'💀 Imposible':res.estado==='ya_aprobado'?'✅ Salvado':'📌 Necesitas'}
+                  </p>
                 </div>
-              ) : (
-                <div style={{ background: 'rgba(108,99,255,0.12)', borderRadius: 16, padding: '16px 20px', display: 'flex', justifyContent: 'space-between', border: '1px solid rgba(108,99,255,0.2)', alignItems: 'center' }}>
-                  <div>
-                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, margin: 0 }}>Promedio actual</p>
-                    <p style={{ color: 'white', fontSize: 32, fontWeight: 700, margin: 0 }}>{promedio ? promedio.toFixed(1) : '—'}</p>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, margin: 0 }}>Necesitas</p>
-                    <p style={{ color: necesaria > 6 ? '#f87171' : necesaria > 5 ? '#fbbf24' : '#4ade80', fontSize: 32, fontWeight: 700, margin: 0 }}>
-                      {necesaria === null ? '✅' : necesaria > 7 ? '+7.0' : necesaria.toFixed(1)}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div style={{ background: '#111122', borderRadius: '24px 24px 0 0', marginTop: -20, padding: '24px 16px' }}>
-              <p style={{ fontSize: 11, fontWeight: 600, color: '#4a4a6a', marginBottom: 14, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Evaluaciones</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {(ramo.evaluaciones || []).map(ev => {
-                  const tieneNota = ev.nota !== null && ev.nota !== undefined && ev.nota !== ''
-                  const estaEditando = editando[ev.id]
-                  const necesariaEv = !tieneNota && necesaria !== null ? necesaria : null
-                  const tieneArchivos = (ev.archivos || []).length > 0
-                  const tienePlan = !!ev.plan_estudio
-                  return (
-                    <div key={ev.id} style={{ background: '#1a1a2e', borderRadius: 16, padding: '14px 16px', border: tieneNota && !estaEditando ? '1px solid rgba(108,99,255,0.15)' : '1.5px dashed rgba(108,99,255,0.3)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <div style={{ width: 44, height: 44, background: tieneNota && !estaEditando ? 'rgba(34,197,94,0.15)' : 'rgba(108,99,255,0.15)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: tieneNota && !estaEditando ? '#4ade80' : '#a78bfa', flexShrink: 0 }}>
-                          {tieneNota && !estaEditando ? parseFloat(ev.nota).toFixed(1) : necesariaEv ? necesariaEv.toFixed(1) : '?'}
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <p style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', margin: 0 }}>{ev.nombre}</p>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'wrap' }}>
-                            <p style={{ fontSize: 11, color: '#4a4a6a', margin: 0 }}>{ev.ponderacion}% del ramo</p>
-                            {ev.fecha && <BadgeFecha fecha={ev.fecha} />}
-                            {tieneArchivos && <span style={{ fontSize: 10, background: 'rgba(108,99,255,0.2)', color: '#a78bfa', padding: '2px 6px', borderRadius: 10, fontWeight: 600 }}>📎 {ev.archivos.length}</span>}
-                            {tienePlan && <span style={{ fontSize: 10, background: '#dcfce7', color: '#16a34a', padding: '2px 6px', borderRadius: 10, fontWeight: 600 }}>🤖 Plan listo</span>}
-                          </div>
-                        </div>
-                        {estaEditando ? (
-                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                            <input type="number" min="1" max="7" step="0.1" placeholder="Nota"
-                              value={notas[ev.id] ?? (tieneNota ? ev.nota : '')}
-                              onChange={e => setNotas({ ...notas, [ev.id]: e.target.value })}
-                              autoFocus
-                              style={{ width: 64, border: '1.5px solid #6c63ff', borderRadius: 10, padding: '8px', fontSize: 13, textAlign: 'center', outline: 'none', background: '#0d0d1a', color: '#e2e8f0' }} />
-                            <button onClick={() => guardarNota(ev.id, notas[ev.id] ?? ev.nota)}
-                              style={{ background: 'linear-gradient(135deg,#6c63ff,#8b5cf6)', border: 'none', color: 'white', borderRadius: 10, padding: '8px 10px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>✓</button>
-                            <button onClick={() => { setEditando(prev => { const n={...prev}; delete n[ev.id]; return n }); setNotas(prev => { const n={...prev}; delete n[ev.id]; return n }) }}
-                              style={{ background: 'rgba(239,68,68,0.15)', border: 'none', color: '#f87171', borderRadius: 10, padding: '8px 10px', cursor: 'pointer', fontSize: 12 }}>✕</button>
-                          </div>
-                        ) : tieneNota ? (
-                          <button onClick={() => setEditando({ ...editando, [ev.id]: true })}
-                            style={{ background: 'rgba(108,99,255,0.1)', border: '1px solid rgba(108,99,255,0.2)', color: '#a78bfa', borderRadius: 10, padding: '6px 10px', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
-                            ✏️ Editar
-                          </button>
-                        ) : (
-                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                            <input type="number" min="1" max="7" step="0.1" placeholder="Nota"
-                              value={notas[ev.id] || ''}
-                              onChange={e => setNotas({ ...notas, [ev.id]: e.target.value })}
-                              style={{ width: 64, border: '1.5px solid rgba(108,99,255,0.4)', borderRadius: 10, padding: '8px', fontSize: 13, textAlign: 'center', outline: 'none', background: '#0d0d1a', color: '#e2e8f0' }} />
-                            {notas[ev.id] && (
-                              <button onClick={() => guardarNota(ev.id, notas[ev.id])}
-                                style={{ background: '#6c63ff', border: 'none', color: 'white', borderRadius: 10, padding: '8px 10px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>✓</button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      {/* Botón plan de estudio */}
-                      <button onClick={() => setPlanActivo({ ...ev, archivos: ev.archivos || [], plan_estudio: ev.plan_estudio || null, tareas_completadas: ev.tareas_completadas || [] })}
-                        style={{ width: '100%', marginTop: 10, background: tienePlan ? 'rgba(34,197,94,0.1)' : 'rgba(108,99,255,0.1)', color: tienePlan ? '#4ade80' : '#a78bfa', border: `1px solid ${tienePlan ? 'rgba(34,197,94,0.3)' : 'rgba(108,99,255,0.3)'}`, borderRadius: 10, padding: '8px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                        {tienePlan ? '📋 Ver plan de estudio' : '✨ Crear plan de estudio con IA'}
-                      </button>
-                    </div>
-                  )
-                })}
               </div>
-              <button onClick={() => eliminarRamo(ramo.id)}
-                style={{ width: '100%', background: 'transparent', color: '#f87171', border: '1.5px solid rgba(239,68,68,0.3)', borderRadius: 16, padding: '12px', fontSize: 13, fontWeight: 600, marginTop: 16, cursor: 'pointer' }}>
-                Eliminar ramo
-              </button>
             </div>
-          </>
-        )
-      })()}
-
-      {vista === 'nuevo' && (
-        <>
-          <div style={{ background: 'linear-gradient(135deg, #1a1a3e 0%, #0d0d1a 100%)', padding: '48px 20px 48px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-              <button onClick={() => step === 1 ? setVista('dashboard') : setStep(step - 1)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: 10, padding: '8px 12px', cursor: 'pointer', fontSize: 16 }}>←</button>
-              <p style={{ color: 'white', fontSize: 17, fontWeight: 700, margin: 0 }}>Nuevo ramo</p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-              {['Ramo', 'Evaluaciones', 'Notas'].map((label, i) => (
-                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {i > 0 && <div style={{ width: 20, height: 1, background: 'rgba(255,255,255,0.3)' }} />}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: step > i+1 ? '#86efac' : step === i+1 ? 'white' : 'rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: step === i+1 ? '#6c63ff' : step > i+1 ? '#16a34a' : 'white' }}>
-                      {step > i+1 ? '✓' : i+1}
-                    </div>
-                    <span style={{ color: step === i+1 ? 'white' : 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: step === i+1 ? 600 : 400 }}>{label}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ background: '#111122', borderRadius: '24px 24px 0 0', marginTop: -20, padding: '28px 16px', minHeight: 'calc(100vh - 220px)' }}>
-            {step === 1 && (
-              <>
-                <p style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>📝 Tu ramo</p>
-                <p style={{ fontSize: 12, color: '#4a4a6a', marginBottom: 20 }}>Ingresa los datos básicos del ramo</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div>
-                    <label style={{ fontSize: 12, fontWeight: 600, color: '#6a6a9a', display: 'block', marginBottom: 6 }}>Nombre del ramo</label>
-                    <input value={nuevoRamo.nombre} onChange={e => setNuevoRamo({ ...nuevoRamo, nombre: e.target.value })}
-                      placeholder="Ej: Cálculo I, Historia, Física..."
-                      style={{ width: '100%', border: '1.5px solid rgba(108,99,255,0.3)', borderRadius: 14, padding: '13px 16px', fontSize: 14, outline: 'none', boxSizing: 'border-box', background: '#1a1a2e', color: '#e2e8f0' }} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>Nota mínima para aprobar</label>
-                    <input type="number" min="1" max="7" step="0.1" value={nuevoRamo.minAprobacion}
-                      onChange={e => setNuevoRamo({ ...nuevoRamo, minAprobacion: parseFloat(e.target.value) })}
-                      style={{ width: '100%', border: '1.5px solid #e0deff', borderRadius: 14, padding: '13px 16px', fontSize: 14, outline: 'none', boxSizing: 'border-box', background: '#0d0d1a', color: '#e2e8f0' }} />
-                  </div>
-                </div>
-                <button onClick={() => nuevoRamo.nombre && setStep(2)} disabled={!nuevoRamo.nombre}
-                  style={{ width: '100%', background: nuevoRamo.nombre ? 'linear-gradient(135deg,#6c63ff,#8b5cf6)' : '#1a1a2e', color: 'white', border: 'none', borderRadius: 16, padding: '14px', fontSize: 14, fontWeight: 600, marginTop: 24, cursor: nuevoRamo.nombre ? 'pointer' : 'not-allowed' }}>
-                  Siguiente →
-                </button>
-              </>
-            )}
-
-            {step === 2 && (
-              <>
-                <p style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>📊 Evaluaciones</p>
-                <p style={{ fontSize: 12, color: '#4a4a6a', marginBottom: 16 }}>{nuevoRamo.nombre} · mín {nuevoRamo.minAprobacion}</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
-                  {evaluaciones.map((ev, i) => (
-                    <div key={i} style={{ background: '#1a1a2e', borderRadius: 14, padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', margin: 0 }}>{ev.nombre}</p>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                          <p style={{ fontSize: 11, color: '#4a4a6a', margin: 0 }}>{ev.ponderacion}%</p>
-                          {ev.fecha && <BadgeFecha fecha={ev.fecha} />}
-                        </div>
-                      </div>
-                      <button onClick={() => setEvaluaciones(evaluaciones.filter((_, j) => j !== i))}
-                        style={{ background: 'rgba(239,68,68,0.15)', border: 'none', color: '#f87171', borderRadius: 8, width: 28, height: 28, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>✕</button>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ background: '#1a1a2e', borderRadius: 14, padding: '14px', marginBottom: 12 }}>
-                  <input value={evalTemp.nombre} onChange={e => setEvalTemp({ ...evalTemp, nombre: e.target.value })}
-                    placeholder="Nombre de la evaluación"
-                    style={{ width: '100%', border: '1.5px solid rgba(108,99,255,0.3)', borderRadius: 10, padding: '10px 12px', fontSize: 13, outline: 'none', boxSizing: 'border-box', marginBottom: 10, background: '#0d0d1a', color: '#e2e8f0' }} />
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                      <span style={{ fontSize: 10, color: '#a78bfa', fontWeight: 600 }}>% nota final</span>
-                    <input type="number" value={evalTemp.ponderacion} onChange={e => setEvalTemp({ ...evalTemp, ponderacion: e.target.value })}
-                      placeholder="%" min="1" max="100" title="Porcentaje que vale esta evaluación en la nota final"
-                      style={{ width: 70, border: '1.5px solid rgba(108,99,255,0.3)', borderRadius: 10, padding: '10px 12px', fontSize: 13, outline: 'none', background: '#0d0d1a', color: '#e2e8f0' }} />
-                    </div>
-                    <div style={{ flex: 1, height: 4, borderRadius: 3, background: 'rgba(108,99,255,0.15)', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', borderRadius: 3, background: ponderacionUsada >= 100 ? '#f87171' : 'linear-gradient(90deg,#6c63ff,#a78bfa)', width: `${Math.min(ponderacionUsada, 100)}%`, transition: 'width 0.3s' }} />
-                    </div>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: ponderacionRestante === 0 ? '#4ade80' : '#a78bfa', minWidth: 36 }}>{ponderacionRestante}%</span>
-                  </div>
-                  <div style={{ marginBottom: 10 }}>
-                    <label style={{ fontSize: 11, color: '#4a4a6a', display: 'block', marginBottom: 4 }}>📅 Fecha de la prueba (opcional)</label>
-                    <input type="date" value={evalTemp.fecha} onChange={e => setEvalTemp({ ...evalTemp, fecha: e.target.value })}
-                      style={{ width: '100%', border: '1.5px solid rgba(108,99,255,0.3)', borderRadius: 10, padding: '10px 12px', fontSize: 13, outline: 'none', boxSizing: 'border-box', background: '#0d0d1a', color: evalTemp.fecha ? '#e2e8f0' : '#4a4a6a' }} />
-                  </div>
-                  <button onClick={agregarEval} disabled={!evalTemp.nombre || !evalTemp.ponderacion || ponderacionRestante <= 0}
-                    style={{ width: '100%', background: 'rgba(108,99,255,0.15)', color: '#a78bfa', border: '1px solid rgba(108,99,255,0.3)', borderRadius: 10, padding: '10px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                    + Agregar
-                  </button>
-                </div>
-                <button onClick={() => evaluaciones.length > 0 && ponderacionUsada === 100 && setStep(3)}
-                  disabled={evaluaciones.length === 0 || ponderacionUsada !== 100}
-                  style={{ width: '100%', background: evaluaciones.length > 0 && ponderacionUsada === 100 ? 'linear-gradient(135deg,#6c63ff,#8b5cf6)' : '#1a1a2e', color: 'white', border: 'none', borderRadius: 16, padding: '14px', fontSize: 14, fontWeight: 600, cursor: evaluaciones.length > 0 && ponderacionUsada === 100 ? 'pointer' : 'not-allowed' }}>
-                  {ponderacionUsada === 100 ? 'Siguiente →' : `Faltan ${ponderacionRestante}% por asignar`}
-                </button>
-              </>
-            )}
-
-            {step === 3 && (
-              <>
-                <p style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>🎯 Notas iniciales</p>
-                <p style={{ fontSize: 12, color: '#888', marginBottom: 16 }}>Ingresa las notas que ya tienes (opcional)</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
-                  {evaluaciones.map((ev, i) => (
-                    <div key={i} style={{ background: '#1a1a2e', borderRadius: 14, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, border: '1.5px dashed rgba(108,99,255,0.3)' }}>
-                      <div style={{ flex: 1 }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: '#1a1a2e', margin: 0 }}>{ev.nombre}</p>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                          <p style={{ fontSize: 11, color: '#888', margin: 0 }}>{ev.ponderacion}%</p>
-                          {ev.fecha && <BadgeFecha fecha={ev.fecha} />}
-                        </div>
-                      </div>
-                      <input type="number" min="1" max="7" step="0.1" placeholder="Nota"
-                        value={notas[i] || ''}
-                        onChange={e => setNotas({ ...notas, [i]: e.target.value })}
-                        style={{ width: 70, border: '1.5px solid rgba(108,99,255,0.3)', borderRadius: 10, padding: '8px', fontSize: 13, textAlign: 'center', outline: 'none', background: '#0d0d1a', color: '#e2e8f0' }} />
-                    </div>
-                  ))}
-                </div>
-                <button onClick={guardarRamo} disabled={guardando}
-                  style={{ width: '100%', background: 'linear-gradient(135deg,#6c63ff,#8b5cf6)', color: 'white', border: 'none', borderRadius: 16, padding: '14px', fontSize: 14, fontWeight: 600, cursor: 'pointer', opacity: guardando ? 0.7 : 1 }}>
-                  {guardando ? 'Guardando...' : '🎉 Crear ramo'}
-                </button>
-              </>
-            )}
-          </div>
-        </>
-      )}
+          )
+        })}
+        <button onClick={()=>{setVista('nuevo');setStep(1);setNuevoRamo({nombre:'',minAprobacion:4.0});setEvaluaciones([])}}
+          style={{ width:'100%', background:'linear-gradient(135deg,#6c63ff,#8b5cf6)', color:'white', border:'none', borderRadius:18, padding:'16px', fontSize:15, fontWeight:800, marginTop:8, cursor:'pointer', boxShadow:'0 8px 30px rgba(108,99,255,0.4)', animation:'pulse-glow 2s ease-in-out infinite' }}>
+          + Agregar ramo
+        </button>
+        <button onClick={()=>fetch(`${API}/auth/logout`,{method:'POST',headers:authHeaders()}).then(()=>{localStorage.removeItem('token');setUser(null);setVista('login')})}
+          style={{ width:'100%', background:'transparent', color:'#3a3a5a', border:'none', padding:'12px', fontSize:12, cursor:'pointer', marginTop:4, fontWeight:600 }}>
+          Cerrar sesión
+        </button>
+      </div>
     </div>
   )
 }
-
-export default App
