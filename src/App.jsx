@@ -396,7 +396,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
                         <button onClick={() => setEditando({ ...editando, [ev.id]: true })} style={{ background: 'rgba(108,99,255,0.15)', border: 'none', borderRadius: 10, padding: '8px 12px', color: '#a78bfa', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
                           {tieneNota ? 'Editar' : '+ Nota'}
                         </button>
-                        <button onClick={(e) => { e.stopPropagation(); onPlan(ev) }} style={{ background: 'rgba(108,99,255,0.15)', border: 'none', borderRadius: 10, padding: '8px 10px', color: '#a78bfa', fontSize: 12, cursor: 'pointer' }}>🤖</button>
+                        <button onClick={(e) => { e.stopPropagation(); onPlan(ev) }} style={{ background: 'rgba(108,99,255,0.15)', border: 'none', borderRadius: 10, padding: '8px 12px', color: '#a78bfa', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>🤖 Plan IA</button>
                         <button onClick={() => eliminarEv(ev.id)} style={{ background: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: 10, padding: '8px 10px', color: '#f87171', fontSize: 12, cursor: 'pointer' }}>🗑</button>
                       </div>
                     )}
