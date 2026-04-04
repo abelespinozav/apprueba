@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const getToken = () => localStorage.getItem('token')
@@ -17,7 +17,9 @@ const FRASES = [
 function diasParaPrueba(fecha) {
   if (!fecha) return null
   const hoy = new Date(); hoy.setHours(0,0,0,0)
-  const d = new Date(fecha + 'T00:00:00')
+  const str = typeof fecha === 'string' ? fecha.substring(0,10) : fecha
+  const d = new Date(str + 'T00:00:00')
+  if (isNaN(d.getTime())) return null
   return Math.round((d - hoy) / (1000 * 60 * 60 * 24))
 }
 
@@ -44,7 +46,6 @@ function BackgroundOrbs() {
         @keyframes orbMove3 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(20px,-30px)} }
         @keyframes slideUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
         @keyframes fadeIn { from{opacity:0} to{opacity:1} }
-        @keyframes shimmer { 0%{background-position:-200% center} 100%{background-position:200% center} }
         @keyframes confettiFall { 0%{transform:translateY(-10px) rotate(0deg);opacity:1} 100%{transform:translateY(100vh) rotate(720deg);opacity:0} }
         @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
       `}</style>
@@ -55,12 +56,9 @@ function BackgroundOrbs() {
 function Confetti({ active }) {
   if (!active) return null
   const pieces = Array.from({ length: 40 }, (_, i) => ({
-    id: i,
-    left: Math.random() * 100,
+    id: i, left: Math.random() * 100,
     color: ['#6c63ff','#a78bfa','#f59e0b','#22c55e','#ec4899','#38bdf8'][Math.floor(Math.random() * 6)],
-    delay: Math.random() * 1.5,
-    size: 6 + Math.random() * 8,
-    duration: 2 + Math.random() * 2,
+    delay: Math.random() * 1.5, size: 6 + Math.random() * 8, duration: 2 + Math.random() * 2,
   }))
   return (
     <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 9999 }}>
@@ -82,18 +80,19 @@ function WidgetMotivacional() {
 }
 
 function calcular(evaluaciones, min) {
-  const pendientes = evaluaciones.filter(e => e.nota === null || e.nota === undefined || e.nota === '')
-  const completadas = evaluaciones.filter(e => e.nota !== null && e.nota !== undefined && e.nota !== '')
+  const evs = evaluaciones.map(e => ({ ...e, ponderacion: parseFloat(e.ponderacion) || 0, nota: (e.nota !== null && e.nota !== undefined && e.nota !== '') ? parseFloat(e.nota) : null }))
+  const pendientes = evs.filter(e => e.nota === null)
+  const completadas = evs.filter(e => e.nota !== null)
+  if (pendientes.length === 0 && completadas.length === 0) return { promedio: null, necesaria: null, estado: null }
   if (pendientes.length === 0) {
-    const promedio = completadas.reduce((acc, e) => acc + parseFloat(e.nota) * (e.ponderacion / 100), 0)
-    const estado = promedio >= parseFloat(min) ? 'aprobado' : 'reprobado'
-    return { promedio, necesaria: null, estado }
+    const promedio = completadas.reduce((acc, e) => acc + e.nota * (e.ponderacion / 100), 0)
+    return { promedio, necesaria: null, estado: promedio >= parseFloat(min) ? 'aprobado' : 'reprobado' }
   }
   const pesoCompletado = completadas.reduce((acc, e) => acc + e.ponderacion, 0)
   const pesoPendiente = pendientes.reduce((acc, e) => acc + e.ponderacion, 0)
-  const puntajeActual = completadas.reduce((acc, e) => acc + parseFloat(e.nota) * (e.ponderacion / 100), 0)
+  const puntajeActual = completadas.reduce((acc, e) => acc + e.nota * (e.ponderacion / 100), 0)
   const promedioActual = pesoCompletado > 0 ? (puntajeActual / (pesoCompletado / 100)) : null
-  const necesaria = ((parseFloat(min) - puntajeActual) / (pesoPendiente / 100))
+  const necesaria = pesoPendiente > 0 ? ((parseFloat(min) - puntajeActual) / (pesoPendiente / 100)) : null
   return { promedio: promedioActual, necesaria, estado: null }
 }
 
@@ -137,20 +136,17 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, usuario }) {
           </div>
           <button onClick={onLogout} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '8px 14px', color: 'rgba(255,255,255,0.5)', fontSize: 12, cursor: 'pointer' }}>Salir</button>
         </div>
-
         <div style={{ padding: '0 16px' }}>
           <WidgetMotivacional />
-
           {ramos.length === 0 && (
             <div style={{ textAlign: 'center', padding: '40px 20px', animation: 'fadeIn 0.5s ease' }}>
               <div style={{ fontSize: 48, marginBottom: 12 }}>🎓</div>
               <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>Aún no tienes ramos.<br/>¡Agrega tu primer ramo!</p>
             </div>
           )}
-
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
             {ramos.map((r, i) => {
-              const evs = r.evaluaciones || []
+              const evs = (r.evaluaciones || []).map(e => ({ ...e, ponderacion: parseFloat(e.ponderacion) || 0 }))
               const calc = evs.length > 0 ? calcular(evs, r.min_aprobacion) : null
               const completadas = evs.filter(e => e.nota !== null && e.nota !== undefined && e.nota !== '').length
               const total = evs.length
@@ -170,14 +166,14 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, usuario }) {
                           <span style={{ fontSize: 12, fontWeight: 700, color: calc.estado === 'aprobado' ? '#4ade80' : '#f87171', background: calc.estado === 'aprobado' ? 'rgba(34,197,94,0.15)' : 'rgba(248,113,113,0.15)', padding: '4px 10px', borderRadius: 20 }}>
                             {calc.estado === 'aprobado' ? '✓ Aprobado' : '✗ Reprobado'}
                           </span>
-                        ) : (
+                        ) : calc.necesaria !== null ? (
                           <div style={{ textAlign: 'right' }}>
                             <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', margin: '0 0 2px' }}>Necesitas</p>
                             <p style={{ fontSize: 22, fontWeight: 800, color: calc.necesaria > 6 ? '#f87171' : calc.necesaria > 5 ? '#fbbf24' : '#4ade80', margin: 0 }}>
                               {calc.necesaria > 7 ? '+7.0' : calc.necesaria.toFixed(1)}
                             </p>
                           </div>
-                        )
+                        ) : null
                       ) : (
                         <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)' }}>Sin notas</span>
                       )}
@@ -192,18 +188,15 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, usuario }) {
               )
             })}
           </div>
-
           {mostrando ? (
             <div style={{ background: '#1a1a2e', borderRadius: 20, padding: '20px', border: '1.5px solid rgba(108,99,255,0.3)', animation: 'slideUp 0.3s ease' }}>
               <p style={{ fontSize: 14, fontWeight: 700, color: 'white', margin: '0 0 16px' }}>Nuevo ramo</p>
               <input value={nuevo} onChange={e => setNuevo(e.target.value)} placeholder="Nombre del ramo" onKeyDown={e => e.key === 'Enter' && agregar()}
                 style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 10, boxSizing: 'border-box' }} />
-              <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Nota mínima</p>
-                  <input type="number" min="1" max="7" step="0.1" value={min} onChange={e => setMin(e.target.value)}
-                    style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', boxSizing: 'border-box' }} />
-                </div>
+              <div style={{ flex: 1, marginBottom: 14 }}>
+                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Nota mínima</p>
+                <input type="number" min="1" max="7" step="0.1" value={min} onChange={e => setMin(e.target.value)}
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', boxSizing: 'border-box' }} />
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={() => setMostrando(false)} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px', color: 'rgba(255,255,255,0.5)', fontSize: 14, cursor: 'pointer' }}>Cancelar</button>
@@ -227,23 +220,22 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete }) {
   const [nuevaEv, setNuevaEv] = useState({ nombre: '', ponderacion: '', fecha: '' })
   const [mostrando, setMostrando] = useState(false)
   const [confetti, setConfetti] = useState(false)
-  const [eliminando, setEliminando] = useState(false)
 
-  const { promedio, necesaria, estado } = calcular(ramo.evaluaciones || [], ramo.min_aprobacion)
-
-  const pesoUsado = (ramo.evaluaciones || []).reduce((acc, e) => acc + (parseFloat(e.ponderacion) || 0), 0)
-  const pesoDisponible = 100 - pesoUsado
+  const evs = (ramo.evaluaciones || []).map(e => ({ ...e, ponderacion: parseFloat(e.ponderacion) || 0 }))
+  const { promedio, necesaria, estado } = calcular(evs, ramo.min_aprobacion)
+  const pesoUsado = evs.reduce((acc, e) => acc + e.ponderacion, 0)
+  const pesoDisponible = Math.round((100 - pesoUsado) * 10) / 10
 
   const guardarNota = (ev) => {
     const nota = notas[ev.id]
     if (nota === undefined || nota === '') return
     const nueva = parseFloat(nota)
     if (isNaN(nueva) || nueva < 1 || nueva > 7) return
-    const evs = (ramo.evaluaciones || []).map(e => e.id === ev.id ? { ...e, nota: nueva } : e)
-    onUpdate({ ...ramo, evaluaciones: evs })
+    const nuevasEvs = evs.map(e => e.id === ev.id ? { ...e, nota: nueva } : e)
+    onUpdate({ ...ramo, evaluaciones: nuevasEvs })
     setEditando({ ...editando, [ev.id]: false })
     setNotas({ ...notas, [ev.id]: undefined })
-    const calc = calcular(evs, ramo.min_aprobacion)
+    const calc = calcular(nuevasEvs, ramo.min_aprobacion)
     if (calc.estado === 'aprobado') { setConfetti(true); setTimeout(() => setConfetti(false), 4000) }
   }
 
@@ -252,16 +244,13 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete }) {
     const pond = parseFloat(nuevaEv.ponderacion)
     if (isNaN(pond) || pond <= 0 || pond > pesoDisponible) return
     const ev = { id: Date.now(), nombre: nuevaEv.nombre.trim(), ponderacion: pond, fecha: nuevaEv.fecha || null, nota: null }
-    onUpdate({ ...ramo, evaluaciones: [...(ramo.evaluaciones || []), ev] })
+    onUpdate({ ...ramo, evaluaciones: [...evs, ev] })
     setNuevaEv({ nombre: '', ponderacion: '', fecha: '' }); setMostrando(false)
   }
 
-  const eliminarEv = (id) => {
-    onUpdate({ ...ramo, evaluaciones: (ramo.evaluaciones || []).filter(e => e.id !== id) })
-  }
+  const eliminarEv = (id) => onUpdate({ ...ramo, evaluaciones: evs.filter(e => e.id !== id) })
 
-  const proximaEv = (ramo.evaluaciones || [])
-    .filter(e => (e.nota === null || e.nota === undefined || e.nota === '') && e.fecha)
+  const proximaEv = evs.filter(e => (e.nota === null || e.nota === undefined || e.nota === '') && e.fecha)
     .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))[0]
 
   return (
@@ -293,7 +282,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete }) {
             {estado ? (
               <div style={{ background: estado === 'aprobado' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', borderRadius: 16, padding: '16px 20px', border: `1px solid ${estado === 'aprobado' ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`, textAlign: 'center' }}>
                 <p style={{ color: 'white', fontSize: 18, fontWeight: 700, margin: '0 0 4px' }}>{estado === 'aprobado' ? '¡Ramo aprobado! 🎉' : 'Ramo reprobado 😔'}</p>
-                <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, margin: '0 0 8px' }}>Promedio final: {promedio?.toFixed(1)}</p>
+                <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, margin: 0 }}>Promedio final: {promedio?.toFixed(1)}</p>
               </div>
             ) : (
               <div style={{ display: 'flex', gap: 12 }}>
@@ -315,7 +304,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete }) {
         <div style={{ padding: '0 16px' }}>
           <p style={{ fontSize: 11, fontWeight: 600, color: '#4a4a6a', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Evaluaciones · {pesoUsado}% usado</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
-            {(ramo.evaluaciones || []).map((ev, idx) => {
+            {evs.map((ev, idx) => {
               const tieneNota = ev.nota !== null && ev.nota !== undefined && ev.nota !== ''
               const estaEditando = editando[ev.id]
               return (
