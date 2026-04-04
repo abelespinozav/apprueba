@@ -98,8 +98,7 @@ function PlanEstudio({ ev, onClose, onUpdate }) {
     try {
       const r = await fetch(`${API}/evaluaciones/${ev.id}/plan-estudio`, { method: 'POST', headers: authHeaders() })
       const d = await r.json()
-      setPlan(d)
-      onUpdate()
+      if (d && d.tareas) { setPlan(d); onUpdate() } else { alert('Error al generar plan. Intenta de nuevo.') }
     } catch {}
     setGenerando(false)
   }
