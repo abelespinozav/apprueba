@@ -730,9 +730,12 @@ function App() {
                     placeholder="Nombre de la evaluación"
                     style={{ width: '100%', border: '1.5px solid rgba(108,99,255,0.3)', borderRadius: 10, padding: '10px 12px', fontSize: 13, outline: 'none', boxSizing: 'border-box', marginBottom: 10, background: '#0d0d1a', color: '#e2e8f0' }} />
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                      <span style={{ fontSize: 10, color: '#a78bfa', fontWeight: 600 }}>% nota final</span>
                     <input type="number" value={evalTemp.ponderacion} onChange={e => setEvalTemp({ ...evalTemp, ponderacion: e.target.value })}
-                      placeholder="%" min="1" max="100"
+                      placeholder="%" min="1" max="100" title="Porcentaje que vale esta evaluación en la nota final"
                       style={{ width: 70, border: '1.5px solid rgba(108,99,255,0.3)', borderRadius: 10, padding: '10px 12px', fontSize: 13, outline: 'none', background: '#0d0d1a', color: '#e2e8f0' }} />
+                    </div>
                     <div style={{ flex: 1, height: 4, borderRadius: 3, background: 'rgba(108,99,255,0.15)', overflow: 'hidden' }}>
                       <div style={{ height: '100%', borderRadius: 3, background: ponderacionUsada >= 100 ? '#f87171' : 'linear-gradient(90deg,#6c63ff,#a78bfa)', width: `${Math.min(ponderacionUsada, 100)}%`, transition: 'width 0.3s' }} />
                     </div>
