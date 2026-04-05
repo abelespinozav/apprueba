@@ -5,6 +5,16 @@ const { GoogleGenAI } = require('@google/genai')
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
 
+function extraerJSON(text) {
+  // Limpiar markdown
+  let clean = text.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+  // Buscar primer { y último }
+  const start = clean.indexOf('{')
+  const end = clean.lastIndexOf('}')
+  if (start !== -1 && end !== -1) clean = clean.substring(start, end + 1)
+  return JSON.parse(clean)
+}
+
 router.post('/generar/:plan_id', async (req, res) => {
   const userId = req.user.id
   const planId = parseInt(req.params.plan_id)
@@ -23,40 +33,27 @@ router.post('/generar/:plan_id', async (req, res) => {
     const p = plan.rows[0]
     const contexto = tareas.rows.map((t, i) => `TEMA ${i+1}: ${t.nombre}\n${t.guia}`).join('\n\n---\n\n')
 
-    const prompt = `Eres un profesor universitario experto en "${p.ramo_nombre}". Debes crear una evaluación diagnóstica rigurosa de 20 preguntas de opción múltiple basada EXCLUSIVAMENTE en el siguiente material de estudio del plan para la evaluación "${p.eval_nombre}".
+    const prompt = `Eres un profesor universitario experto en "${p.ramo_nombre}". Crea una evaluación diagnóstica de 20 preguntas de opción múltiple basada en este material de estudio para la evaluación "${p.eval_nombre}".
 
-MATERIAL DEL PLAN DE ESTUDIO:
+MATERIAL:
 ${contexto}
 
-INSTRUCCIONES:
-- Genera exactamente 20 preguntas de opción múltiple
-- Cada pregunta tiene exactamente 4 alternativas (A, B, C, D)
-- Solo una alternativa es correcta
-- Las preguntas deben cubrir todos los temas del plan proporcionalmente
-- Incluye preguntas de distintos niveles: comprensión (40%), aplicación (40%), análisis (20%)
-- Las alternativas incorrectas deben ser plausibles (no obviamente falsas)
-- Incluye una explicación breve de por qué la respuesta correcta es correcta
+REGLAS ESTRICTAS:
+- Exactamente 20 preguntas
+- 4 alternativas por pregunta (A, B, C, D)
+- Solo una correcta
+- Distintos niveles de dificultad
+- Alternativas incorrectas plausibles
 
-Responde SOLO con JSON válido, sin markdown:
-{
-  "preguntas": [
-    {
-      "numero": 1,
-      "pregunta": "Texto de la pregunta",
-      "alternativas": { "A": "...", "B": "...", "C": "...", "D": "..." },
-      "correcta": "A",
-      "explicacion": "Explicación breve"
-    }
-  ]
-}`
+RESPONDE ÚNICAMENTE CON JSON VÁLIDO, SIN TEXTO ADICIONAL, SIN MARKDOWN:
+{"preguntas":[{"numero":1,"pregunta":"texto","alternativas":{"A":"...","B":"...","C":"...","D":"..."},"correcta":"A","explicacion":"texto"},...]}`
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: [{ role: 'user', parts: [{ text: prompt }] }]
     })
 
-    const text = response.text.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-    const data = JSON.parse(text)
+    const data = extraerJSON(response.text)
 
     const existing = await pool.query(
       'SELECT id FROM evaluaciones_diagnostico WHERE plan_id = $1 AND usuario_id::text = $2::text',
@@ -118,13 +115,13 @@ router.post('/corregir/:eval_id', async (req, res) => {
       diagnostico = `¡Excelente! Obtuviste un ${nota}. Estás muy bien preparado/a para la evaluación. Sigue así 🎉`
       color = 'green'
     } else if (nota >= notaMinima) {
-      diagnostico = `Bien. Obtuviste un ${nota}, suficiente para aprobar. Refuerza los temas donde fallaste para asegurar tu nota 💪`
+      diagnostico = `Bien. Obtuviste un ${nota}, suficiente para aprobar. Refuerza los temas donde fallaste 💪`
       color = 'yellow'
     } else if (nota >= notaMinima - 0.5) {
-      diagnostico = `Cerca. Obtuviste un ${nota}, estás a poco de alcanzar el mínimo de ${notaMinima}. Dedica más tiempo a los temas con errores ⚠️`
+      diagnostico = `Cerca. Obtuviste un ${nota}, estás a poco del mínimo de ${notaMinima}. Dedica más tiempo a los temas con errores ⚠️`
       color = 'orange'
     } else {
-      diagnostico = `Necesitas reforzar. Obtuviste un ${nota} y el mínimo requerido es ${notaMinima}. Revisa el plan de estudio nuevamente antes de la evaluación 📚`
+      diagnostico = `Necesitas reforzar. Obtuviste un ${nota} y el mínimo requerido es ${notaMinima}. Revisa el plan de estudio 📚`
       color = 'red'
     }
 
