@@ -5,9 +5,8 @@ const { GoogleGenAI } = require('@google/genai')
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
 
-// POST generar preguntas de evaluación
 router.post('/generar/:plan_id', async (req, res) => {
-  const userId = parseInt(req.user.id)
+  const userId = req.user.id
   const planId = parseInt(req.params.plan_id)
   try {
     const plan = await pool.query(
@@ -15,7 +14,7 @@ router.post('/generar/:plan_id', async (req, res) => {
        FROM planes_estudio pe 
        JOIN evaluaciones e ON pe.evaluacion_id = e.id 
        JOIN ramos r ON e.ramo_id = r.id 
-       WHERE pe.id = $1 AND pe.usuario_id = $2`,
+       WHERE pe.id = $1 AND pe.usuario_id::text = $2::text`,
       [planId, userId]
     )
     if (plan.rows.length === 0) return res.status(404).json({ error: 'Plan no encontrado' })
@@ -60,7 +59,7 @@ Responde SOLO con JSON válido, sin markdown:
     const data = JSON.parse(text)
 
     const existing = await pool.query(
-      'SELECT id FROM evaluaciones_diagnostico WHERE plan_id = $1 AND usuario_id = $2',
+      'SELECT id FROM evaluaciones_diagnostico WHERE plan_id = $1 AND usuario_id::text = $2::text',
       [planId, userId]
     )
 
@@ -83,9 +82,8 @@ Responde SOLO con JSON válido, sin markdown:
   } catch (e) { console.error(e); res.status(500).json({ error: 'Error generando evaluación: ' + e.message }) }
 })
 
-// POST corregir respuestas
 router.post('/corregir/:eval_id', async (req, res) => {
-  const userId = parseInt(req.user.id)
+  const userId = req.user.id
   const evalId = parseInt(req.params.eval_id)
   const { respuestas } = req.body
   try {
@@ -95,7 +93,7 @@ router.post('/corregir/:eval_id', async (req, res) => {
        JOIN planes_estudio pe ON ed.plan_id = pe.id 
        JOIN evaluaciones e ON pe.evaluacion_id = e.id 
        JOIN ramos r ON e.ramo_id = r.id 
-       WHERE ed.id = $1 AND ed.usuario_id = $2`,
+       WHERE ed.id = $1 AND ed.usuario_id::text = $2::text`,
       [evalId, userId]
     )
     if (evalRow.rows.length === 0) return res.status(404).json({ error: 'Evaluación no encontrada' })
@@ -139,13 +137,12 @@ router.post('/corregir/:eval_id', async (req, res) => {
   } catch (e) { console.error(e); res.status(500).json({ error: 'Error corrigiendo: ' + e.message }) }
 })
 
-// GET resultado guardado
 router.get('/resultado/:plan_id', async (req, res) => {
-  const userId = parseInt(req.user.id)
+  const userId = req.user.id
   const planId = parseInt(req.params.plan_id)
   try {
     const r = await pool.query(
-      'SELECT * FROM evaluaciones_diagnostico WHERE plan_id = $1 AND usuario_id = $2',
+      'SELECT * FROM evaluaciones_diagnostico WHERE plan_id = $1 AND usuario_id::text = $2::text',
       [planId, userId]
     )
     if (r.rows.length === 0) return res.json(null)
