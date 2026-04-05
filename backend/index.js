@@ -166,6 +166,8 @@ app.delete('/ramos/:id', authMiddleware, async (req, res) => {
 
 const planesRouter = require('./routes/planes')
 app.use('/planes', authMiddleware, planesRouter)
+const evaluacionesIARouter = require('./routes/evaluaciones_ia')
+app.use('/evaluaciones-ia', authMiddleware, evaluacionesIARouter)
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }))
 
