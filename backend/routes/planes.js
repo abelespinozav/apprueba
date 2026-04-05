@@ -33,7 +33,7 @@ router.post('/generar', upload.array('archivos', 5), async (req, res) => {
   const { id } = req.user
   const { evaluacion_id, nombre_evaluacion, nombre_ramo, dias_restantes, ponderacion } = req.body
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' })
     const parts = []
 
     for (const file of (req.files || [])) {
