@@ -1,12 +1,11 @@
 const express = require('express')
 const router = express.Router()
 const pool = require('../db')
-const { GoogleGenerativeAI } = require('@google/generative-ai')
+const { GoogleGenAI } = require('@google/genai')
 const multer = require('multer')
 const fs = require('fs')
-const path = require('path')
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
 const upload = multer({ dest: '/tmp/uploads/', limits: { fileSize: 20 * 1024 * 1024 } })
 
 // GET plan de una evaluación
@@ -33,13 +32,12 @@ router.post('/generar', upload.array('archivos', 5), async (req, res) => {
   const { id } = req.user
   const { evaluacion_id, nombre_evaluacion, nombre_ramo, dias_restantes, ponderacion } = req.body
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' })
-    const parts = []
+    const contents = []
 
     for (const file of (req.files || [])) {
       try {
         const data = fs.readFileSync(file.path)
-        parts.push({ inlineData: { mimeType: file.mimetype, data: data.toString('base64') } })
+        contents.push({ inlineData: { mimeType: file.mimetype, data: data.toString('base64') } })
         fs.unlinkSync(file.path)
       } catch (e) { console.error('Error leyendo archivo:', e) }
     }
@@ -66,9 +64,14 @@ Genera exactamente 5 tareas de estudio priorizadas. Responde SOLO con JSON váli
   ]
 }`
 
-    parts.unshift({ text: prompt })
-    const result = await model.generateContent(parts)
-    const text = result.response.text().trim()
+    contents.push({ text: prompt })
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: contents }]
+    })
+
+    const text = response.text.trim()
     const jsonStr = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
     const planData = JSON.parse(jsonStr)
 
