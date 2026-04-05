@@ -89,7 +89,7 @@ function EvaluacionDiagnostica({ planId, notaMinima, onBack }) {
 
   if (estado === 'cargando') return (
     <div style={{ textAlign: 'center', padding: 40 }}>
-      <div style={{ fontSize: 40, marginBottom: 12 }}>⏳</div>
+      <div style={{ width: 48, height: 48, border: "4px solid rgba(255,255,255,0.1)", borderTop: "4px solid #a78bfa", borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto 16px" }}></div><style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
       <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>Generando preguntas con IA...</p>
     </div>
   )
