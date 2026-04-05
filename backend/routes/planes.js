@@ -42,24 +42,46 @@ router.post('/generar', upload.array('archivos', 5), async (req, res) => {
       } catch (e) { console.error('Error leyendo archivo:', e) }
     }
 
-    const prompt = `Eres un tutor académico experto. Crea un plan de estudio detallado para un estudiante universitario.
+    const tieneArchivos = (req.files?.length || 0) > 0
 
-Evaluación: "${nombre_evaluacion}"
-Ramo: "${nombre_ramo}"
-Días restantes: ${dias_restantes || 'no especificado'}
-Ponderación en el ramo: ${ponderacion}%
-${req.files?.length > 0 ? `Material de estudio adjunto: ${req.files.length} archivo(s)` : 'Sin material adjunto'}
+    const prompt = `Eres un tutor académico experto y riguroso. Tu misión es crear un plan de estudio PROFUNDO y DETALLADO para un estudiante universitario.
 
-Genera exactamente 5 tareas de estudio priorizadas. Responde SOLO con JSON válido, sin markdown, sin explicaciones:
+CONTEXTO:
+- Evaluación: "${nombre_evaluacion}"
+- Ramo: "${nombre_ramo}"
+- Días restantes: ${dias_restantes || 'no especificado'}
+- Ponderación en el ramo: ${ponderacion}%
+${tieneArchivos ? `- Material de estudio adjunto: ${req.files.length} archivo(s). DEBES basar el plan EXCLUSIVAMENTE en el contenido de estos archivos.` : '- Sin material adjunto: genera el plan basado en el temario típico universitario del ramo.'}
+
+INSTRUCCIONES CRÍTICAS:
+${tieneArchivos ? `
+1. LEE el material adjunto COMPLETO antes de generar el plan.
+2. VERIFICA que el material sea coherente con el ramo "${nombre_ramo}". Si no lo es, indícalo claramente en el resumen.
+3. Cada tarea DEBE referenciar páginas específicas del material (ej: "Ver páginas 12-18", "Ejercicios resueltos en p.34").
+4. La guía de cada tarea debe incluir:
+   - Conceptos clave extraídos TEXTUALMENTE o parafraseados del material con su página
+   - Ejercicios o ejemplos específicos del material (con número de ejercicio y página)
+   - Definiciones importantes con su página de referencia
+   - Fórmulas o teoremas relevantes con su página
+   - Qué secciones leer primero y en qué orden (con páginas)
+5. NO inventes contenido que no esté en el material adjunto.
+` : `
+1. Genera contenido basado en el temario universitario estándar del ramo "${nombre_ramo}".
+2. Incluye conceptos clave, definiciones, ejemplos prácticos y ejercicios tipo.
+3. La guía debe ser detallada con pasos concretos de estudio.
+`}
+
+Genera exactamente 5 tareas de estudio priorizadas por importancia para la evaluación.
+Responde SOLO con JSON válido, sin markdown, sin texto adicional:
 {
-  "resumen": "Resumen breve del plan en 2-3 oraciones",
+  "resumen": "Resumen ejecutivo del plan: qué cubre el material, qué temas son más importantes para la evaluación y cómo está estructurado el plan. Si el material no coincide con el ramo, explícalo aquí. Mínimo 4 oraciones.",
   "tareas": [
     {
-      "nombre": "Nombre corto de la tarea",
+      "nombre": "Nombre descriptivo y específico de la tarea",
       "prioridad": "alta|media|baja",
-      "descripcion": "Descripción detallada de qué estudiar y cómo",
+      "descripcion": "Descripción concreta de qué estudiar, qué temas abarca y por qué es importante para la evaluación. Mínimo 3 oraciones.",
       "tiempo_estimado": "X horas",
-      "guia": "Guía detallada paso a paso para completar esta tarea (mínimo 150 palabras)"
+      "guia": "GUÍA DETALLADA DE ESTUDIO:\\n\\n1. DÓNDE ESTUDIAR:\\n[Indica secciones y páginas exactas del material, ej: 'Comienza con la sección 2.1 (pp. 45-52)']\\n\\n2. CONCEPTOS CLAVE:\\n[Lista los conceptos fundamentales con su definición y página de referencia, ej: '• Concepto X (p.47): definición...']\\n\\n3. FÓRMULAS Y TEOREMAS:\\n[Lista las fórmulas/teoremas importantes con su página, ej: '• Teorema 3.2 (p.89): enunciado...']\\n\\n4. EJERCICIOS A RESOLVER:\\n[Indica ejercicios específicos del material con su número y página, ej: 'Resuelve los ejercicios 2.3, 2.5 y 2.8 (pp. 60-63)']\\n\\n5. ESTRATEGIA DE ESTUDIO:\\n[Pasos concretos: qué leer primero, qué memorizar, qué practicar, cómo autoevaluarse]\\n\\n6. ERRORES COMUNES:\\n[Menciona los errores típicos en este tema y cómo evitarlos]"
     }
   ]
 }`
