@@ -167,8 +167,30 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, usuario }) {
     setNuevo(''); setMin('4.0'); setExim(''); setCondExim(''); setMostrarExim(false); setMostrando(false)
   }
 
+  // Stats globales
+  const statsRamos = ramos.map(r => {
+    const evs = (r.evaluaciones || []).map(e => ({ ...e, ponderacion: parseFloat(e.ponderacion) || 0 }))
+    return evs.length > 0 ? calcular(evs, r.min_aprobacion, r) : null
+  })
+  const aprobados = statsRamos.filter(c => c && (c.estado === 'aprobado' || c.estado === 'eximido')).length
+  const conExamen = statsRamos.filter(c => c && c.estado === 'con_examen').length
+  const enCurso = statsRamos.filter(c => !c || c.estado === null).length
+
+  // Próximas evaluaciones (todas las evaluaciones con fecha, ordenadas)
+  const proximas = ramos.flatMap(r =>
+    (r.evaluaciones || [])
+      .filter(e => e.fecha && (e.nota === null || e.nota === undefined || e.nota === ''))
+      .map(e => ({ ...e, ramoNombre: r.nombre, ramoId: r.id }))
+  ).sort((a, b) => new Date(a.fecha) - new Date(b.fecha)).slice(0, 5)
+
+  const hoy = new Date()
+  const diasRestantes = (fecha) => {
+    const diff = Math.ceil((new Date(fecha) - hoy) / (1000 * 60 * 60 * 24))
+    return diff
+  }
+
   return (
-    <div style={{ minHeight: '100vh', background: '#0a0a1a', padding: '0 0 100px' }}>
+    <div style={{ minHeight: '100vh', background: '#0a0a1a', padding: '0 0 120px' }}>
       <BackgroundOrbs />
       <div style={{ position: 'relative', zIndex: 1 }}>
         <div style={{ padding: '56px 20px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -180,67 +202,108 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, usuario }) {
         </div>
         <div style={{ padding: '0 16px' }}>
           <WidgetMotivacional />
-          {ramos.length === 0 && (
+          {/* Mini stats */}
+          {ramos.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
+              {[
+                { label: 'En curso', value: enCurso, color: '#a78bfa', bg: 'rgba(167,139,250,0.1)' },
+                { label: 'Con examen', value: conExamen, color: '#fbbf24', bg: 'rgba(251,191,36,0.1)' },
+                { label: 'Aprobados', value: aprobados, color: '#4ade80', bg: 'rgba(74,222,128,0.1)' },
+              ].map(s => (
+                <div key={s.label} style={{ background: s.bg, border: `1px solid ${s.color}30`, borderRadius: 16, padding: '12px 10px', textAlign: 'center' }}>
+                  <p style={{ fontSize: 24, fontWeight: 800, color: s.color, margin: 0 }}>{s.value}</p>
+                  <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', margin: 0 }}>{s.label}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Próximas evaluaciones */}
+          {proximas.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <p style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: 1, margin: '0 0 10px', textTransform: 'uppercase' }}>📅 Próximas evaluaciones</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {proximas.map((ev, i) => {
+                  const dias = diasRestantes(ev.fecha)
+                  const urgente = dias <= 3
+                  const pronto = dias <= 7
+                  return (
+                    <div key={i} style={{ background: '#1a1a2e', borderRadius: 14, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: `1px solid ${urgente ? 'rgba(248,113,113,0.3)' : pronto ? 'rgba(251,191,36,0.2)' : 'rgba(255,255,255,0.06)'}` }}>
+                      <div>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: 'white', margin: '0 0 4px' }}>{ev.nombre}</p>
+                        <span style={{ fontSize: 11, color: '#a78bfa', background: 'rgba(167,139,250,0.12)', padding: '2px 8px', borderRadius: 20 }}>{ev.ramoNombre}</span>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: urgente ? '#f87171' : pronto ? '#fbbf24' : 'rgba(255,255,255,0.5)', margin: 0 }}>
+                          {dias === 0 ? '¡Hoy!' : dias === 1 ? 'Mañana' : dias < 0 ? 'Vencida' : `En ${dias}d`}
+                        </p>
+                        <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', margin: 0 }}>{ev.ponderacion}%</p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Grid de ramos */}
+          {ramos.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px 20px', animation: 'fadeIn 0.5s ease' }}>
               <div style={{ fontSize: 48, marginBottom: 12 }}>🎓</div>
               <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>Aún no tienes ramos.<br/>¡Agrega tu primer ramo!</p>
             </div>
-          )}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
-            {ramos.map((r, i) => {
-              const evs = (r.evaluaciones || []).map(e => ({ ...e, ponderacion: parseFloat(e.ponderacion) || 0 }))
-              const calc = evs.length > 0 ? calcular(evs, r.min_aprobacion, r) : null
-              const completadas = evs.filter(e => e.nota !== null && e.nota !== undefined && e.nota !== '').length
-              const total = evs.length
-              const progreso = total > 0 ? (completadas / total) * 100 : 0
-              return (
-                <div key={r.id} onClick={() => onSelect(r)} style={{ background: '#1a1a2e', borderRadius: 20, padding: '18px 20px', cursor: 'pointer', border: '1px solid rgba(108,99,255,0.15)', animation: `slideUp 0.4s ${i * 0.07}s ease both`, transition: 'transform 0.15s, box-shadow 0.15s' }}
-                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(108,99,255,0.2)' }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ fontSize: 16, fontWeight: 700, color: 'white', margin: '0 0 4px' }}>{r.nombre}</p>
-                      <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', margin: 0 }}>Mín: {r.min_aprobacion} · {completadas}/{total} evaluaciones</p>
-                      {r.nota_eximicion && calc?.promedio >= r.nota_eximicion && (
-                        <span style={{ fontSize: 11, color: '#a78bfa', background: 'rgba(167,139,250,0.12)', border: '1px solid rgba(167,139,250,0.25)', padding: '2px 8px', borderRadius: 20, marginTop: 4, display: 'inline-block', fontWeight: 600 }}>🎓 Puedes eximirte</span>
-                      )}
-                      {r.nota_eximicion && calc?.promedio && calc.promedio < r.nota_eximicion && !calc.estado && (
-                        <span style={{ fontSize: 11, color: 'rgba(167,139,250,0.5)', marginTop: 4, display: 'inline-block' }}>Eximición: {r.nota_eximicion}</span>
-                      )}
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      {calc ? (
-                        calc.estado ? (
-                          <span style={{ fontSize: 12, fontWeight: 700,
-                            color: calc.estado === 'eximido' ? '#a78bfa' : calc.estado === 'aprobado' ? '#4ade80' : calc.estado === 'con_examen' ? '#fbbf24' : '#f87171',
-                            background: calc.estado === 'eximido' ? 'rgba(167,139,250,0.15)' : calc.estado === 'aprobado' ? 'rgba(34,197,94,0.15)' : calc.estado === 'con_examen' ? 'rgba(251,191,36,0.15)' : 'rgba(248,113,113,0.15)',
-                            padding: '4px 10px', borderRadius: 20 }}>
-                            {calc.estado === 'eximido' ? '🎓 Eximido' : calc.estado === 'aprobado' ? '✓ Aprobado' : calc.estado === 'con_examen' ? '📝 Con examen' : '✗ Reprobado'}
-                          </span>
-                        ) : calc.necesaria !== null ? (
-                          <div style={{ textAlign: 'right' }}>
+          ) : (
+            <div>
+              <p style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: 1, margin: '0 0 10px', textTransform: 'uppercase' }}>📚 Ramos</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                {ramos.map((r, i) => {
+                  const evs = (r.evaluaciones || []).map(e => ({ ...e, ponderacion: parseFloat(e.ponderacion) || 0 }))
+                  const calc = evs.length > 0 ? calcular(evs, r.min_aprobacion, r) : null
+                  const completadas = evs.filter(e => e.nota !== null && e.nota !== undefined && e.nota !== '').length
+                  const total = evs.length
+                  const progreso = total > 0 ? (completadas / total) * 100 : 0
+                  const estadoColor = !calc ? '#6c63ff' : calc.estado === 'eximido' ? '#a78bfa' : calc.estado === 'aprobado' ? '#4ade80' : calc.estado === 'con_examen' ? '#fbbf24' : calc.estado === 'reprobado_sin_examen' || calc.estado === 'reprobado_imposible' ? '#f87171' : '#6c63ff'
+                  const estadoLabel = !calc ? null : calc.estado === 'eximido' ? '🎓 Eximido' : calc.estado === 'aprobado' ? '✓ Aprobado' : calc.estado === 'con_examen' ? '📝 Examen' : calc.estado === 'reprobado_sin_examen' ? '🚫 Sin examen' : calc.estado === 'reprobado_imposible' ? '✗ Reprobado' : null
+                  return (
+                    <div key={r.id} onClick={() => onSelect(r)}
+                      style={{ background: '#1a1a2e', borderRadius: 20, padding: '16px', cursor: 'pointer', border: `1px solid ${estadoColor}25`, animation: `slideUp 0.4s ${i * 0.07}s ease both`, transition: 'transform 0.15s, box-shadow 0.15s', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 140 }}
+                      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = `0 8px 24px ${estadoColor}20` }}
+                      onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
+                        <p style={{ fontSize: 14, fontWeight: 700, color: 'white', margin: 0, lineHeight: 1.3 }}>{r.nombre}</p>
+                        {estadoLabel && (
+                          <span style={{ fontSize: 10, fontWeight: 700, color: estadoColor, background: `${estadoColor}18`, padding: '3px 7px', borderRadius: 20, whiteSpace: 'nowrap', flexShrink: 0 }}>{estadoLabel}</span>
+                        )}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        {calc?.promedio !== null && calc?.promedio !== undefined ? (
+                          <div>
+                            <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', margin: '0 0 2px' }}>Promedio</p>
+                            <p style={{ fontSize: 28, fontWeight: 800, color: estadoColor, margin: 0, lineHeight: 1 }}>{calc.promedio.toFixed(1)}</p>
+                          </div>
+                        ) : calc?.necesaria !== null && calc?.necesaria !== undefined ? (
+                          <div>
                             <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', margin: '0 0 2px' }}>Necesitas</p>
-                            <p style={{ fontSize: 22, fontWeight: 800, color: calc.necesaria > 6 ? '#f87171' : calc.necesaria > 5 ? '#fbbf24' : '#4ade80', margin: 0 }}>
-                              {calc.necesaria > 7 ? '+7.0' : calc.necesaria.toFixed(1)}
-                            </p>
+                            <p style={{ fontSize: 28, fontWeight: 800, color: calc.necesaria > 6 ? '#f87171' : calc.necesaria > 5 ? '#fbbf24' : '#4ade80', margin: 0, lineHeight: 1 }}>{calc.necesaria > 7 ? '+7.0' : calc.necesaria.toFixed(1)}</p>
                           </div>
                         ) : (
-                          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', textAlign: 'right' }}>Faltan evaluaciones</span>
-                        )
-                      ) : (
-                        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)' }}>Sin notas</span>
-                      )}
+                          <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)', margin: 0 }}>Sin notas aún</p>
+                        )}
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', margin: '0 0 5px' }}>{completadas}/{total} evaluaciones</p>
+                        {total > 0 && (
+                          <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 99, height: 3, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${progreso}%`, background: `linear-gradient(90deg, ${estadoColor}, ${estadoColor}aa)`, borderRadius: 99, transition: 'width 0.5s ease' }} />
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  {total > 0 && (
-                    <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 99, height: 4, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${progreso}%`, background: 'linear-gradient(90deg, #6c63ff, #a78bfa)', borderRadius: 99, transition: 'width 0.5s ease' }} />
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
           {mostrando ? (
             <div style={{ background: '#1a1a2e', borderRadius: 20, padding: '20px', border: '1.5px solid rgba(108,99,255,0.3)', animation: 'slideUp 0.3s ease' }}>
               <p style={{ fontSize: 14, fontWeight: 700, color: 'white', margin: '0 0 16px' }}>Nuevo ramo</p>
