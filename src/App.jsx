@@ -104,7 +104,7 @@ function calcular(evaluaciones, min, ramo) {
     }
 
     // Sin eximición: verificar si puede presentarse a examen (promedio mínimo = min_aprobacion)
-    if (promedio < parseFloat(min)) {
+    if (Math.round(promedio * 10) / 10 < parseFloat(min)) {
       return { promedio, necesaria: null, necesariaExamen: null, estado: 'reprobado_sin_examen', pendientesCount: 0, pesoCompleto, pesoTotal, eximido: false, tieneRojos }
     }
     // Calcular nota necesaria en examen
