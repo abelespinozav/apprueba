@@ -936,7 +936,7 @@ export default function App() {
   const handleAddRamo = async (data) => {
     try {
       const res = await fetch(`${API}/ramos`, { method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify(data) })
-      if (res.ok) { const nuevo = await res.json(); setRamos([...ramos, { ...nuevo, evaluaciones: [] }]) }
+      if (res.ok) { const nuevo = await res.json(); setRamos([...ramos, nuevo]) }
     } catch (e) { console.error(e) }
   }
 
