@@ -6,3 +6,24 @@
 input, textarea, select {
   font-size: 16px !important;
 }
+
+/* CSS Variables - tema por defecto (morado) */
+:root {
+  --bg-primary: #0a0a1a;
+  --bg-secondary: #1a1a2e;
+  --bg-card: #16213e;
+  --color-primary: #6c63ff;
+  --color-secondary: #a78bfa;
+  --color-accent: #8b5cf6;
+  --gradient-from: #6c63ff;
+  --gradient-to: #a78bfa;
+  --shadow-color: rgba(108,99,255,0.4);
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255,255,255,0.6);
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.4s ease, color 0.4s ease;
+}

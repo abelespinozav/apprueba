@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import PlanEstudio from './PlanEstudio'
+import { useTheme } from './useTheme'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const getToken = () => localStorage.getItem('token')
@@ -24,7 +25,7 @@ function BannerInstalar() {
     <div style={{
       position: 'fixed', bottom: 20, left: 16, right: 16, zIndex: 9999,
       background: 'linear-gradient(135deg, #1e1b4b, #2d1b69)',
-      border: '1px solid rgba(108,99,255,0.4)',
+      border: '1px solid var(--shadow-color)',
       borderRadius: 18, padding: '14px 16px',
       boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
       display: 'flex', alignItems: 'center', gap: 12
@@ -64,18 +65,18 @@ function diasParaPrueba(fecha) {
 function BadgeFecha({ fecha }) {
   const dias = diasParaPrueba(fecha)
   if (dias === null) return null
-  if (dias < 0) return <span style={{ fontSize: 10, background: '#1a1a2e', color: '#9ca3af', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>Pasada</span>
+  if (dias < 0) return <span style={{ fontSize: 10, background: 'var(--bg-secondary)', color: '#9ca3af', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>Pasada</span>
   if (dias === 0) return <span style={{ fontSize: 10, background: 'rgba(245,158,11,0.2)', color: '#fbbf24', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>¡Hoy!</span>
   if (dias === 1) return <span style={{ fontSize: 10, background: 'rgba(239,68,68,0.2)', color: '#f87171', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>¡Mañana!</span>
   if (dias <= 7) return <span style={{ fontSize: 10, background: 'rgba(239,68,68,0.15)', color: '#f87171', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>En {dias} días</span>
   if (dias <= 14) return <span style={{ fontSize: 10, background: 'rgba(245,158,11,0.15)', color: '#fbbf24', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>En {dias} días</span>
-  return <span style={{ fontSize: 10, background: 'rgba(108,99,255,0.2)', color: '#a78bfa', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>En {dias} días</span>
+  return <span style={{ fontSize: 10, background: 'var(--shadow-color)', color: 'var(--color-secondary)', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>En {dias} días</span>
 }
 
 function BackgroundOrbs() {
   return (
     <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
-      <div style={{ position: 'absolute', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(circle, rgba(108,99,255,0.12) 0%, transparent 70%)', top: -80, left: -80, animation: 'orbMove1 12s ease-in-out infinite' }} />
+      <div style={{ position: 'absolute', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(circle, var(--shadow-color) 0%, transparent 70%)', top: -80, left: -80, animation: 'orbMove1 12s ease-in-out infinite' }} />
       <div style={{ position: 'absolute', width: 200, height: 200, borderRadius: '50%', background: 'radial-gradient(circle, rgba(139,92,246,0.10) 0%, transparent 70%)', top: '40%', right: -60, animation: 'orbMove2 15s ease-in-out infinite' }} />
       <div style={{ position: 'absolute', width: 250, height: 250, borderRadius: '50%', background: 'radial-gradient(circle, rgba(167,139,250,0.08) 0%, transparent 70%)', bottom: 100, left: '20%', animation: 'orbMove3 18s ease-in-out infinite' }} />
       <style>{`
@@ -95,7 +96,7 @@ function Confetti({ active }) {
   if (!active) return null
   const pieces = Array.from({ length: 40 }, (_, i) => ({
     id: i, left: Math.random() * 100,
-    color: ['#6c63ff','#a78bfa','#f59e0b','#22c55e','#ec4899','#38bdf8'][Math.floor(Math.random() * 6)],
+    color: ['var(--color-primary)','var(--color-secondary)','#f59e0b','#22c55e','#ec4899','#38bdf8'][Math.floor(Math.random() * 6)],
     delay: Math.random() * 1.5, size: 6 + Math.random() * 8, duration: 2 + Math.random() * 2,
   }))
   return (
@@ -129,15 +130,15 @@ function TipInteligente({ ramos }) {
       tips.push({ icon: '🎉', text: `¡Ya aprobaste ${r.nombre}! Mantén el ritmo para subir aún más tu nota.`, color: '#4ade80' })
     }
     if (calc.estado === 'eximido') {
-      tips.push({ icon: '🎓', text: `¡Puedes eximirte de ${r.nombre}! Revisa los requisitos con tu profe.`, color: '#a78bfa' })
+      tips.push({ icon: '🎓', text: `¡Puedes eximirte de ${r.nombre}! Revisa los requisitos con tu profe.`, color: 'var(--color-secondary)' })
     }
   })
 
   const genericos = [
-    { icon: '📅', text: 'Agrega fechas a tus evaluaciones para ver el conteo regresivo en el dashboard.', color: '#6c63ff' },
-    { icon: '⚖️', text: 'Asegúrate de que los porcentajes de tus evaluaciones sumen 100% para un cálculo preciso.', color: '#6c63ff' },
-    { icon: '🎯', text: 'Puedes configurar nota de eximición por ramo al crearlo o editarlo.', color: '#a78bfa' },
-    { icon: '📊', text: 'El promedio ponderado considera el peso de cada evaluación. ¡No todas valen igual!', color: '#6c63ff' },
+    { icon: '📅', text: 'Agrega fechas a tus evaluaciones para ver el conteo regresivo en el dashboard.', color: 'var(--color-primary)' },
+    { icon: '⚖️', text: 'Asegúrate de que los porcentajes de tus evaluaciones sumen 100% para un cálculo preciso.', color: 'var(--color-primary)' },
+    { icon: '🎯', text: 'Puedes configurar nota de eximición por ramo al crearlo o editarlo.', color: 'var(--color-secondary)' },
+    { icon: '📊', text: 'El promedio ponderado considera el peso de cada evaluación. ¡No todas valen igual!', color: 'var(--color-primary)' },
   ]
 
   const lista = tips.length > 0 ? tips : genericos
@@ -195,12 +196,14 @@ function calcular(evaluaciones, min, ramo) {
   const pesoPendiente = pendientes.reduce((acc, e) => acc + e.ponderacion, 0)
   const puntajeActual = completadas.reduce((acc, e) => acc + e.nota * (e.ponderacion / 100), 0)
   const promedioActual = pesoCompletado > 0 ? (puntajeActual / (pesoCompletado / 100)) : null
-  const necesaria = (pesoCompleto && pesoPendiente > 0) ? ((parseFloat(min) - puntajeActual) / (pesoPendiente / 100)) : null
-  return { promedio: promedioActual, necesaria, necesariaExamen: null, estado: null, pendientesCount: pendientes.length, pesoCompleto, pesoTotal, eximido: false }
+  const necesariaRaw = (pesoCompleto && pesoPendiente > 0) ? ((parseFloat(min) - puntajeActual) / (pesoPendiente / 100)) : null
+  const necesaria = necesariaRaw
+  const estadoPendiente = necesariaRaw !== null && necesariaRaw > 7 ? 'imposible' : necesariaRaw !== null && necesariaRaw < 0 ? 'aprobado' : null
+  return { promedio: promedioActual, necesaria, necesariaExamen: null, estado: estadoPendiente, pendientesCount: pendientes.length, pesoCompleto, pesoTotal, eximido: false }
 }
 
 function notaColor(nota) {
-  if (nota === null || nota === undefined) return '#a78bfa'
+  if (nota === null || nota === undefined) return 'var(--color-secondary)'
   if (nota >= 5.5) return '#4ade80'
   if (nota >= 4.0) return '#fbbf24'
   return '#f87171'
@@ -208,13 +211,13 @@ function notaColor(nota) {
 
 function LoginScreen({ onLogin }) {
   return (
-    <div style={{ minHeight: '100vh', background: '#0a0a1a', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <BackgroundOrbs />
       <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', animation: 'slideUp 0.6s ease' }}>
         <div style={{ fontSize: 64, marginBottom: 16, animation: 'float 3s ease-in-out infinite' }}>📚</div>
-        <h1 style={{ fontSize: 36, fontWeight: 800, color: 'white', margin: '0 0 8px', background: 'linear-gradient(135deg, #6c63ff, #a78bfa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>APPrueba</h1>
+        <h1 style={{ fontSize: 36, fontWeight: 800, color: 'white', margin: '0 0 8px', background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>APPrueba</h1>
         <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 15, margin: '0 0 48px' }}>Tu compañero académico inteligente</p>
-        <button onClick={onLogin} style={{ background: 'linear-gradient(135deg, #6c63ff, #8b5cf6)', color: 'white', border: 'none', borderRadius: 16, padding: '16px 32px', fontSize: 16, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, margin: '0 auto', boxShadow: '0 8px 32px rgba(108,99,255,0.4)' }}>
+        <button onClick={onLogin} style={{ background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', color: 'white', border: 'none', borderRadius: 16, padding: '16px 32px', fontSize: 16, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, margin: '0 auto', boxShadow: '0 8px 32px var(--shadow-color)' }}>
           <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3C33.6 33.1 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34.1 6.5 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c11 0 20-8 20-20 0-1.3-.1-2.7-.4-4z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 15.1 18.9 12 24 12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34.1 6.5 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-1.9 13.5-5l-6.2-5.2C29.5 35.6 26.9 36 24 36c-5.2 0-9.6-2.9-11.3-7.1l-6.6 4.9C9.8 39.8 16.4 44 24 44z"/><path fill="#1976D2" d="M43.6 20H24v8h11.3c-.9 2.5-2.6 4.6-4.8 6l6.2 5.2C40.5 35.5 44 30.2 44 24c0-1.3-.1-2.7-.4-4z"/></svg>
           Continuar con Google
         </button>
@@ -224,8 +227,9 @@ function LoginScreen({ onLogin }) {
   )
 }
 
-function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, usuario }) {
+function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, usuario, onUniversidad }) {
   const [nuevo, setNuevo] = useState('')
+  const [mostrarUniversidad, setMostrarUniversidad] = useState(false)
   const [min, setMin] = useState('4.0')
   const [exim, setExim] = useState('')
   const [condExim, setCondExim] = useState('')
@@ -261,7 +265,7 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, usuario }) {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0a0a1a', padding: '0 0 120px' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', padding: '0 0 120px' }}>
       <BackgroundOrbs />
           <BannerInstalar />
       <div style={{ position: 'relative', zIndex: 1 }}>
@@ -271,9 +275,42 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, usuario }) {
             <h1 style={{ fontSize: 28, fontWeight: 800, color: 'white', margin: 0 }}>Mis Ramos</h1>
           </div>
           {usuario?.email === 'abelespinozav@gmail.com' && (
-            <button onClick={onAdmin} style={{ background: 'rgba(108,99,255,0.2)', border: '1px solid rgba(108,99,255,0.4)', borderRadius: 12, padding: '8px 14px', color: '#a78bfa', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>🛡️ Admin</button>
+            <button onClick={onAdmin} style={{ background: 'var(--shadow-color)', border: '1px solid var(--shadow-color)', borderRadius: 12, padding: '8px 14px', color: 'var(--color-secondary)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>🛡️ Admin</button>
           )}
-          <button onClick={onLogout} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '8px 14px', color: 'rgba(255,255,255,0.5)', fontSize: 12, cursor: 'pointer' }}>Salir</button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setMostrarUniversidad(true)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '8px 14px', color: 'rgba(255,255,255,0.5)', fontSize: 12, cursor: 'pointer' }}>🎓</button>
+            <button onClick={onLogout} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '8px 14px', color: 'rgba(255,255,255,0.5)', fontSize: 12, cursor: 'pointer' }}>Salir</button>
+          </div>
+          {mostrarUniversidad && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setMostrarUniversidad(false)}>
+              <div style={{ background: 'var(--bg-secondary)', borderRadius: '24px 24px 0 0', padding: '24px 20px 40px', width: '100%', maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+                <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 6px' }}>Tu universidad</p>
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 20px' }}>Elige para personalizar los colores de la app</p>
+                {[
+                  { id: 'ufro', nombre: 'U. de La Frontera', bg: '#003087', accent: '#4a90d9' },
+                  { id: 'mayor', nombre: 'Universidad Mayor', bg: '#1a3a5c', accent: '#f5c518' },
+                  { id: 'autonoma', nombre: 'U. Autónoma de Chile', bg: '#1a1a1a', accent: '#cc2200' },
+                  { id: 'inacap', nombre: 'INACAP', bg: '#f5f5f5', accent: '#c8001e' },
+                  { id: 'stoomas', nombre: 'U. Santo Tomás', bg: '#1a4a2e', accent: '#4caf50' },
+                ].map(u => (
+                  <div key={u.id} onClick={() => { onUniversidad(u.id); setMostrarUniversidad(false) }}
+                    style={{ background: u.bg, borderRadius: 14, padding: '14px 18px', marginBottom: 10, cursor: 'pointer',
+                      border: usuario?.universidad === u.id ? `2px solid ${u.accent}` : '2px solid transparent',
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: u.id === 'inacap' ? '#1a1a1a' : 'white', fontWeight: 600, fontSize: 14 }}>{u.nombre}</span>
+                    {usuario?.universidad === u.id && <span style={{ color: u.accent, fontSize: 18 }}>✓</span>}
+                  </div>
+                ))}
+                <div onClick={() => { onUniversidad(null); setMostrarUniversidad(false) }}
+                  style={{ background: 'var(--bg-card)', borderRadius: 14, padding: '14px 18px', marginTop: 4, cursor: 'pointer',
+                    border: !usuario?.universidad ? '2px solid var(--color-primary)' : '2px solid transparent',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 14 }}>🎨 Por defecto (morado)</span>
+                  {!usuario?.universidad && <span style={{ color: 'var(--color-primary)', fontSize: 18 }}>✓</span>}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         <div style={{ padding: '0 16px' }}>
           <TipInteligente ramos={ramos} />
@@ -281,7 +318,7 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, usuario }) {
           {ramos.length > 0 && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
               {[
-                { label: 'En curso', value: enCurso, color: '#a78bfa', bg: 'rgba(167,139,250,0.1)' },
+                { label: 'En curso', value: enCurso, color: 'var(--color-secondary)', bg: 'rgba(167,139,250,0.1)' },
                 { label: 'Con examen', value: conExamen, color: '#fbbf24', bg: 'rgba(251,191,36,0.1)' },
                 { label: 'Aprobados', value: aprobados, color: '#4ade80', bg: 'rgba(74,222,128,0.1)' },
               ].map(s => (
@@ -305,9 +342,9 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, usuario }) {
                   const borderColor = urgente ? '#f87171' : pronto ? '#fbbf24' : 'rgba(255,255,255,0.08)'
                   const diasColor = urgente ? '#f87171' : pronto ? '#fbbf24' : 'rgba(255,255,255,0.4)'
                   return (
-                    <div key={i} style={{ background: '#1a1a2e', borderRadius: 14, padding: '12px 14px', border: `1px solid ${borderColor}`, flexShrink: 0, minWidth: 140, maxWidth: 160 }}>
+                    <div key={i} style={{ background: 'var(--bg-secondary)', borderRadius: 14, padding: '12px 14px', border: `1px solid ${borderColor}`, flexShrink: 0, minWidth: 140, maxWidth: 160 }}>
                       <p style={{ fontSize: 12, fontWeight: 700, color: 'white', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.nombre}</p>
-                      <span style={{ fontSize: 10, color: '#a78bfa', background: 'rgba(167,139,250,0.12)', padding: '2px 7px', borderRadius: 20, display: 'inline-block', marginBottom: 8, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.ramoNombre}</span>
+                      <span style={{ fontSize: 10, color: 'var(--color-secondary)', background: 'rgba(167,139,250,0.12)', padding: '2px 7px', borderRadius: 20, display: 'inline-block', marginBottom: 8, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.ramoNombre}</span>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <p style={{ fontSize: 12, fontWeight: 700, color: diasColor, margin: 0 }}>
                           {dias === 0 ? '¡Hoy!' : dias === 1 ? 'Mañana' : dias < 0 ? 'Vencida' : `${dias}d`}
@@ -337,11 +374,11 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, usuario }) {
                   const completadas = evs.filter(e => e.nota !== null && e.nota !== undefined && e.nota !== '').length
                   const total = evs.length
                   const progreso = total > 0 ? (completadas / total) * 100 : 0
-                  const estadoColor = !calc ? '#6c63ff' : calc.estado === 'eximido' ? '#a78bfa' : calc.estado === 'aprobado' ? '#4ade80' : calc.estado === 'con_examen' ? '#fbbf24' : calc.estado === 'reprobado_sin_examen' || calc.estado === 'reprobado_imposible' ? '#f87171' : '#6c63ff'
-                  const estadoLabel = !calc ? null : calc.estado === 'eximido' ? '🎓 Eximido' : calc.estado === 'aprobado' ? '✓ Aprobado' : calc.estado === 'con_examen' ? '📝 Examen' : calc.estado === 'reprobado_sin_examen' ? '🚫 Sin examen' : calc.estado === 'reprobado_imposible' ? '✗ Reprobado' : null
+                  const estadoColor = !calc ? 'var(--color-primary)' : calc.estado === 'eximido' ? 'var(--color-secondary)' : calc.estado === 'aprobado' ? '#4ade80' : calc.estado === 'con_examen' ? '#fbbf24' : calc.estado === 'reprobado_sin_examen' || calc.estado === 'reprobado_imposible' || calc.estado === 'imposible' ? '#f87171' : 'var(--color-primary)'
+                  const estadoLabel = !calc ? null : calc.estado === 'eximido' ? '🎓 Eximido' : calc.estado === 'aprobado' ? '✓ Aprobado' : calc.estado === 'con_examen' ? '📝 Examen' : calc.estado === 'reprobado_sin_examen' ? '🚫 Sin examen' : calc.estado === 'reprobado_imposible' || calc.estado === 'imposible' ? '✗ Reprobado' : null
                   return (
                     <div key={r.id} onClick={() => onSelect(r)}
-                      style={{ background: '#1a1a2e', borderRadius: 20, padding: '16px', cursor: 'pointer', border: `1px solid ${estadoColor}25`, animation: `slideUp 0.4s ${i * 0.07}s ease both`, transition: 'transform 0.15s, box-shadow 0.15s', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 140 }}
+                      style={{ background: 'var(--bg-secondary)', borderRadius: 20, padding: '16px', cursor: 'pointer', border: `1px solid ${estadoColor}25`, animation: `slideUp 0.4s ${i * 0.07}s ease both`, transition: 'transform 0.15s, box-shadow 0.15s', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 140 }}
                       onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = `0 8px 24px ${estadoColor}20` }}
                       onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
@@ -359,7 +396,7 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, usuario }) {
                         ) : calc?.necesaria !== null && calc?.necesaria !== undefined ? (
                           <div>
                             <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', margin: '0 0 2px' }}>Necesitas</p>
-                            <p style={{ fontSize: 28, fontWeight: 800, color: calc.necesaria > 6 ? '#f87171' : calc.necesaria > 5 ? '#fbbf24' : '#4ade80', margin: 0, lineHeight: 1 }}>{calc.necesaria > 7 ? '+7.0' : calc.necesaria.toFixed(1)}</p>
+                            <p style={{ fontSize: 28, fontWeight: 800, color: calc.necesaria > 6 ? '#f87171' : calc.necesaria > 5 ? '#fbbf24' : '#4ade80', margin: 0, lineHeight: 1 }}>{calc.necesaria > 7 ? '✗' : calc.necesaria.toFixed(1)}</p>
                           </div>
                         ) : (
                           <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)', margin: 0 }}>Sin notas aún</p>
@@ -380,7 +417,7 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, usuario }) {
             </div>
           )}
           {mostrando ? (
-            <div style={{ background: '#1a1a2e', borderRadius: 20, padding: '20px', border: '1.5px solid rgba(108,99,255,0.3)', animation: 'slideUp 0.3s ease' }}>
+            <div style={{ background: 'var(--bg-secondary)', borderRadius: 20, padding: '20px', border: '1.5px solid rgba(108,99,255,0.3)', animation: 'slideUp 0.3s ease' }}>
               <p style={{ fontSize: 14, fontWeight: 700, color: 'white', margin: '0 0 16px' }}>Nuevo ramo</p>
               <input value={nuevo} onChange={e => setNuevo(e.target.value)} placeholder="Nombre del ramo" onKeyDown={e => e.key === 'Enter' && agregar()}
                 style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 10, boxSizing: 'border-box' }} />
@@ -399,7 +436,7 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, usuario }) {
                     <input type="number" min="1" max="7" step="0.1" value={exim} onChange={e => setExim(e.target.value)} placeholder="Ej: 5.0"
                       style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 10, boxSizing: 'border-box' }} />
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => setCondExim(condExim === 'sin_rojos' ? '' : 'sin_rojos')}>
-                      <div style={{ width: 20, height: 20, borderRadius: 6, border: '2px solid rgba(167,139,250,0.5)', background: condExim === 'sin_rojos' ? '#8b5cf6' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <div style={{ width: 20, height: 20, borderRadius: 6, border: '2px solid rgba(167,139,250,0.5)', background: condExim === 'sin_rojos' ? 'var(--color-accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         {condExim === 'sin_rojos' && <span style={{ color: 'white', fontSize: 12 }}>✓</span>}
                       </div>
                       <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Requiere sin notas rojas (bajo 4.0)</span>
@@ -409,11 +446,11 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, usuario }) {
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={() => setMostrando(false)} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px', color: 'rgba(255,255,255,0.5)', fontSize: 14, cursor: 'pointer' }}>Cancelar</button>
-                <button onClick={agregar} style={{ flex: 2, background: 'linear-gradient(135deg, #6c63ff, #8b5cf6)', border: 'none', borderRadius: 12, padding: '12px', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Agregar</button>
+                <button onClick={agregar} style={{ flex: 2, background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', border: 'none', borderRadius: 12, padding: '12px', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Agregar</button>
               </div>
             </div>
           ) : (
-            <button onClick={() => setMostrando(true)} style={{ width: '100%', background: 'linear-gradient(135deg, #6c63ff, #8b5cf6)', border: 'none', borderRadius: 16, padding: '16px', color: 'white', fontSize: 15, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 20px rgba(108,99,255,0.35)' }}>
+            <button onClick={() => setMostrando(true)} style={{ width: '100%', background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', border: 'none', borderRadius: 16, padding: '16px', color: 'white', fontSize: 15, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 20px rgba(108,99,255,0.35)' }}>
               + Agregar ramo
             </button>
           )}
@@ -443,7 +480,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
   const pesoUsado = evs.reduce((acc, e) => acc + e.ponderacion, 0)
   const pesoDisponible = Math.round((100 - pesoUsado) * 10) / 10
   const completadasCount = evs.filter(e => e.nota !== null && e.nota !== undefined && e.nota !== '').length
-  const colorNecesaria = necesaria === null ? '#a78bfa' : necesaria > 6 ? '#f87171' : necesaria > 5 ? '#fbbf24' : '#4ade80'
+  const colorNecesaria = necesaria === null ? 'var(--color-secondary)' : necesaria > 6 ? '#f87171' : necesaria > 5 ? '#fbbf24' : '#4ade80'
 
   const guardarEdicionRamo = () => {
     if (!editNombre.trim()) return
@@ -485,9 +522,9 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
     // Faltan evaluaciones para llegar al 100%
     if (!pesoCompleto && pesoDisponible > 0) {
       return (
-        <div style={{ background: 'rgba(108,99,255,0.08)', border: '1px solid rgba(108,99,255,0.2)', borderRadius: 14, padding: '12px 16px' }}>
+        <div style={{ background: 'rgba(108,99,255,0.08)', border: '1px solid var(--shadow-color)', borderRadius: 14, padding: '12px 16px' }}>
           <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', margin: 0, lineHeight: 1.5 }}>
-            ⚠️ Aún te faltan evaluaciones — llevas <strong style={{ color: '#a78bfa' }}>{pesoTotal}%</strong> del 100% del ramo. Agrega las evaluaciones restantes para calcular tu nota necesaria.
+            ⚠️ Aún te faltan evaluaciones — llevas <strong style={{ color: 'var(--color-secondary)' }}>{pesoTotal}%</strong> del 100% del ramo. Agrega las evaluaciones restantes para calcular tu nota necesaria.
           </p>
         </div>
       )
@@ -495,7 +532,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
     // 100% cargado, sin notas aún
     if (pesoCompleto && completadasCount === 0) {
       return (
-        <div style={{ background: 'rgba(108,99,255,0.08)', border: '1px solid rgba(108,99,255,0.2)', borderRadius: 14, padding: '12px 16px' }}>
+        <div style={{ background: 'rgba(108,99,255,0.08)', border: '1px solid var(--shadow-color)', borderRadius: 14, padding: '12px 16px' }}>
           <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', margin: 0 }}>📌 Ingresa tus notas para ver cuánto necesitas en las restantes</p>
         </div>
       )
@@ -509,7 +546,8 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
             {necesaria <= 4 && <span style={{ color: '#4ade80' }}> — ¡vas muy bien! 🚀</span>}
             {necesaria > 4 && necesaria <= 5.5 && <span style={{ color: '#fbbf24' }}> — ¡tú puedes! 💪</span>}
             {necesaria > 5.5 && necesaria <= 6.5 && <span style={{ color: '#fb923c' }}> — va a costar, pero es posible 😤</span>}
-            {necesaria > 6.5 && <span style={{ color: '#f87171' }}> — muy difícil, pero no imposible 😓</span>}
+            {necesaria > 6.5 && necesaria <= 7 && <span style={{ color: '#f87171' }}> — muy difícil, pero no imposible 😓</span>}
+            {necesaria > 7 && <span style={{ color: '#f87171' }}> — no es posible aprobar este ramo 😔</span>}
           </p>
         </div>
       )
@@ -518,11 +556,11 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0a0a1a', paddingBottom: 100 }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', paddingBottom: 100 }}>
       <Confetti active={confetti} />
       {editandoRamo && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setEditandoRamo(false)}>
-          <div style={{ background: '#1a1a2e', borderRadius: '24px 24px 0 0', padding: '28px 20px 40px', width: '100%', maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+          <div style={{ background: 'var(--bg-secondary)', borderRadius: '24px 24px 0 0', padding: '28px 20px 40px', width: '100%', maxWidth: 480 }} onClick={e => e.stopPropagation()}>
             <p style={{ fontSize: 16, fontWeight: 700, color: 'white', margin: '0 0 20px' }}>✏️ Editar ramo</p>
             <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Nombre del ramo</p>
             <input value={editNombre} onChange={e => setEditNombre(e.target.value)}
@@ -534,14 +572,14 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
             <input type="number" min="1" max="7" step="0.1" value={editExim} onChange={e => setEditExim(e.target.value)} placeholder="Ej: 5.0"
               style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 14, boxSizing: 'border-box' }} />
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, cursor: 'pointer' }} onClick={() => setEditSinRojos(!editSinRojos)}>
-              <div style={{ width: 20, height: 20, borderRadius: 6, border: '2px solid rgba(167,139,250,0.5)', background: editSinRojos ? '#8b5cf6' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <div style={{ width: 20, height: 20, borderRadius: 6, border: '2px solid rgba(167,139,250,0.5)', background: editSinRojos ? 'var(--color-accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 {editSinRojos && <span style={{ color: 'white', fontSize: 12 }}>✓</span>}
               </div>
               <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>Eximición requiere sin notas rojas (bajo 4.0)</span>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setEditandoRamo(false)} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px', color: 'rgba(255,255,255,0.5)', fontSize: 14, cursor: 'pointer' }}>Cancelar</button>
-              <button onClick={guardarEdicionRamo} style={{ flex: 2, background: 'linear-gradient(135deg, #6c63ff, #8b5cf6)', border: 'none', borderRadius: 12, padding: '12px', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Guardar cambios</button>
+              <button onClick={guardarEdicionRamo} style={{ flex: 2, background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', border: 'none', borderRadius: 12, padding: '12px', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Guardar cambios</button>
             </div>
           </div>
         </div>
@@ -561,7 +599,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
               )}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setEditandoRamo(true)} style={{ background: 'rgba(108,99,255,0.1)', border: '1px solid rgba(108,99,255,0.2)', borderRadius: 12, padding: '8px 12px', color: '#a78bfa', fontSize: 12, cursor: 'pointer' }}>✏️</button>
+              <button onClick={() => setEditandoRamo(true)} style={{ background: 'rgba(108,99,255,0.1)', border: '1px solid var(--shadow-color)', borderRadius: 12, padding: '8px 12px', color: 'var(--color-secondary)', fontSize: 12, cursor: 'pointer' }}>✏️</button>
               <button onClick={() => { if(window.confirm('¿Eliminar este ramo?')) onDelete(ramo.id) }} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 12, padding: '8px 12px', color: '#f87171', fontSize: 12, cursor: 'pointer' }}>🗑</button>
             </div>
           </div>
@@ -586,7 +624,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
               <p style={{ color: 'white', fontSize: 20, fontWeight: 800, margin: '0 0 6px' }}>
                 {estado === 'eximido' ? '¡Estás eximido!' : estado === 'aprobado' ? '¡Ramo aprobado!' : estado === 'con_examen' ? 'Debes rendir examen' : 'Ramo reprobado'}
               </p>
-              {estado === 'eximido' && <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, margin: 0 }}>Promedio semestre: <strong style={{ color: '#a78bfa' }}>{promedio?.toFixed(1)}</strong></p>}
+              {estado === 'eximido' && <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, margin: 0 }}>Promedio semestre: <strong style={{ color: 'var(--color-secondary)' }}>{promedio?.toFixed(1)}</strong></p>}
               {estado === 'aprobado' && <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, margin: 0 }}>Promedio final: <strong style={{ color: '#4ade80' }}>{promedio?.toFixed(1)}</strong></p>}
               {estado === 'con_examen' && (
                 <div>
@@ -623,7 +661,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
                         const pondSem = 1 - pondEx
                         const notaFinal = promedio * pondSem + nota * pondEx
                         onUpdate({ ...ramo, nota_examen: nota, nota_final: parseFloat(notaFinal.toFixed(1)), estado_final: notaFinal >= ramo.min_aprobacion ? 'aprobado' : 'reprobado' })
-                      }} style={{ background: 'linear-gradient(135deg, #6c63ff, #a78bfa)', border: 'none', borderRadius: 10, padding: '10px 18px', color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+                      }} style={{ background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', border: 'none', borderRadius: 10, padding: '10px 18px', color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
                         Guardar
                       </button>
                     </div>
@@ -646,19 +684,19 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
           ) : (
             <>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 14 }}>
-                <div style={{ background: 'rgba(108,99,255,0.12)', borderRadius: 16, padding: '14px 10px', border: '1px solid rgba(108,99,255,0.2)', textAlign: 'center' }}>
+                <div style={{ background: 'var(--shadow-color)', borderRadius: 16, padding: '14px 10px', border: '1px solid var(--shadow-color)', textAlign: 'center' }}>
                   <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px', lineHeight: 1.4 }}>Promedio{'\n'}actual</p>
                   <p style={{ fontSize: 24, fontWeight: 800, color: promedio ? notaColor(promedio) : 'rgba(255,255,255,0.3)', margin: 0 }}>{promedio ? promedio.toFixed(1) : '—'}</p>
                 </div>
-                <div style={{ background: 'rgba(108,99,255,0.12)', borderRadius: 16, padding: '14px 10px', border: '1px solid rgba(108,99,255,0.2)', textAlign: 'center' }}>
+                <div style={{ background: 'var(--shadow-color)', borderRadius: 16, padding: '14px 10px', border: '1px solid var(--shadow-color)', textAlign: 'center' }}>
                   <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px', lineHeight: 1.4 }}>Nota{'\n'}necesaria</p>
                   <p style={{ fontSize: 24, fontWeight: 800, color: colorNecesaria, margin: 0 }}>
                     {necesaria === null ? '—' : necesaria.toFixed(1)}
                   </p>
                 </div>
-                <div style={{ background: 'rgba(108,99,255,0.12)', borderRadius: 16, padding: '14px 10px', border: '1px solid rgba(108,99,255,0.2)', textAlign: 'center' }}>
+                <div style={{ background: 'var(--shadow-color)', borderRadius: 16, padding: '14px 10px', border: '1px solid var(--shadow-color)', textAlign: 'center' }}>
                   <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px', lineHeight: 1.4 }}>Evaluaciones{'\n'}pendientes</p>
-                  <p style={{ fontSize: 24, fontWeight: 800, color: pendientesCount === 0 ? '#4ade80' : '#a78bfa', margin: 0 }}>{pendientesCount}</p>
+                  <p style={{ fontSize: 24, fontWeight: 800, color: pendientesCount === 0 ? '#4ade80' : 'var(--color-secondary)', margin: 0 }}>{pendientesCount}</p>
                 </div>
               </div>
               <MensajeResumen />
@@ -674,15 +712,15 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
               const notaVal = tieneNota ? parseFloat(ev.nota) : null
               const estaEditando = editando[ev.id]
               return (
-                <div key={ev.id} style={{ background: '#1a1a2e', borderRadius: 16, padding: '14px 16px', border: tieneNota && !estaEditando ? '1px solid rgba(108,99,255,0.15)' : '1.5px dashed rgba(108,99,255,0.3)', animation: `slideUp 0.3s ${idx * 0.05}s ease both` }}>
+                <div key={ev.id} style={{ background: 'var(--bg-secondary)', borderRadius: 16, padding: '14px 16px', border: tieneNota && !estaEditando ? '1px solid var(--shadow-color)' : '1.5px dashed rgba(108,99,255,0.3)', animation: `slideUp 0.3s ${idx * 0.05}s ease both` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ width: 48, height: 48, background: tieneNota && !estaEditando ? `${notaColor(notaVal)}22` : 'rgba(108,99,255,0.15)', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: tieneNota && !estaEditando ? 15 : 18, fontWeight: 800, color: tieneNota && !estaEditando ? notaColor(notaVal) : '#6c63ff', flexShrink: 0, border: tieneNota && !estaEditando ? `1.5px solid ${notaColor(notaVal)}44` : '1.5px solid rgba(108,99,255,0.2)' }}>
+                    <div style={{ width: 48, height: 48, background: tieneNota && !estaEditando ? `${notaColor(notaVal)}22` : 'var(--shadow-color)', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: tieneNota && !estaEditando ? 15 : 18, fontWeight: 800, color: tieneNota && !estaEditando ? notaColor(notaVal) : 'var(--color-primary)', flexShrink: 0, border: tieneNota && !estaEditando ? `1.5px solid ${notaColor(notaVal)}44` : '1.5px solid var(--shadow-color)' }}>
                       {tieneNota && !estaEditando ? notaVal.toFixed(1) : '?'}
                     </div>
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: 14, fontWeight: 600, color: '#e2e8f0', margin: 0 }}>{ev.nombre}</p>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
-                        <span style={{ fontSize: 11, color: '#6c63ff', fontWeight: 600, background: 'rgba(108,99,255,0.12)', padding: '1px 7px', borderRadius: 20 }}>{ev.ponderacion}%</span>
+                        <span style={{ fontSize: 11, color: 'var(--color-primary)', fontWeight: 600, background: 'var(--shadow-color)', padding: '1px 7px', borderRadius: 20 }}>{ev.ponderacion}%</span>
                         {ev.fecha && <BadgeFecha fecha={ev.fecha} />}
                       </div>
                     </div>
@@ -694,19 +732,19 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
                           autoFocus
                           onKeyDown={e => e.key === 'Enter' && guardarNota(ev)}
                           style={{ width: 64, border: '1.5px solid #6c63ff', borderRadius: 10, padding: '8px', fontSize: 13, textAlign: 'center', outline: 'none', background: '#0d0d1f', color: 'white' }} />
-                        <button onClick={() => guardarNota(ev)} style={{ background: '#6c63ff', border: 'none', borderRadius: 10, padding: '8px 12px', color: 'white', fontSize: 13, cursor: 'pointer', fontWeight: 700 }}>✓</button>
+                        <button onClick={() => guardarNota(ev)} style={{ background: 'var(--color-primary)', border: 'none', borderRadius: 10, padding: '8px 12px', color: 'white', fontSize: 13, cursor: 'pointer', fontWeight: 700 }}>✓</button>
                         <button onClick={() => setEditando({ ...editando, [ev.id]: false })} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 10, padding: '8px 10px', color: 'rgba(255,255,255,0.4)', fontSize: 13, cursor: 'pointer' }}>✕</button>
                       </div>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                         <div style={{ display: 'flex', gap: 5 }}>
                           <button onClick={() => borrarNota(ev.id)} title="Borrar nota" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: 10, padding: '7px 10px', color: '#f87171', fontSize: 12, cursor: 'pointer' }}>✕ Borrar</button>
-                          <button onClick={() => setEditando({ ...editando, [ev.id]: true })} style={{ background: 'rgba(108,99,255,0.15)', border: 'none', borderRadius: 10, padding: '7px 12px', color: '#a78bfa', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
+                          <button onClick={() => setEditando({ ...editando, [ev.id]: true })} style={{ background: 'var(--shadow-color)', border: 'none', borderRadius: 10, padding: '7px 12px', color: 'var(--color-secondary)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
                             {tieneNota ? 'Editar' : '+ Nota'}
                           </button>
                           <button onClick={() => eliminarEv(ev.id)} style={{ background: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: 10, padding: '7px 10px', color: '#f87171', fontSize: 12, cursor: 'pointer' }}>🗑</button>
                         </div>
-                        <button onClick={(e) => { e.stopPropagation(); onPlan(ev) }} style={{ background: 'rgba(108,99,255,0.15)', border: 'none', borderRadius: 10, padding: '7px 12px', color: '#a78bfa', fontSize: 12, cursor: 'pointer', fontWeight: 600, width: '100%' }}>🤖 Plan IA</button>
+                        <button onClick={(e) => { e.stopPropagation(); onPlan(ev) }} style={{ background: 'var(--shadow-color)', border: 'none', borderRadius: 10, padding: '7px 12px', color: 'var(--color-secondary)', fontSize: 12, cursor: 'pointer', fontWeight: 600, width: '100%' }}>🤖 Plan IA</button>
                       </div>
                     )}
                   </div>
@@ -717,8 +755,8 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
 
           {pesoDisponible > 0 && (
             mostrando ? (
-              <div style={{ background: '#1a1a2e', borderRadius: 20, padding: '20px', border: '1.5px solid rgba(108,99,255,0.3)', animation: 'slideUp 0.3s ease' }}>
-                <p style={{ fontSize: 14, fontWeight: 700, color: 'white', margin: '0 0 16px' }}>Nueva evaluación <span style={{ fontSize: 12, color: '#6c63ff', fontWeight: 400 }}>({pesoDisponible}% disponible)</span></p>
+              <div style={{ background: 'var(--bg-secondary)', borderRadius: 20, padding: '20px', border: '1.5px solid rgba(108,99,255,0.3)', animation: 'slideUp 0.3s ease' }}>
+                <p style={{ fontSize: 14, fontWeight: 700, color: 'white', margin: '0 0 16px' }}>Nueva evaluación <span style={{ fontSize: 12, color: 'var(--color-primary)', fontWeight: 400 }}>({pesoDisponible}% disponible)</span></p>
                 <input value={nuevaEv.nombre} onChange={e => setNuevaEv({ ...nuevaEv, nombre: e.target.value })} placeholder="Nombre (ej: Solemne 1)"
                   style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 10, boxSizing: 'border-box' }} />
                 <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
@@ -729,11 +767,11 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
                 </div>
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button onClick={() => setMostrando(false)} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px', color: 'rgba(255,255,255,0.5)', fontSize: 14, cursor: 'pointer' }}>Cancelar</button>
-                  <button onClick={agregarEv} style={{ flex: 2, background: 'linear-gradient(135deg, #6c63ff, #8b5cf6)', border: 'none', borderRadius: 12, padding: '12px', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Agregar</button>
+                  <button onClick={agregarEv} style={{ flex: 2, background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', border: 'none', borderRadius: 12, padding: '12px', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Agregar</button>
                 </div>
               </div>
             ) : (
-              <button onClick={() => setMostrando(true)} style={{ width: '100%', background: 'rgba(108,99,255,0.12)', border: '1.5px dashed rgba(108,99,255,0.3)', borderRadius: 16, padding: '14px', color: '#a78bfa', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+              <button onClick={() => setMostrando(true)} style={{ width: '100%', background: 'var(--shadow-color)', border: '1.5px dashed rgba(108,99,255,0.3)', borderRadius: 16, padding: '14px', color: 'var(--color-secondary)', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
                 + Agregar evaluación ({pesoDisponible}% disponible)
               </button>
             )
@@ -764,12 +802,12 @@ function AdminScreen({ usuario, onBack }) {
   ) || []
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0a0a1a', padding: 24, color: 'white' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', padding: 24, color: 'white' }}>
       <BackgroundOrbs />
       <BannerInstalar />
       <div style={{ position: 'relative', zIndex: 1, maxWidth: 700, margin: '0 auto' }}>
         <button onClick={onBack} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 10, padding: '8px 16px', color: 'rgba(255,255,255,0.7)', fontSize: 14, cursor: 'pointer', marginBottom: 24 }}>← Volver</button>
-        <h2 style={{ fontSize: 28, fontWeight: 800, margin: '0 0 6px', background: 'linear-gradient(135deg, #6c63ff, #a78bfa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Panel Admin 🛡️</h2>
+        <h2 style={{ fontSize: 28, fontWeight: 800, margin: '0 0 6px', background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Panel Admin 🛡️</h2>
         <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, margin: '0 0 24px' }}>Solo visible para {usuario?.email}</p>
 
         {loading && <p style={{ color: 'rgba(255,255,255,0.5)' }}>Cargando...</p>}
@@ -785,15 +823,15 @@ function AdminScreen({ usuario, onBack }) {
                 { label: 'Ramos creados', value: stats.ramos, icon: '📚' },
                 { label: 'Evaluaciones', value: stats.evaluaciones, icon: '📝' },
               ].map((s, i) => (
-                <div key={i} style={{ background: '#1a1a2e', borderRadius: 16, padding: '16px 20px', border: '1px solid rgba(108,99,255,0.2)' }}>
+                <div key={i} style={{ background: 'var(--bg-secondary)', borderRadius: 16, padding: '16px 20px', border: '1px solid var(--shadow-color)' }}>
                   <p style={{ margin: 0, fontSize: 24 }}>{s.icon}</p>
-                  <p style={{ margin: '4px 0 0', fontSize: 28, fontWeight: 800, color: '#a78bfa' }}>{s.value}</p>
+                  <p style={{ margin: '4px 0 0', fontSize: 28, fontWeight: 800, color: 'var(--color-secondary)' }}>{s.value}</p>
                   <p style={{ margin: '2px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{s.label}</p>
                 </div>
               ))}
             </div>
 
-            <div style={{ background: '#1a1a2e', borderRadius: 16, padding: 20, border: '1px solid rgba(108,99,255,0.2)' }}>
+            <div style={{ background: 'var(--bg-secondary)', borderRadius: 16, padding: 20, border: '1px solid var(--shadow-color)' }}>
               <p style={{ margin: '0 0 12px', fontWeight: 700, fontSize: 15 }}>👤 Usuarios registrados</p>
               <input
                 placeholder="Buscar por nombre o email..."
@@ -826,6 +864,8 @@ function AdminScreen({ usuario, onBack }) {
 export default function App() {
   const [pantalla, setPantalla] = useState('login')
   const [usuario, setUsuario] = useState(null)
+
+  useTheme(usuario?.universidad)
   const [ramos, setRamos] = useState([])
   const [ramoActivo, setRamoActivo] = useState(null)
   const [planEv, setPlanEv] = useState(null)
@@ -863,6 +903,21 @@ export default function App() {
     }
   }, [])
 
+  const handleUniversidad = async (universidad) => {
+    try {
+      const res = await fetch(`${API}/usuarios/universidad`, {
+        method: 'PATCH',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ universidad })
+      })
+      if (res.ok) {
+        const updated = { ...usuario, universidad }
+        setUsuario(updated)
+        localStorage.setItem('usuario', JSON.stringify(updated))
+      }
+    } catch(e) { console.error(e) }
+  }
+
   const handleLogout = () => {
     localStorage.removeItem('token'); localStorage.removeItem('usuario')
     setUsuario(null); setRamos([]); setRamoActivo(null); setPantalla('login')
@@ -895,7 +950,7 @@ export default function App() {
 
   if (pantalla === 'admin' && usuario?.email === 'abelespinozav@gmail.com') return <AdminScreen usuario={usuario} onBack={() => setPantalla('ramos')} />
   if (pantalla === 'login') return <LoginScreen onLogin={handleLogin} />
-  if (pantalla === 'ramos') return <RamosScreen ramos={ramos} onSelect={r => { setRamoActivo(r); setPantalla('ramo') }} onAdd={handleAddRamo} onLogout={handleLogout} onAdmin={() => setPantalla('admin')} usuario={usuario} />
+  if (pantalla === 'ramos') return <RamosScreen ramos={ramos} onSelect={r => { setRamoActivo(r); setPantalla('ramo') }} onAdd={handleAddRamo} onLogout={handleLogout} onAdmin={() => setPantalla('admin')} usuario={usuario} onUniversidad={handleUniversidad} />
   if (pantalla === 'ramo' && ramoActivo) return <RamoScreen ramo={ramoActivo} onBack={() => setPantalla('ramos')} onUpdate={handleUpdateRamo} onDelete={handleDeleteRamo} onPlan={(ev) => { setPlanEv(ev); setPantalla('plan') }} />
   if (pantalla === 'plan' && planEv && ramoActivo) return <PlanEstudio evaluacion={planEv} ramo={ramoActivo} onBack={() => setPantalla('ramo')} />
   return null
