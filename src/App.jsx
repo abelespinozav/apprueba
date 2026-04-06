@@ -601,6 +601,16 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
                         placeholder="Nota examen"
                         value={notaExamen}
                         onChange={e => setNotaExamen(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            const nota = parseFloat(notaExamen)
+                            if (isNaN(nota) || nota < 1 || nota > 7) return
+                            const pondEx = (ramo.ponderacion_examen || 25) / 100
+                            const pondSem = 1 - pondEx
+                            const notaFinal = promedio * pondSem + nota * pondEx
+                            onUpdate({ ...ramo, nota_examen: nota, nota_final: parseFloat(notaFinal.toFixed(1)), estado_final: notaFinal >= ramo.min_aprobacion ? 'aprobado' : 'reprobado' })
+                          }
+                        }}
                         style={{ flex: 1, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, padding: '10px 14px', color: 'white', fontSize: 16, fontWeight: 700, outline: 'none' }}
                       />
                       <button onClick={() => {
@@ -685,13 +695,15 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
                         <button onClick={() => setEditando({ ...editando, [ev.id]: false })} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 10, padding: '8px 10px', color: 'rgba(255,255,255,0.4)', fontSize: 13, cursor: 'pointer' }}>✕</button>
                       </div>
                     ) : (
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <button onClick={() => borrarNota(ev.id)} title="Borrar nota" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: 10, padding: '8px 10px', color: '#f87171', fontSize: 12, cursor: 'pointer' }}>✕ Borrar</button>
-                        <button onClick={() => setEditando({ ...editando, [ev.id]: true })} style={{ background: 'rgba(108,99,255,0.15)', border: 'none', borderRadius: 10, padding: '8px 12px', color: '#a78bfa', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
-                          {tieneNota ? 'Editar' : '+ Nota'}
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); onPlan(ev) }} style={{ background: 'rgba(108,99,255,0.15)', border: 'none', borderRadius: 10, padding: '8px 12px', color: '#a78bfa', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>🤖 Plan IA</button>
-                        <button onClick={() => eliminarEv(ev.id)} style={{ background: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: 10, padding: '8px 10px', color: '#f87171', fontSize: 12, cursor: 'pointer' }}>🗑</button>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                        <div style={{ display: 'flex', gap: 5 }}>
+                          <button onClick={() => borrarNota(ev.id)} title="Borrar nota" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: 10, padding: '7px 10px', color: '#f87171', fontSize: 12, cursor: 'pointer' }}>✕ Borrar</button>
+                          <button onClick={() => setEditando({ ...editando, [ev.id]: true })} style={{ background: 'rgba(108,99,255,0.15)', border: 'none', borderRadius: 10, padding: '7px 12px', color: '#a78bfa', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
+                            {tieneNota ? 'Editar' : '+ Nota'}
+                          </button>
+                          <button onClick={() => eliminarEv(ev.id)} style={{ background: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: 10, padding: '7px 10px', color: '#f87171', fontSize: 12, cursor: 'pointer' }}>🗑</button>
+                        </div>
+                        <button onClick={(e) => { e.stopPropagation(); onPlan(ev) }} style={{ background: 'rgba(108,99,255,0.15)', border: 'none', borderRadius: 10, padding: '7px 12px', color: '#a78bfa', fontSize: 12, cursor: 'pointer', fontWeight: 600, width: '100%' }}>🤖 Plan IA</button>
                       </div>
                     )}
                   </div>
