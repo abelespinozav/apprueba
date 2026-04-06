@@ -654,7 +654,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
                             const pondEx = (ramo.ponderacion_examen || 25) / 100
                             const pondSem = 1 - pondEx
                             const notaFinal = promedio * pondSem + nota * pondEx
-                            onUpdate({ ...ramo, nota_examen: nota, nota_final: parseFloat(notaFinal.toFixed(1)), estado_final: notaFinal >= ramo.min_aprobacion ? 'aprobado' : 'reprobado' })
+                            onUpdate({ ...ramo, nota_examen: nota, nota_final: parseFloat(notaFinal.toFixed(1)), estado_final: parseFloat(notaFinal.toFixed(1)) >= ramo.min_aprobacion ? 'aprobado' : 'reprobado' })
                           }
                         }}
                         style={{ flex: 1, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, padding: '10px 14px', color: 'white', fontSize: 16, fontWeight: 700, outline: 'none' }}
@@ -665,7 +665,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
                         const pondEx = (ramo.ponderacion_examen || 25) / 100
                         const pondSem = 1 - pondEx
                         const notaFinal = promedio * pondSem + nota * pondEx
-                        onUpdate({ ...ramo, nota_examen: nota, nota_final: parseFloat(notaFinal.toFixed(1)), estado_final: notaFinal >= ramo.min_aprobacion ? 'aprobado' : 'reprobado' })
+                        onUpdate({ ...ramo, nota_examen: nota, nota_final: parseFloat(notaFinal.toFixed(1)), estado_final: parseFloat(notaFinal.toFixed(1)) >= ramo.min_aprobacion ? 'aprobado' : 'reprobado' })
                       }} style={{ background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', border: 'none', borderRadius: 10, padding: '10px 18px', color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
                         Guardar
                       </button>
