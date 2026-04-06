@@ -110,6 +110,29 @@ function notaColor(nota) {
 function LoginScreen({ onLogin }) {
   return (
     <div style={{ minHeight: '100vh', background: '#0a0a1a', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      {editandoRamo && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setEditandoRamo(false)}>
+          <div style={{ background: '#1a1a2e', borderRadius: '24px 24px 0 0', padding: '28px 20px 40px', width: '100%', maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+            <p style={{ fontSize: 16, fontWeight: 700, color: 'white', margin: '0 0 20px' }}>✏️ Editar ramo</p>
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Nombre del ramo</p>
+            <input value={editNombre} onChange={e => setEditNombre(e.target.value)}
+              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 14, boxSizing: 'border-box' }} />
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Nota mínima para aprobar</p>
+            <input type="number" min="1" max="7" step="0.1" value={editMin} onChange={e => setEditMin(e.target.value)}
+              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 14, boxSizing: 'border-box' }} />
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Nota de eximición (opcional)</p>
+            <input type="number" min="1" max="7" step="0.1" value={editExim} onChange={e => setEditExim(e.target.value)} placeholder="Ej: 5.0"
+              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 14, boxSizing: 'border-box' }} />
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Condiciones eximición (opcional)</p>
+            <input value={editCondExim} onChange={e => setEditCondExim(e.target.value)} placeholder="Ej: Sin rojos, promedio sobre 4.5"
+              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 20, boxSizing: 'border-box' }} />
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setEditandoRamo(false)} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px', color: 'rgba(255,255,255,0.5)', fontSize: 14, cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={guardarEdicionRamo} style={{ flex: 2, background: 'linear-gradient(135deg, #6c63ff, #8b5cf6)', border: 'none', borderRadius: 12, padding: '12px', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Guardar cambios</button>
+            </div>
+          </div>
+        </div>
+      )}
       <BackgroundOrbs />
       <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', animation: 'slideUp 0.6s ease' }}>
         <div style={{ fontSize: 64, marginBottom: 16, animation: 'float 3s ease-in-out infinite' }}>📚</div>
@@ -141,6 +164,29 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, usuario }) {
 
   return (
     <div style={{ minHeight: '100vh', background: '#0a0a1a', padding: '0 0 100px' }}>
+      {editandoRamo && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setEditandoRamo(false)}>
+          <div style={{ background: '#1a1a2e', borderRadius: '24px 24px 0 0', padding: '28px 20px 40px', width: '100%', maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+            <p style={{ fontSize: 16, fontWeight: 700, color: 'white', margin: '0 0 20px' }}>✏️ Editar ramo</p>
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Nombre del ramo</p>
+            <input value={editNombre} onChange={e => setEditNombre(e.target.value)}
+              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 14, boxSizing: 'border-box' }} />
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Nota mínima para aprobar</p>
+            <input type="number" min="1" max="7" step="0.1" value={editMin} onChange={e => setEditMin(e.target.value)}
+              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 14, boxSizing: 'border-box' }} />
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Nota de eximición (opcional)</p>
+            <input type="number" min="1" max="7" step="0.1" value={editExim} onChange={e => setEditExim(e.target.value)} placeholder="Ej: 5.0"
+              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 14, boxSizing: 'border-box' }} />
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Condiciones eximición (opcional)</p>
+            <input value={editCondExim} onChange={e => setEditCondExim(e.target.value)} placeholder="Ej: Sin rojos, promedio sobre 4.5"
+              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 20, boxSizing: 'border-box' }} />
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setEditandoRamo(false)} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px', color: 'rgba(255,255,255,0.5)', fontSize: 14, cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={guardarEdicionRamo} style={{ flex: 2, background: 'linear-gradient(135deg, #6c63ff, #8b5cf6)', border: 'none', borderRadius: 12, padding: '12px', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Guardar cambios</button>
+            </div>
+          </div>
+        </div>
+      )}
       <BackgroundOrbs />
       <div style={{ position: 'relative', zIndex: 1 }}>
         <div style={{ padding: '56px 20px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -173,6 +219,12 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, usuario }) {
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: 16, fontWeight: 700, color: 'white', margin: '0 0 4px' }}>{r.nombre}</p>
                       <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', margin: 0 }}>Mín: {r.min_aprobacion} · {completadas}/{total} evaluaciones</p>
+                      {r.nota_eximicion && calc?.promedio >= r.nota_eximicion && (
+                        <span style={{ fontSize: 11, color: '#a78bfa', background: 'rgba(167,139,250,0.12)', border: '1px solid rgba(167,139,250,0.25)', padding: '2px 8px', borderRadius: 20, marginTop: 4, display: 'inline-block', fontWeight: 600 }}>🎓 Puedes eximirte</span>
+                      )}
+                      {r.nota_eximicion && calc?.promedio && calc.promedio < r.nota_eximicion && !calc.estado && (
+                        <span style={{ fontSize: 11, color: 'rgba(167,139,250,0.5)', marginTop: 4, display: 'inline-block' }}>Eximición: {r.nota_eximicion}</span>
+                      )}
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       {calc ? (
@@ -251,6 +303,11 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
   const [nuevaEv, setNuevaEv] = useState({ nombre: '', ponderacion: '', fecha: '' })
   const [mostrando, setMostrando] = useState(false)
   const [confetti, setConfetti] = useState(false)
+  const [editandoRamo, setEditandoRamo] = useState(false)
+  const [editNombre, setEditNombre] = useState(ramo.nombre)
+  const [editMin, setEditMin] = useState(ramo.min_aprobacion)
+  const [editExim, setEditExim] = useState(ramo.nota_eximicion || '')
+  const [editCondExim, setEditCondExim] = useState(ramo.condiciones_eximicion || '')
 
   const evs = (ramo.evaluaciones || []).map(e => ({ ...e, ponderacion: parseFloat(e.ponderacion) || 0 }))
   const { promedio, necesaria, estado, pendientesCount, pesoCompleto, pesoTotal } = calcular(evs, ramo.min_aprobacion)
@@ -258,6 +315,12 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
   const pesoDisponible = Math.round((100 - pesoUsado) * 10) / 10
   const completadasCount = evs.filter(e => e.nota !== null && e.nota !== undefined && e.nota !== '').length
   const colorNecesaria = necesaria === null ? '#a78bfa' : necesaria > 6 ? '#f87171' : necesaria > 5 ? '#fbbf24' : '#4ade80'
+
+  const guardarEdicionRamo = () => {
+    if (!editNombre.trim()) return
+    onUpdate({ ...ramo, nombre: editNombre.trim(), min_aprobacion: parseFloat(editMin) || 4.0, nota_eximicion: editExim ? parseFloat(editExim) : null, condiciones_eximicion: editCondExim.trim() || null })
+    setEditandoRamo(false)
+  }
 
   const guardarNota = (ev) => {
     const nota = notas[ev.id]
@@ -327,6 +390,29 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
   return (
     <div style={{ minHeight: '100vh', background: '#0a0a1a', paddingBottom: 100 }}>
       <Confetti active={confetti} />
+      {editandoRamo && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setEditandoRamo(false)}>
+          <div style={{ background: '#1a1a2e', borderRadius: '24px 24px 0 0', padding: '28px 20px 40px', width: '100%', maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+            <p style={{ fontSize: 16, fontWeight: 700, color: 'white', margin: '0 0 20px' }}>✏️ Editar ramo</p>
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Nombre del ramo</p>
+            <input value={editNombre} onChange={e => setEditNombre(e.target.value)}
+              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 14, boxSizing: 'border-box' }} />
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Nota mínima para aprobar</p>
+            <input type="number" min="1" max="7" step="0.1" value={editMin} onChange={e => setEditMin(e.target.value)}
+              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 14, boxSizing: 'border-box' }} />
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Nota de eximición (opcional)</p>
+            <input type="number" min="1" max="7" step="0.1" value={editExim} onChange={e => setEditExim(e.target.value)} placeholder="Ej: 5.0"
+              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 14, boxSizing: 'border-box' }} />
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Condiciones eximición (opcional)</p>
+            <input value={editCondExim} onChange={e => setEditCondExim(e.target.value)} placeholder="Ej: Sin rojos, promedio sobre 4.5"
+              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 20, boxSizing: 'border-box' }} />
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setEditandoRamo(false)} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px', color: 'rgba(255,255,255,0.5)', fontSize: 14, cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={guardarEdicionRamo} style={{ flex: 2, background: 'linear-gradient(135deg, #6c63ff, #8b5cf6)', border: 'none', borderRadius: 12, padding: '12px', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Guardar cambios</button>
+            </div>
+          </div>
+        </div>
+      )}
       <BackgroundOrbs />
       <div style={{ position: 'relative', zIndex: 1 }}>
         <div style={{ background: 'linear-gradient(180deg, #1a1a2e 0%, #0a0a1a 100%)', padding: '56px 20px 24px' }}>
@@ -341,7 +427,10 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
                 </p>
               )}
             </div>
-            <button onClick={() => { if(window.confirm('¿Eliminar este ramo?')) onDelete(ramo.id) }} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 12, padding: '8px 12px', color: '#f87171', fontSize: 12, cursor: 'pointer' }}>🗑</button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setEditandoRamo(true)} style={{ background: 'rgba(108,99,255,0.1)', border: '1px solid rgba(108,99,255,0.2)', borderRadius: 12, padding: '8px 12px', color: '#a78bfa', fontSize: 12, cursor: 'pointer' }}>✏️</button>
+              <button onClick={() => { if(window.confirm('¿Eliminar este ramo?')) onDelete(ramo.id) }} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 12, padding: '8px 12px', color: '#f87171', fontSize: 12, cursor: 'pointer' }}>🗑</button>
+            </div>
           </div>
 
           {proximaEv && (
