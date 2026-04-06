@@ -224,7 +224,7 @@ function LoginScreen({ onLogin }) {
   )
 }
 
-function RamosScreen({ ramos, onSelect, onAdd, onLogout, usuario }) {
+function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, usuario }) {
   const [nuevo, setNuevo] = useState('')
   const [min, setMin] = useState('4.0')
   const [exim, setExim] = useState('')
@@ -270,6 +270,9 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, usuario }) {
             <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', margin: '0 0 4px' }}>Hola, {usuario?.nombre?.split(' ')[0] || 'estudiante'} 👋</p>
             <h1 style={{ fontSize: 28, fontWeight: 800, color: 'white', margin: 0 }}>Mis Ramos</h1>
           </div>
+          {usuario?.email === 'abelespinozav@gmail.com' && (
+            <button onClick={onAdmin} style={{ background: 'rgba(108,99,255,0.2)', border: '1px solid rgba(108,99,255,0.4)', borderRadius: 12, padding: '8px 14px', color: '#a78bfa', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>🛡️ Admin</button>
+          )}
           <button onClick={onLogout} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '8px 14px', color: 'rgba(255,255,255,0.5)', fontSize: 12, cursor: 'pointer' }}>Salir</button>
         </div>
         <div style={{ padding: '0 16px' }}>
@@ -741,6 +744,85 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
   )
 }
 
+
+function AdminScreen({ usuario, onBack }) {
+  const [stats, setStats] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [busqueda, setBusqueda] = useState('')
+
+  useEffect(() => {
+    fetch(`${API}/admin/stats`, { headers: authHeaders() })
+      .then(r => r.json())
+      .then(data => { setStats(data); setLoading(false) })
+      .catch(e => { setError(e.message); setLoading(false) })
+  }, [])
+
+  const usuariosFiltrados = stats?.usuarios?.filter(u =>
+    u.nombre?.toLowerCase().includes(busqueda.toLowerCase()) ||
+    u.email?.toLowerCase().includes(busqueda.toLowerCase())
+  ) || []
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#0a0a1a', padding: 24, color: 'white' }}>
+      <BackgroundOrbs />
+      <BannerInstalar />
+      <div style={{ position: 'relative', zIndex: 1, maxWidth: 700, margin: '0 auto' }}>
+        <button onClick={onBack} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 10, padding: '8px 16px', color: 'rgba(255,255,255,0.7)', fontSize: 14, cursor: 'pointer', marginBottom: 24 }}>← Volver</button>
+        <h2 style={{ fontSize: 28, fontWeight: 800, margin: '0 0 6px', background: 'linear-gradient(135deg, #6c63ff, #a78bfa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Panel Admin 🛡️</h2>
+        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, margin: '0 0 24px' }}>Solo visible para {usuario?.email}</p>
+
+        {loading && <p style={{ color: 'rgba(255,255,255,0.5)' }}>Cargando...</p>}
+        {error && <p style={{ color: '#f87171' }}>Error: {error}</p>}
+
+        {stats && (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 24 }}>
+              {[
+                { label: 'Total usuarios', value: stats.stats.total_usuarios, icon: '👥' },
+                { label: 'Nuevos (7 días)', value: stats.stats.nuevos_7d, icon: '🆕' },
+                { label: 'Activos (7 días)', value: stats.stats.activos_7d, icon: '🟢' },
+                { label: 'Ramos creados', value: stats.ramos, icon: '📚' },
+                { label: 'Evaluaciones', value: stats.evaluaciones, icon: '📝' },
+              ].map((s, i) => (
+                <div key={i} style={{ background: '#1a1a2e', borderRadius: 16, padding: '16px 20px', border: '1px solid rgba(108,99,255,0.2)' }}>
+                  <p style={{ margin: 0, fontSize: 24 }}>{s.icon}</p>
+                  <p style={{ margin: '4px 0 0', fontSize: 28, fontWeight: 800, color: '#a78bfa' }}>{s.value}</p>
+                  <p style={{ margin: '2px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{s.label}</p>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ background: '#1a1a2e', borderRadius: 16, padding: 20, border: '1px solid rgba(108,99,255,0.2)' }}>
+              <p style={{ margin: '0 0 12px', fontWeight: 700, fontSize: 15 }}>👤 Usuarios registrados</p>
+              <input
+                placeholder="Buscar por nombre o email..."
+                value={busqueda}
+                onChange={e => setBusqueda(e.target.value)}
+                style={{ width: '100%', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '8px 12px', color: 'white', fontSize: 13, outline: 'none', marginBottom: 12, boxSizing: 'border-box' }}
+              />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {usuariosFiltrados.map((u, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'rgba(255,255,255,0.04)', borderRadius: 10, flexWrap: 'wrap', gap: 6 }}>
+                    <div>
+                      <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>{u.nombre}</p>
+                      <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{u.email}</p>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>Registro: {u.created_at ? new Date(u.created_at).toLocaleDateString('es-CL') : '—'}</p>
+                      <p style={{ margin: 0, fontSize: 11, color: u.last_login ? '#4ade80' : 'rgba(255,255,255,0.2)' }}>Último login: {u.last_login ? new Date(u.last_login).toLocaleDateString('es-CL') : 'Sin registro'}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const [pantalla, setPantalla] = useState('login')
   const [usuario, setUsuario] = useState(null)
@@ -811,8 +893,9 @@ export default function App() {
     } catch (e) { console.error(e) }
   }
 
+  if (pantalla === 'admin' && usuario?.email === 'abelespinozav@gmail.com') return <AdminScreen usuario={usuario} onBack={() => setPantalla('ramos')} />
   if (pantalla === 'login') return <LoginScreen onLogin={handleLogin} />
-  if (pantalla === 'ramos') return <RamosScreen ramos={ramos} onSelect={r => { setRamoActivo(r); setPantalla('ramo') }} onAdd={handleAddRamo} onLogout={handleLogout} usuario={usuario} />
+  if (pantalla === 'ramos') return <RamosScreen ramos={ramos} onSelect={r => { setRamoActivo(r); setPantalla('ramo') }} onAdd={handleAddRamo} onLogout={handleLogout} onAdmin={() => setPantalla('admin')} usuario={usuario} />
   if (pantalla === 'ramo' && ramoActivo) return <RamoScreen ramo={ramoActivo} onBack={() => setPantalla('ramos')} onUpdate={handleUpdateRamo} onDelete={handleDeleteRamo} onPlan={(ev) => { setPlanEv(ev); setPantalla('plan') }} />
   if (pantalla === 'plan' && planEv && ramoActivo) return <PlanEstudio evaluacion={planEv} ramo={ramoActivo} onBack={() => setPantalla('ramo')} />
   return null
