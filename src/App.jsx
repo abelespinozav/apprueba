@@ -665,6 +665,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
                         const pondEx = (ramo.ponderacion_examen || 25) / 100
                         const pondSem = 1 - pondEx
                         const notaFinal = promedio * pondSem + nota * pondEx
+                        console.log('DEBUG examen:', { promedio, pondEx, pondSem, nota, notaFinal, min: ramo.min_aprobacion })
                         onUpdate({ ...ramo, nota_examen: nota, nota_final: parseFloat(notaFinal.toFixed(1)), estado_final: parseFloat(notaFinal.toFixed(1)) >= ramo.min_aprobacion ? 'aprobado' : 'reprobado' })
                       }} style={{ background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', border: 'none', borderRadius: 10, padding: '10px 18px', color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
                         Guardar
