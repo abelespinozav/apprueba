@@ -322,6 +322,8 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
   }
 
   const eliminarEv = (id) => onUpdate({ ...ramo, evaluaciones: evs.filter(e => e.id !== id) })
+  const borrarNota = (id) => onUpdate({ ...ramo, evaluaciones: evs.map(e => e.id === id ? { ...e, nota: null } : e) })
+  const borrarNota = (id) => onUpdate({ ...ramo, evaluaciones: evs.map(e => e.id === id ? { ...e, nota: null } : e) })
 
   const proximaEv = evs.filter(e => (e.nota === null || e.nota === undefined || e.nota === '') && e.fecha)
     .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))[0]
@@ -379,12 +381,6 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
               style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 14, boxSizing: 'border-box' }} />
             <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Nota de eximición (opcional)</p>
             <input type="number" min="1" max="7" step="0.1" value={editExim} onChange={e => setEditExim(e.target.value)} placeholder="Ej: 5.0"
-              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 14, boxSizing: 'border-box' }} />
-            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Condiciones eximición (opcional)</p>
-            <input value={editCondExim} onChange={e => setEditCondExim(e.target.value)} placeholder="Ej: Sin rojos, promedio sobre 4.5"
-              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 20, boxSizing: 'border-box' }} />
-            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Ponderación del examen (%)</p>
-            <input type="number" min="0" max="100" step="1" value={editPondExamen} onChange={e => setEditPondExamen(e.target.value)} placeholder="Ej: 25"
               style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 14, boxSizing: 'border-box' }} />
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, cursor: 'pointer' }} onClick={() => setEditSinRojos(!editSinRojos)}>
               <div style={{ width: 20, height: 20, borderRadius: 6, border: '2px solid rgba(167,139,250,0.5)', background: editSinRojos ? '#8b5cf6' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -508,6 +504,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
                       </div>
                     ) : (
                       <div style={{ display: 'flex', gap: 6 }}>
+                        <button onClick={() => borrarNota(ev.id)} title="Borrar nota" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: 10, padding: '8px 10px', color: '#f87171', fontSize: 12, cursor: 'pointer' }}>✕ Borrar</button>
                         <button onClick={() => setEditando({ ...editando, [ev.id]: true })} style={{ background: 'rgba(108,99,255,0.15)', border: 'none', borderRadius: 10, padding: '8px 12px', color: '#a78bfa', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
                           {tieneNota ? 'Editar' : '+ Nota'}
                         </button>
