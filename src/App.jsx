@@ -323,7 +323,6 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
 
   const eliminarEv = (id) => onUpdate({ ...ramo, evaluaciones: evs.filter(e => e.id !== id) })
   const borrarNota = (id) => onUpdate({ ...ramo, evaluaciones: evs.map(e => e.id === id ? { ...e, nota: null } : e) })
-  const borrarNota = (id) => onUpdate({ ...ramo, evaluaciones: evs.map(e => e.id === id ? { ...e, nota: null } : e) })
 
   const proximaEv = evs.filter(e => (e.nota === null || e.nota === undefined || e.nota === '') && e.fecha)
     .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))[0]
