@@ -5,6 +5,43 @@ const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const getToken = () => localStorage.getItem('token')
 const authHeaders = (extra = {}) => ({ ...extra, 'Authorization': `Bearer ${getToken()}` })
 
+
+function BannerInstalar() {
+  const [mostrar, setMostrar] = useState(false)
+  const [esIOS, setEsIOS] = useState(false)
+
+  useEffect(() => {
+    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent)
+    const standalone = window.navigator.standalone
+    const yaVisto = localStorage.getItem('banner_instalar_visto')
+    setEsIOS(ios)
+    if (!standalone && !yaVisto) setMostrar(true)
+  }, [])
+
+  if (!mostrar) return null
+
+  return (
+    <div style={{
+      position: 'fixed', bottom: 20, left: 16, right: 16, zIndex: 9999,
+      background: 'linear-gradient(135deg, #1e1b4b, #2d1b69)',
+      border: '1px solid rgba(108,99,255,0.4)',
+      borderRadius: 18, padding: '14px 16px',
+      boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+      display: 'flex', alignItems: 'center', gap: 12
+    }}>
+      <img src="/icon-192.png" style={{ width: 44, height: 44, borderRadius: 10 }} />
+      <div style={{ flex: 1 }}>
+        <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: 'white' }}>Instala APPrueba 📲</p>
+        <p style={{ margin: '2px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>
+          {esIOS ? 'Toca Compartir → "Agregar a inicio"' : 'Agrega la app a tu pantalla de inicio'}
+        </p>
+      </div>
+      <button onClick={() => { setMostrar(false); localStorage.setItem('banner_instalar_visto', '1') }}
+        style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 20, cursor: 'pointer', padding: 4 }}>✕</button>
+    </div>
+  )
+}
+
 const FRASES = [
   "El éxito es la suma de pequeños esfuerzos repetidos cada día 💪",
   "No estudias para el profe, estudias para ti 🎯",
@@ -226,6 +263,7 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, usuario }) {
   return (
     <div style={{ minHeight: '100vh', background: '#0a0a1a', padding: '0 0 120px' }}>
       <BackgroundOrbs />
+          <BannerInstalar />
       <div style={{ position: 'relative', zIndex: 1 }}>
         <div style={{ padding: '56px 20px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
@@ -394,6 +432,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
   const [editExim, setEditExim] = useState(ramo.nota_eximicion || '')
   const [editCondExim, setEditCondExim] = useState(ramo.condiciones_eximicion || '')
   const [editPondExamen, setEditPondExamen] = useState(ramo.ponderacion_examen || 25)
+  const [notaExamen, setNotaExamen] = useState(ramo.nota_examen || '')
   const [editSinRojos, setEditSinRojos] = useState(ramo.sin_rojos || false)
 
   const evs = (ramo.evaluaciones || []).map(e => ({ ...e, ponderacion: parseFloat(e.ponderacion) || 0 }))
@@ -405,7 +444,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
 
   const guardarEdicionRamo = () => {
     if (!editNombre.trim()) return
-    onUpdate({ ...ramo, nombre: editNombre.trim(), min_aprobacion: parseFloat(editMin) || 4.0, nota_eximicion: editExim ? parseFloat(editExim) : null, condiciones_eximicion: editCondExim.trim() || null, ponderacion_examen: parseFloat(editPondExamen) || 25, sin_rojos: editSinRojos })
+    onUpdate({ ...ramo, nombre: editNombre.trim(), min_aprobacion: parseFloat(editMin) || 4.0, nota_eximicion: editExim ? parseFloat(editExim) : null, condiciones_eximicion: editCondExim.trim() || null, ponderacion_examen: parseFloat(editPondExamen) || 25, sin_rojos: editSinRojos, nota_examen: ramo.nota_examen })
     setEditandoRamo(false)
   }
 
@@ -550,9 +589,42 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
                 <div>
                   <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, margin: '0 0 8px' }}>Promedio semestre: <strong style={{ color: '#fbbf24' }}>{promedio?.toFixed(1)}</strong></p>
                   {tieneRojos && ramo.sin_rojos && <p style={{ color: '#f87171', fontSize: 12, margin: '0 0 6px' }}>⚠️ Tienes notas rojas — no cumples condición de eximición</p>}
-                  <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 15, margin: 0 }}>
+                  <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 15, margin: '0 0 12px' }}>
                     Necesitas <strong style={{ color: necesariaExamen > 6 ? '#f87171' : necesariaExamen > 5 ? '#fbbf24' : '#4ade80', fontSize: 20 }}>{necesariaExamen?.toFixed(1)}</strong> en el examen ({ramo.ponderacion_examen || 25}%)
                   </p>
+                  {/* Recuadro para ingresar nota del examen */}
+                  <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 14, padding: '14px 16px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', margin: '0 0 10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>📋 ¿Ya rendiste el examen?</p>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                      <input
+                        type="number" min="1" max="7" step="0.1"
+                        placeholder="Nota examen"
+                        value={notaExamen}
+                        onChange={e => setNotaExamen(e.target.value)}
+                        style={{ flex: 1, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, padding: '10px 14px', color: 'white', fontSize: 16, fontWeight: 700, outline: 'none' }}
+                      />
+                      <button onClick={() => {
+                        const nota = parseFloat(notaExamen)
+                        if (isNaN(nota) || nota < 1 || nota > 7) return
+                        const pondEx = (ramo.ponderacion_examen || 25) / 100
+                        const pondSem = 1 - pondEx
+                        const notaFinal = promedio * pondSem + nota * pondEx
+                        onUpdate({ ...ramo, nota_examen: nota, nota_final: parseFloat(notaFinal.toFixed(1)), estado_final: notaFinal >= ramo.min_aprobacion ? 'aprobado' : 'reprobado' })
+                      }} style={{ background: 'linear-gradient(135deg, #6c63ff, #a78bfa)', border: 'none', borderRadius: 10, padding: '10px 18px', color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+                        Guardar
+                      </button>
+                    </div>
+                    {ramo.nota_examen && ramo.nota_final && (
+                      <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 12, background: ramo.estado_final === 'aprobado' ? 'rgba(74,222,128,0.1)' : 'rgba(248,113,113,0.1)', border: `1px solid ${ramo.estado_final === 'aprobado' ? 'rgba(74,222,128,0.3)' : 'rgba(248,113,113,0.3)'}` }}>
+                        <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
+                          Nota examen: <strong style={{ color: 'white' }}>{ramo.nota_examen}</strong> · Nota final: <strong style={{ color: ramo.estado_final === 'aprobado' ? '#4ade80' : '#f87171', fontSize: 18 }}>{ramo.nota_final}</strong>
+                        </p>
+                        <p style={{ margin: '6px 0 0', fontSize: 14, fontWeight: 700, color: ramo.estado_final === 'aprobado' ? '#4ade80' : '#f87171' }}>
+                          {ramo.estado_final === 'aprobado' ? '🎉 ¡Ramo aprobado!' : '😔 Ramo reprobado'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
               {estado === 'reprobado_imposible' && <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, margin: 0 }}>Promedio semestre: <strong style={{ color: '#f87171' }}>{promedio?.toFixed(1)}</strong> — imposible aprobar con examen</p>}
