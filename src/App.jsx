@@ -109,8 +109,14 @@ function calcular(evaluaciones, min, ramo) {
     }
     // Calcular nota necesaria en examen
     const notaFinalSinExamen = promedio * ponderacionSemestre
-    const necesariaExamen = (parseFloat(min) - notaFinalSinExamen) / ponderacionExamen
-    const estadoFinal = necesariaExamen <= 1 ? 'aprobado' : necesariaExamen > 7 ? 'reprobado_imposible' : 'con_examen'
+    const necesariaExamenRaw = (parseFloat(min) - notaFinalSinExamen) / ponderacionExamen
+    const necesariaExamen = Math.max(0, necesariaExamenRaw)
+    // Si tiene rojos y sin_rojos activo → debe rendir examen aunque promedio sea suficiente
+    const debeExamenPorRojos = sinRojos && tieneRojos
+    if (necesariaExamenRaw <= 0 && !debeExamenPorRojos) {
+      return { promedio, necesaria: null, necesariaExamen: 0, estado: 'aprobado', pendientesCount: 0, pesoCompleto, pesoTotal, eximido: false, tieneRojos }
+    }
+    const estadoFinal = necesariaExamenRaw > 7 ? 'reprobado_imposible' : 'con_examen'
     return { promedio, necesaria: null, necesariaExamen, estado: estadoFinal, pendientesCount: 0, pesoCompleto, pesoTotal, eximido: false, tieneRojos }
   }
 
@@ -453,6 +459,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
                 </div>
               )}
               {estado === 'reprobado_imposible' && <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, margin: 0 }}>Promedio semestre: <strong style={{ color: '#f87171' }}>{promedio?.toFixed(1)}</strong> — imposible aprobar con examen</p>}
+              {estado === 'reprobado_sin_examen' && <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, margin: 0 }}>Promedio semestre: <strong style={{ color: '#f87171' }}>{promedio?.toFixed(1)}</strong> — no alcanzas el mínimo ({ramo.min_aprobacion}) para presentarte a examen</p>}
             </div>
           ) : (
             <>
