@@ -892,14 +892,19 @@ export default function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const token = params.get('token')
-    const userStr = params.get('user')
-    if (token && userStr) {
+    if (token) {
       localStorage.setItem('token', token)
-      localStorage.setItem('usuario', userStr)
-      setUsuario(JSON.parse(userStr))
-      cargarRamos(token)
-      setPantalla('ramos')
       window.history.replaceState({}, '', '/')
+      fetch(`${API}/auth/me`, { headers: { 'Authorization': `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(data => {
+          const user = data.user || data
+          localStorage.setItem('usuario', JSON.stringify(user))
+          setUsuario(user)
+          cargarRamos(token)
+          setPantalla('ramos')
+        })
+        .catch(e => console.error('Error auth/me:', e))
     }
   }, [])
 
