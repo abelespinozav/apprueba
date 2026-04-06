@@ -111,10 +111,10 @@ app.get('/ramos', authMiddleware, async (req, res) => {
 
 app.post('/ramos', authMiddleware, async (req, res) => {
   try {
-    const { nombre, min_aprobacion, nota_eximicion, condiciones_eximicion } = req.body
+    const { nombre, min_aprobacion, nota_eximicion, condiciones_eximicion, ponderacion_examen, sin_rojos } = req.body
     const { rows } = await pool.query(
-      'INSERT INTO ramos (usuario_id, nombre, min_aprobacion, nota_eximicion, condiciones_eximicion) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [req.user.id, nombre, min_aprobacion || 4.0, nota_eximicion || null, condiciones_eximicion || null]
+      'INSERT INTO ramos (usuario_id, nombre, min_aprobacion, nota_eximicion, condiciones_eximicion, ponderacion_examen, sin_rojos) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [req.user.id, nombre, min_aprobacion || 4.0, nota_eximicion || null, condiciones_eximicion || null, ponderacion_examen || 25, sin_rojos || false]
     )
     res.json({ ...rows[0], evaluaciones: [] })
   } catch (e) { res.status(500).json({ error: e.message }) }
@@ -122,7 +122,7 @@ app.post('/ramos', authMiddleware, async (req, res) => {
 
 app.put('/ramos/:id', authMiddleware, async (req, res) => {
   try {
-    const { nombre, min_aprobacion, nota_eximicion, condiciones_eximicion, evaluaciones } = req.body
+    const { nombre, min_aprobacion, nota_eximicion, condiciones_eximicion, ponderacion_examen, sin_rojos, evaluaciones } = req.body
     const ramoId = req.params.id
 
     const { rows: check } = await pool.query(
@@ -132,8 +132,8 @@ app.put('/ramos/:id', authMiddleware, async (req, res) => {
     if (check.length === 0) return res.status(403).json({ error: 'No autorizado' })
 
     await pool.query(
-      'UPDATE ramos SET nombre = $1, min_aprobacion = $2, nota_eximicion = $3, condiciones_eximicion = $4 WHERE id = $5',
-      [nombre, min_aprobacion, nota_eximicion || null, condiciones_eximicion || null, ramoId]
+      'UPDATE ramos SET nombre = $1, min_aprobacion = $2, nota_eximicion = $3, condiciones_eximicion = $4, ponderacion_examen = $5, sin_rojos = $6 WHERE id = $7',
+      [nombre, min_aprobacion, nota_eximicion || null, condiciones_eximicion || null, ponderacion_examen || 25, sin_rojos || false, ramoId]
     )
 
     if (evaluaciones) {

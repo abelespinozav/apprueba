@@ -80,24 +80,42 @@ function WidgetMotivacional() {
   )
 }
 
-function calcular(evaluaciones, min) {
+function calcular(evaluaciones, min, ramo) {
   const evs = evaluaciones.map(e => ({ ...e, ponderacion: parseFloat(e.ponderacion) || 0, nota: (e.nota !== null && e.nota !== undefined && e.nota !== '') ? parseFloat(e.nota) : null }))
   const pendientes = evs.filter(e => e.nota === null)
   const completadas = evs.filter(e => e.nota !== null)
   const pesoTotal = evs.reduce((acc, e) => acc + e.ponderacion, 0)
   const pesoCompleto = Math.abs(pesoTotal - 100) < 0.01
 
-  if (pendientes.length === 0 && completadas.length === 0) return { promedio: null, necesaria: null, estado: null, pendientesCount: 0, pesoCompleto: false, pesoTotal }
+  if (pendientes.length === 0 && completadas.length === 0) return { promedio: null, necesaria: null, necesariaExamen: null, estado: null, pendientesCount: 0, pesoCompleto: false, pesoTotal, eximido: false }
+
+  const ponderacionExamen = ramo?.ponderacion_examen ? parseFloat(ramo.ponderacion_examen) / 100 : 0.25
+  const ponderacionSemestre = 1 - ponderacionExamen
+  const notaEximicion = ramo?.nota_eximicion ? parseFloat(ramo.nota_eximicion) : null
+  const sinRojos = ramo?.sin_rojos || false
+
   if (pendientes.length === 0) {
     const promedio = completadas.reduce((acc, e) => acc + e.nota * (e.ponderacion / 100), 0)
-    return { promedio, necesaria: null, estado: promedio >= parseFloat(min) ? 'aprobado' : 'reprobado', pendientesCount: 0, pesoCompleto, pesoTotal }
+    const tieneRojos = completadas.some(e => e.nota < 4.0)
+
+    // Verificar eximición
+    if (notaEximicion && promedio >= notaEximicion && !(sinRojos && tieneRojos)) {
+      return { promedio, necesaria: null, necesariaExamen: null, estado: 'eximido', pendientesCount: 0, pesoCompleto, pesoTotal, eximido: true }
+    }
+
+    // Sin eximición: calcular nota necesaria en examen
+    const notaFinalSinExamen = promedio * ponderacionSemestre
+    const necesariaExamen = (parseFloat(min) - notaFinalSinExamen) / ponderacionExamen
+    const estadoFinal = necesariaExamen <= 1 ? 'aprobado' : necesariaExamen > 7 ? 'reprobado_imposible' : 'con_examen'
+    return { promedio, necesaria: null, necesariaExamen, estado: estadoFinal, pendientesCount: 0, pesoCompleto, pesoTotal, eximido: false, tieneRojos }
   }
+
   const pesoCompletado = completadas.reduce((acc, e) => acc + e.ponderacion, 0)
   const pesoPendiente = pendientes.reduce((acc, e) => acc + e.ponderacion, 0)
   const puntajeActual = completadas.reduce((acc, e) => acc + e.nota * (e.ponderacion / 100), 0)
   const promedioActual = pesoCompletado > 0 ? (puntajeActual / (pesoCompletado / 100)) : null
   const necesaria = (pesoCompleto && pesoPendiente > 0) ? ((parseFloat(min) - puntajeActual) / (pesoPendiente / 100)) : null
-  return { promedio: promedioActual, necesaria, estado: null, pendientesCount: pendientes.length, pesoCompleto, pesoTotal }
+  return { promedio: promedioActual, necesaria, necesariaExamen: null, estado: null, pendientesCount: pendientes.length, pesoCompleto, pesoTotal, eximido: false }
 }
 
 function notaColor(nota) {
@@ -161,7 +179,7 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, usuario }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
             {ramos.map((r, i) => {
               const evs = (r.evaluaciones || []).map(e => ({ ...e, ponderacion: parseFloat(e.ponderacion) || 0 }))
-              const calc = evs.length > 0 ? calcular(evs, r.min_aprobacion) : null
+              const calc = evs.length > 0 ? calcular(evs, r.min_aprobacion, r) : null
               const completadas = evs.filter(e => e.nota !== null && e.nota !== undefined && e.nota !== '').length
               const total = evs.length
               const progreso = total > 0 ? (completadas / total) * 100 : 0
@@ -183,8 +201,11 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, usuario }) {
                     <div style={{ textAlign: 'right' }}>
                       {calc ? (
                         calc.estado ? (
-                          <span style={{ fontSize: 12, fontWeight: 700, color: calc.estado === 'aprobado' ? '#4ade80' : '#f87171', background: calc.estado === 'aprobado' ? 'rgba(34,197,94,0.15)' : 'rgba(248,113,113,0.15)', padding: '4px 10px', borderRadius: 20 }}>
-                            {calc.estado === 'aprobado' ? '✓ Aprobado' : '✗ Reprobado'}
+                          <span style={{ fontSize: 12, fontWeight: 700,
+                            color: calc.estado === 'eximido' ? '#a78bfa' : calc.estado === 'aprobado' ? '#4ade80' : calc.estado === 'con_examen' ? '#fbbf24' : '#f87171',
+                            background: calc.estado === 'eximido' ? 'rgba(167,139,250,0.15)' : calc.estado === 'aprobado' ? 'rgba(34,197,94,0.15)' : calc.estado === 'con_examen' ? 'rgba(251,191,36,0.15)' : 'rgba(248,113,113,0.15)',
+                            padding: '4px 10px', borderRadius: 20 }}>
+                            {calc.estado === 'eximido' ? '🎓 Eximido' : calc.estado === 'aprobado' ? '✓ Aprobado' : calc.estado === 'con_examen' ? '📝 Con examen' : '✗ Reprobado'}
                           </span>
                         ) : calc.necesaria !== null ? (
                           <div style={{ textAlign: 'right' }}>
@@ -262,9 +283,11 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
   const [editMin, setEditMin] = useState(ramo.min_aprobacion)
   const [editExim, setEditExim] = useState(ramo.nota_eximicion || '')
   const [editCondExim, setEditCondExim] = useState(ramo.condiciones_eximicion || '')
+  const [editPondExamen, setEditPondExamen] = useState(ramo.ponderacion_examen || 25)
+  const [editSinRojos, setEditSinRojos] = useState(ramo.sin_rojos || false)
 
   const evs = (ramo.evaluaciones || []).map(e => ({ ...e, ponderacion: parseFloat(e.ponderacion) || 0 }))
-  const { promedio, necesaria, estado, pendientesCount, pesoCompleto, pesoTotal } = calcular(evs, ramo.min_aprobacion)
+  const { promedio, necesaria, necesariaExamen, estado, pendientesCount, pesoCompleto, pesoTotal, eximido, tieneRojos } = calcular(evs, ramo.min_aprobacion, ramo)
   const pesoUsado = evs.reduce((acc, e) => acc + e.ponderacion, 0)
   const pesoDisponible = Math.round((100 - pesoUsado) * 10) / 10
   const completadasCount = evs.filter(e => e.nota !== null && e.nota !== undefined && e.nota !== '').length
@@ -272,7 +295,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
 
   const guardarEdicionRamo = () => {
     if (!editNombre.trim()) return
-    onUpdate({ ...ramo, nombre: editNombre.trim(), min_aprobacion: parseFloat(editMin) || 4.0, nota_eximicion: editExim ? parseFloat(editExim) : null, condiciones_eximicion: editCondExim.trim() || null })
+    onUpdate({ ...ramo, nombre: editNombre.trim(), min_aprobacion: parseFloat(editMin) || 4.0, nota_eximicion: editExim ? parseFloat(editExim) : null, condiciones_eximicion: editCondExim.trim() || null, ponderacion_examen: parseFloat(editPondExamen) || 25, sin_rojos: editSinRojos })
     setEditandoRamo(false)
   }
 
@@ -285,7 +308,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
     onUpdate({ ...ramo, evaluaciones: nuevasEvs })
     setEditando({ ...editando, [ev.id]: false })
     setNotas({ ...notas, [ev.id]: undefined })
-    const calc = calcular(nuevasEvs, ramo.min_aprobacion)
+    const calc = calcular(nuevasEvs, ramo.min_aprobacion, ramo)
     if (calc.estado === 'aprobado') { setConfetti(true); setTimeout(() => setConfetti(false), 4000) }
   }
 
@@ -360,6 +383,15 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
             <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Condiciones eximición (opcional)</p>
             <input value={editCondExim} onChange={e => setEditCondExim(e.target.value)} placeholder="Ej: Sin rojos, promedio sobre 4.5"
               style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 20, boxSizing: 'border-box' }} />
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Ponderación del examen (%)</p>
+            <input type="number" min="0" max="100" step="1" value={editPondExamen} onChange={e => setEditPondExamen(e.target.value)} placeholder="Ej: 25"
+              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 14, boxSizing: 'border-box' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, cursor: 'pointer' }} onClick={() => setEditSinRojos(!editSinRojos)}>
+              <div style={{ width: 20, height: 20, borderRadius: 6, border: '2px solid rgba(167,139,250,0.5)', background: editSinRojos ? '#8b5cf6' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {editSinRojos && <span style={{ color: 'white', fontSize: 12 }}>✓</span>}
+              </div>
+              <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>Eximición requiere sin notas rojas (bajo 4.0)</span>
+            </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setEditandoRamo(false)} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px', color: 'rgba(255,255,255,0.5)', fontSize: 14, cursor: 'pointer' }}>Cancelar</button>
               <button onClick={guardarEdicionRamo} style={{ flex: 2, background: 'linear-gradient(135deg, #6c63ff, #8b5cf6)', border: 'none', borderRadius: 12, padding: '12px', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Guardar cambios</button>
@@ -398,10 +430,27 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
           )}
 
           {estado ? (
-            <div style={{ background: estado === 'aprobado' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', borderRadius: 20, padding: '20px', border: `1px solid ${estado === 'aprobado' ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`, textAlign: 'center', animation: 'slideUp 0.4s ease' }}>
-              <p style={{ fontSize: 32 }}>{estado === 'aprobado' ? '🎉' : '😔'}</p>
-              <p style={{ color: 'white', fontSize: 20, fontWeight: 800, margin: '0 0 6px' }}>{estado === 'aprobado' ? '¡Ramo aprobado!' : 'Ramo reprobado'}</p>
-              <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, margin: 0 }}>Promedio final: <strong style={{ color: estado === 'aprobado' ? '#4ade80' : '#f87171' }}>{promedio?.toFixed(1)}</strong></p>
+            <div style={{
+              background: estado === 'eximido' ? 'rgba(167,139,250,0.15)' : estado === 'aprobado' ? 'rgba(34,197,94,0.15)' : estado === 'con_examen' ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)',
+              borderRadius: 20, padding: '20px',
+              border: `1px solid ${estado === 'eximido' ? 'rgba(167,139,250,0.3)' : estado === 'aprobado' ? 'rgba(34,197,94,0.3)' : estado === 'con_examen' ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.3)'}`,
+              textAlign: 'center', animation: 'slideUp 0.4s ease' }}>
+              <p style={{ fontSize: 32 }}>{estado === 'eximido' ? '🎓' : estado === 'aprobado' ? '🎉' : estado === 'con_examen' ? '📝' : '😔'}</p>
+              <p style={{ color: 'white', fontSize: 20, fontWeight: 800, margin: '0 0 6px' }}>
+                {estado === 'eximido' ? '¡Estás eximido!' : estado === 'aprobado' ? '¡Ramo aprobado!' : estado === 'con_examen' ? 'Debes rendir examen' : 'Ramo reprobado'}
+              </p>
+              {estado === 'eximido' && <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, margin: 0 }}>Promedio semestre: <strong style={{ color: '#a78bfa' }}>{promedio?.toFixed(1)}</strong></p>}
+              {estado === 'aprobado' && <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, margin: 0 }}>Promedio final: <strong style={{ color: '#4ade80' }}>{promedio?.toFixed(1)}</strong></p>}
+              {estado === 'con_examen' && (
+                <div>
+                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, margin: '0 0 8px' }}>Promedio semestre: <strong style={{ color: '#fbbf24' }}>{promedio?.toFixed(1)}</strong></p>
+                  {tieneRojos && ramo.sin_rojos && <p style={{ color: '#f87171', fontSize: 12, margin: '0 0 6px' }}>⚠️ Tienes notas rojas — no cumples condición de eximición</p>}
+                  <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 15, margin: 0 }}>
+                    Necesitas <strong style={{ color: necesariaExamen > 6 ? '#f87171' : necesariaExamen > 5 ? '#fbbf24' : '#4ade80', fontSize: 20 }}>{necesariaExamen?.toFixed(1)}</strong> en el examen ({ramo.ponderacion_examen || 25}%)
+                  </p>
+                </div>
+              )}
+              {estado === 'reprobado_imposible' && <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, margin: 0 }}>Promedio semestre: <strong style={{ color: '#f87171' }}>{promedio?.toFixed(1)}</strong> — imposible aprobar con examen</p>}
             </div>
           ) : (
             <>
