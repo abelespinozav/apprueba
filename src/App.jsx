@@ -70,12 +70,46 @@ function Confetti({ active }) {
   )
 }
 
-function WidgetMotivacional() {
-  const frase = FRASES[new Date().getDay() % FRASES.length]
+function TipInteligente({ ramos }) {
+  const tips = []
+
+  ramos.forEach(r => {
+    const evs = (r.evaluaciones || []).map(e => ({ ...e, ponderacion: parseFloat(e.ponderacion) || 0 }))
+    if (evs.length === 0) return
+    const calc = calcular(evs, r.min_aprobacion, r)
+    if (!calc) return
+
+    if (calc.estado === 'con_examen') {
+      tips.push({ icon: '📝', text: `Tienes examen en ${r.nombre}. Repasa los contenidos con más peso en la nota final.`, color: '#fbbf24' })
+    }
+    if (calc.necesaria !== null && calc.necesaria > 6) {
+      tips.push({ icon: '⚠️', text: `En ${r.nombre} necesitas un ${calc.necesaria.toFixed(1)}. Considera hablar con tu profe sobre opciones.`, color: '#f87171' })
+    }
+    if (calc.necesaria !== null && calc.necesaria <= 4.5 && calc.necesaria > 0) {
+      tips.push({ icon: '✅', text: `Vas bien en ${r.nombre}! Solo necesitas un ${calc.necesaria.toFixed(1)} para aprobar.`, color: '#4ade80' })
+    }
+    if (calc.estado === 'aprobado') {
+      tips.push({ icon: '🎉', text: `¡Ya aprobaste ${r.nombre}! Mantén el ritmo para subir aún más tu nota.`, color: '#4ade80' })
+    }
+    if (calc.estado === 'eximido') {
+      tips.push({ icon: '🎓', text: `¡Puedes eximirte de ${r.nombre}! Revisa los requisitos con tu profe.`, color: '#a78bfa' })
+    }
+  })
+
+  const genericos = [
+    { icon: '📅', text: 'Agrega fechas a tus evaluaciones para ver el conteo regresivo en el dashboard.', color: '#6c63ff' },
+    { icon: '⚖️', text: 'Asegúrate de que los porcentajes de tus evaluaciones sumen 100% para un cálculo preciso.', color: '#6c63ff' },
+    { icon: '🎯', text: 'Puedes configurar nota de eximición por ramo al crearlo o editarlo.', color: '#a78bfa' },
+    { icon: '📊', text: 'El promedio ponderado considera el peso de cada evaluación. ¡No todas valen igual!', color: '#6c63ff' },
+  ]
+
+  const lista = tips.length > 0 ? tips : genericos
+  const tip = lista[new Date().getMinutes() % lista.length]
+
   return (
-    <div style={{ background: 'linear-gradient(135deg, rgba(108,99,255,0.15), rgba(139,92,246,0.1))', border: '1px solid rgba(108,99,255,0.25)', borderRadius: 16, padding: '14px 16px', marginBottom: 16, animation: 'slideUp 0.5s ease' }}>
-      <p style={{ fontSize: 11, fontWeight: 600, color: '#6c63ff', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>💡 Frase del día</p>
-      <p style={{ fontSize: 13, color: '#c4b5fd', margin: 0, lineHeight: 1.5, fontStyle: 'italic' }}>{frase}</p>
+    <div style={{ background: `linear-gradient(135deg, ${tip.color}18, ${tip.color}08)`, border: `1px solid ${tip.color}30`, borderRadius: 16, padding: '14px 16px', marginBottom: 20 }}>
+      <p style={{ fontSize: 10, fontWeight: 700, color: tip.color, letterSpacing: 1, margin: '0 0 6px', textTransform: 'uppercase' }}>💡 Tip para ti</p>
+      <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', margin: 0, lineHeight: 1.5 }}>{tip.icon} {tip.text}</p>
     </div>
   )
 }
@@ -201,7 +235,7 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, usuario }) {
           <button onClick={onLogout} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '8px 14px', color: 'rgba(255,255,255,0.5)', fontSize: 12, cursor: 'pointer' }}>Salir</button>
         </div>
         <div style={{ padding: '0 16px' }}>
-          <WidgetMotivacional />
+          <TipInteligente ramos={ramos} />
           {/* Mini stats */}
           {ramos.length > 0 && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
@@ -222,20 +256,20 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, usuario }) {
           {proximas.length > 0 && (
             <div style={{ marginBottom: 20 }}>
               <p style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: 1, margin: '0 0 10px', textTransform: 'uppercase' }}>📅 Próximas evaluaciones</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
                 {proximas.map((ev, i) => {
                   const dias = diasRestantes(ev.fecha)
                   const urgente = dias <= 3
                   const pronto = dias <= 7
+                  const borderColor = urgente ? '#f87171' : pronto ? '#fbbf24' : 'rgba(255,255,255,0.08)'
+                  const diasColor = urgente ? '#f87171' : pronto ? '#fbbf24' : 'rgba(255,255,255,0.4)'
                   return (
-                    <div key={i} style={{ background: '#1a1a2e', borderRadius: 14, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: `1px solid ${urgente ? 'rgba(248,113,113,0.3)' : pronto ? 'rgba(251,191,36,0.2)' : 'rgba(255,255,255,0.06)'}` }}>
-                      <div>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: 'white', margin: '0 0 4px' }}>{ev.nombre}</p>
-                        <span style={{ fontSize: 11, color: '#a78bfa', background: 'rgba(167,139,250,0.12)', padding: '2px 8px', borderRadius: 20 }}>{ev.ramoNombre}</span>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <p style={{ fontSize: 13, fontWeight: 700, color: urgente ? '#f87171' : pronto ? '#fbbf24' : 'rgba(255,255,255,0.5)', margin: 0 }}>
-                          {dias === 0 ? '¡Hoy!' : dias === 1 ? 'Mañana' : dias < 0 ? 'Vencida' : `En ${dias}d`}
+                    <div key={i} style={{ background: '#1a1a2e', borderRadius: 14, padding: '12px 14px', border: `1px solid ${borderColor}`, flexShrink: 0, minWidth: 140, maxWidth: 160 }}>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: 'white', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.nombre}</p>
+                      <span style={{ fontSize: 10, color: '#a78bfa', background: 'rgba(167,139,250,0.12)', padding: '2px 7px', borderRadius: 20, display: 'inline-block', marginBottom: 8, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.ramoNombre}</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <p style={{ fontSize: 12, fontWeight: 700, color: diasColor, margin: 0 }}>
+                          {dias === 0 ? '¡Hoy!' : dias === 1 ? 'Mañana' : dias < 0 ? 'Vencida' : `${dias}d`}
                         </p>
                         <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', margin: 0 }}>{ev.ponderacion}%</p>
                       </div>
