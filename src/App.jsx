@@ -351,7 +351,7 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, usuario }) {
                         {calc?.promedio !== null && calc?.promedio !== undefined ? (
                           <div>
                             <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', margin: '0 0 2px' }}>Promedio</p>
-                            <p style={{ fontSize: 28, fontWeight: 800, color: estadoColor, margin: 0, lineHeight: 1 }}>{calc.promedio.toFixed(1)}</p>
+                            <p style={{ fontSize: 28, fontWeight: 800, color: notaColor(calc.promedio), margin: 0, lineHeight: 1 }}>{calc.promedio.toFixed(1)}</p>
                           </div>
                         ) : calc?.necesaria !== null && calc?.necesaria !== undefined ? (
                           <div>
