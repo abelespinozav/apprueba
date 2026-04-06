@@ -489,6 +489,11 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
   }
 
   const guardarNota = (ev) => {
+    if (!notas[ev.id] || notas[ev.id] === '') {
+      borrarNota(ev.id)
+      setEditando({ ...editando, [ev.id]: false })
+      return
+    }
     const nota = notas[ev.id]
     if (nota === undefined || nota === '') return
     const nueva = parseFloat(nota)
@@ -738,9 +743,8 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                         <div style={{ display: 'flex', gap: 5 }}>
-                          <button onClick={() => borrarNota(ev.id)} title="Borrar nota" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: 10, padding: '7px 10px', color: '#f87171', fontSize: 12, cursor: 'pointer' }}>✕ Borrar</button>
                           <button onClick={() => setEditando({ ...editando, [ev.id]: true })} style={{ background: 'var(--shadow-color)', border: 'none', borderRadius: 10, padding: '7px 12px', color: 'var(--color-secondary)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
-                            {tieneNota ? 'Editar' : '+ Nota'}
+                            {tieneNota ? '✏️ Editar' : '+ Nota'}
                           </button>
                           <button onClick={() => eliminarEv(ev.id)} style={{ background: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: 10, padding: '7px 10px', color: '#f87171', fontSize: 12, cursor: 'pointer' }}>🗑</button>
                         </div>
