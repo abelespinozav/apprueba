@@ -111,10 +111,10 @@ app.get('/ramos', authMiddleware, async (req, res) => {
 
 app.post('/ramos', authMiddleware, async (req, res) => {
   try {
-    const { nombre, min_aprobacion } = req.body
+    const { nombre, min_aprobacion, nota_eximicion, condiciones_eximicion } = req.body
     const { rows } = await pool.query(
-      'INSERT INTO ramos (usuario_id, nombre, min_aprobacion) VALUES ($1, $2, $3) RETURNING *',
-      [req.user.id, nombre, min_aprobacion || 4.0]
+      'INSERT INTO ramos (usuario_id, nombre, min_aprobacion, nota_eximicion, condiciones_eximicion) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [req.user.id, nombre, min_aprobacion || 4.0, nota_eximicion || null, condiciones_eximicion || null]
     )
     res.json({ ...rows[0], evaluaciones: [] })
   } catch (e) { res.status(500).json({ error: e.message }) }
@@ -122,7 +122,7 @@ app.post('/ramos', authMiddleware, async (req, res) => {
 
 app.put('/ramos/:id', authMiddleware, async (req, res) => {
   try {
-    const { nombre, min_aprobacion, evaluaciones } = req.body
+    const { nombre, min_aprobacion, nota_eximicion, condiciones_eximicion, evaluaciones } = req.body
     const ramoId = req.params.id
 
     const { rows: check } = await pool.query(
@@ -132,8 +132,8 @@ app.put('/ramos/:id', authMiddleware, async (req, res) => {
     if (check.length === 0) return res.status(403).json({ error: 'No autorizado' })
 
     await pool.query(
-      'UPDATE ramos SET nombre = $1, min_aprobacion = $2 WHERE id = $3',
-      [nombre, min_aprobacion, ramoId]
+      'UPDATE ramos SET nombre = $1, min_aprobacion = $2, nota_eximicion = $3, condiciones_eximicion = $4 WHERE id = $5',
+      [nombre, min_aprobacion, nota_eximicion || null, condiciones_eximicion || null, ramoId]
     )
 
     if (evaluaciones) {

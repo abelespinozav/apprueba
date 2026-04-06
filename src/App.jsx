@@ -128,12 +128,15 @@ function LoginScreen({ onLogin }) {
 function RamosScreen({ ramos, onSelect, onAdd, onLogout, usuario }) {
   const [nuevo, setNuevo] = useState('')
   const [min, setMin] = useState('4.0')
+  const [exim, setExim] = useState('')
+  const [condExim, setCondExim] = useState('')
+  const [mostrarExim, setMostrarExim] = useState(false)
   const [mostrando, setMostrando] = useState(false)
 
   const agregar = () => {
     if (!nuevo.trim()) return
-    onAdd({ nombre: nuevo.trim(), min_aprobacion: parseFloat(min) || 4.0 })
-    setNuevo(''); setMin('4.0'); setMostrando(false)
+    onAdd({ nombre: nuevo.trim(), min_aprobacion: parseFloat(min) || 4.0, nota_eximicion: exim ? parseFloat(exim) : null, condiciones_eximicion: condExim.trim() || null })
+    setNuevo(''); setMin('4.0'); setExim(''); setCondExim(''); setMostrarExim(false); setMostrando(false)
   }
 
   return (
@@ -210,6 +213,21 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, usuario }) {
                 <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Nota mínima de aprobación</p>
                 <input type="number" min="1" max="7" step="0.1" value={min} onChange={e => setMin(e.target.value)}
                   style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <button onClick={() => setMostrarExim(!mostrarExim)} style={{ background: 'none', border: 'none', color: 'rgba(167,139,250,0.8)', fontSize: 12, cursor: 'pointer', padding: 0, marginBottom: 8 }}>
+                  {mostrarExim ? '▼' : '▶'} Configurar eximición (opcional)
+                </button>
+                {mostrarExim && (
+                  <div>
+                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Nota mínima para eximirse</p>
+                    <input type="number" min="1" max="7" step="0.1" value={exim} onChange={e => setExim(e.target.value)} placeholder="Ej: 5.0"
+                      style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 10, boxSizing: 'border-box' }} />
+                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Condiciones adicionales (opcional)</p>
+                    <input value={condExim} onChange={e => setCondExim(e.target.value)} placeholder="Ej: Sin rojos, promedio sobre 4.5"
+                      style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', boxSizing: 'border-box' }} />
+                  </div>
+                )}
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={() => setMostrando(false)} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px', color: 'rgba(255,255,255,0.5)', fontSize: 14, cursor: 'pointer' }}>Cancelar</button>
@@ -317,6 +335,11 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
             <div>
               <h1 style={{ fontSize: 26, fontWeight: 800, color: 'white', margin: '0 0 4px' }}>{ramo.nombre}</h1>
               <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', margin: 0 }}>Mínimo para aprobar: {ramo.min_aprobacion}</p>
+              {ramo.nota_eximicion && (
+                <p style={{ fontSize: 12, color: 'rgba(167,139,250,0.6)', margin: '2px 0 0' }}>
+                  🎓 Eximición: {ramo.nota_eximicion}{ramo.condiciones_eximicion ? ` · ${ramo.condiciones_eximicion}` : ''}
+                </p>
+              )}
             </div>
             <button onClick={() => { if(window.confirm('¿Eliminar este ramo?')) onDelete(ramo.id) }} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 12, padding: '8px 12px', color: '#f87171', fontSize: 12, cursor: 'pointer' }}>🗑</button>
           </div>
