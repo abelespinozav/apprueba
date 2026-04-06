@@ -103,7 +103,11 @@ function calcular(evaluaciones, min, ramo) {
       return { promedio, necesaria: null, necesariaExamen: null, estado: 'eximido', pendientesCount: 0, pesoCompleto, pesoTotal, eximido: true }
     }
 
-    // Sin eximición: calcular nota necesaria en examen
+    // Sin eximición: verificar si puede presentarse a examen (promedio mínimo = min_aprobacion)
+    if (promedio < parseFloat(min)) {
+      return { promedio, necesaria: null, necesariaExamen: null, estado: 'reprobado_sin_examen', pendientesCount: 0, pesoCompleto, pesoTotal, eximido: false, tieneRojos }
+    }
+    // Calcular nota necesaria en examen
     const notaFinalSinExamen = promedio * ponderacionSemestre
     const necesariaExamen = (parseFloat(min) - notaFinalSinExamen) / ponderacionExamen
     const estadoFinal = necesariaExamen <= 1 ? 'aprobado' : necesariaExamen > 7 ? 'reprobado_imposible' : 'con_examen'
@@ -153,7 +157,7 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, usuario }) {
 
   const agregar = () => {
     if (!nuevo.trim()) return
-    onAdd({ nombre: nuevo.trim(), min_aprobacion: parseFloat(min) || 4.0, nota_eximicion: exim ? parseFloat(exim) : null, condiciones_eximicion: condExim.trim() || null })
+    onAdd({ nombre: nuevo.trim(), min_aprobacion: parseFloat(min) || 4.0, nota_eximicion: exim ? parseFloat(exim) : null, condiciones_eximicion: condExim === 'sin_rojos' ? 'sin_rojos' : null, sin_rojos: condExim === 'sin_rojos' })
     setNuevo(''); setMin('4.0'); setExim(''); setCondExim(''); setMostrarExim(false); setMostrando(false)
   }
 
@@ -250,9 +254,12 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, usuario }) {
                     <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Nota mínima para eximirse</p>
                     <input type="number" min="1" max="7" step="0.1" value={exim} onChange={e => setExim(e.target.value)} placeholder="Ej: 5.0"
                       style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 10, boxSizing: 'border-box' }} />
-                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Condiciones adicionales (opcional)</p>
-                    <input value={condExim} onChange={e => setCondExim(e.target.value)} placeholder="Ej: Sin rojos, promedio sobre 4.5"
-                      style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', boxSizing: 'border-box' }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => setCondExim(condExim === 'sin_rojos' ? '' : 'sin_rojos')}>
+                      <div style={{ width: 20, height: 20, borderRadius: 6, border: '2px solid rgba(167,139,250,0.5)', background: condExim === 'sin_rojos' ? '#8b5cf6' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {condExim === 'sin_rojos' && <span style={{ color: 'white', fontSize: 12 }}>✓</span>}
+                      </div>
+                      <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Requiere sin notas rojas (bajo 4.0)</span>
+                    </div>
                   </div>
                 )}
               </div>
