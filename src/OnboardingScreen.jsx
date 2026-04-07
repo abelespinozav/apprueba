@@ -2,12 +2,12 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 const UNIVERSIDADES = [
-  { id: 'ufro', nombre: 'Universidad de La Frontera', color: '#006847', secundario: '#004d33', emoji: '🟢' },
-  { id: 'umayor', nombre: 'Universidad Mayor', color: '#C8102E', secundario: '#9b0d24', emoji: '🔴' },
-  { id: 'uautonoma', nombre: 'Universidad Autónoma de Chile', color: '#003087', secundario: '#002266', emoji: '🔵' },
-  { id: 'inacap', nombre: 'INACAP', color: '#E31837', secundario: '#b01229', emoji: '🔴' },
-  { id: 'santotomas', nombre: 'Universidad Santo Tomás', color: '#1B3A6B', secundario: '#122a52', emoji: '🔵' },
-  { id: 'uctemuco', nombre: 'Universidad Católica de Temuco', color: '#003087', secundario: '#002266', emoji: '⚪' },
+  { id: 'ufro', nombre: 'Universidad de La Frontera', color: '#003087', secundario: '#002266', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Escudo_UFRO.svg/200px-Escudo_UFRO.svg.png' },
+  { id: 'umayor', nombre: 'Universidad Mayor', color: '#1B4F72', secundario: '#F5C400', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Logo_Universidad_Mayor.svg/200px-Logo_Universidad_Mayor.svg.png' },
+  { id: 'uautonoma', nombre: 'Universidad Autónoma de Chile', color: '#C8102E', secundario: '#9b0d24', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Logo_Universidad_Autonoma_de_Chile.svg/200px-Logo_Universidad_Autonoma_de_Chile.svg.png' },
+  { id: 'inacap', nombre: 'INACAP', color: '#CC0000', secundario: '#990000', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/INACAP_logo.svg/200px-INACAP_logo.svg.png' },
+  { id: 'santotomas', nombre: 'Universidad Santo Tomás', color: '#1B5E3B', secundario: '#144d2f', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Logo_Santo_Tomas.svg/200px-Logo_Santo_Tomas.svg.png' },
+  { id: 'uctemuco', nombre: 'Universidad Católica de Temuco', color: '#003087', secundario: '#002266', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Logo_UCT.svg/200px-Logo_UCT.svg.png' },
 ]
 
 export default function OnboardingScreen({ user, onComplete, API }) {
@@ -85,8 +85,10 @@ export default function OnboardingScreen({ user, onComplete, API }) {
         style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 480 }}>
 
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <motion.div animate={{ rotate: [0, 5, -5, 0] }} transition={{ duration: 3, repeat: Infinity }}
-            style={{ fontSize: 48, marginBottom: 8 }}>📚</motion.div>
+          <motion.div animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 3, repeat: Infinity }}
+            style={{ marginBottom: 12, display: 'inline-block' }}>
+            <img src="/icon-512.png" alt="APPrueba" style={{ width: 72, height: 72, borderRadius: 18 }} />
+          </motion.div>
           <h1 style={{ color: 'white', fontSize: 28, fontWeight: 800, margin: 0 }}>APPrueba</h1>
           <p style={{ color: 'rgba(255,255,255,0.5)', margin: '4px 0 0', fontSize: 14 }}>Configuremos tu cuenta</p>
         </div>
@@ -165,7 +167,9 @@ export default function OnboardingScreen({ user, onComplete, API }) {
                         color: 'white', fontSize: 14, cursor: 'pointer', textAlign: 'left',
                         display: 'flex', alignItems: 'center', gap: 12, transition: 'all 0.2s'
                       }}>
-                      <span style={{ fontSize: 20 }}>{u.emoji}</span>
+                      <div style={{ width: 36, height: 36, borderRadius: 8, overflow: 'hidden', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <img src={u.logo} alt={u.nombre} style={{ width: 32, height: 32, objectFit: 'contain' }} onError={e => { e.target.style.display='none'; e.target.parentNode.innerHTML='🎓' }} />
+                      </div>
                       <span style={{ fontWeight: universidad === u.id ? 700 : 400, flex: 1 }}>{u.nombre}</span>
                       {universidad === u.id && (
                         <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }}
