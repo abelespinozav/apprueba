@@ -26,6 +26,11 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
     ? Math.round((new Date(evaluacion.fecha + 'T00:00:00') - new Date().setHours(0,0,0,0)) / 86400000)
     : null
 
+  const regenerarPlan = () => {
+    setPlan(null)
+    setCompletadas(new Set())
+  }
+
   const generarPlan = async () => {
     setGenerando(true)
     try {
