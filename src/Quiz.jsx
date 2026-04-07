@@ -70,12 +70,11 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
         </p>
         {error && <div style={{ background: 'rgba(248,113,113,0.15)', border: '1px solid #f87171', borderRadius: 10, padding: 12, color: '#f87171', marginBottom: 16, fontSize: 13 }}>{error}</div>}
         {!evaluacion.archivos || evaluacion.archivos.filter(a => a).length === 0 ? (
-          <div style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid #fbbf24', borderRadius: 10, padding: 12, color: '#fbbf24', fontSize: 13 }}>
-            ⚠️ Primero sube material de estudio en el Plan de Estudio para generar el quiz
+          <div style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid #fbbf24', borderRadius: 10, padding: 12, color: '#fbbf24', fontSize: 13, marginBottom: 16 }}>
+            ⚠️ No hay material subido. Sube archivos en el Plan de Estudio para un quiz más preciso.
           </div>
-        ) : (
-          <button onClick={() => generarQuiz(false)} style={s.btn}>🤖 Generar Quiz con IA</button>
-        )}
+        ) : null}
+        <button onClick={() => generarQuiz(false)} style={s.btn}>🤖 Generar Quiz con IA</button>
       </div>
     </div>
   )
