@@ -885,10 +885,23 @@ export default function App() {
     }
   }, [])
 
-  const cargarRamos = async (token) => {
+  const cargarRamos = async (token, refreshActivo = false) => {
     try {
       const res = await fetch(`${API}/ramos`, { headers: authHeaders({ 'Content-Type': 'application/json' }) })
-      if (res.ok) { const data = await res.json(); setRamos(data) }
+      if (res.ok) {
+        const data = await res.json()
+        setRamos(data)
+        if (refreshActivo && ramoActivo) {
+          const ramoFresh = data.find(r => r.id === ramoActivo.id)
+          if (ramoFresh) {
+            setRamoActivo(ramoFresh)
+            if (planEv) {
+              const evFresh = ramoFresh.evaluaciones?.find(e => e.id === planEv.id)
+              if (evFresh) setPlanEv(evFresh)
+            }
+          }
+        }
+      }
     } catch (e) { console.error(e) }
   }
 
@@ -962,6 +975,10 @@ export default function App() {
   if (pantalla === 'login') return <LoginScreen onLogin={handleLogin} />
   if (pantalla === 'ramos') return <RamosScreen ramos={ramos} onSelect={r => { setRamoActivo(r); setPantalla('ramo') }} onAdd={handleAddRamo} onLogout={handleLogout} onAdmin={() => setPantalla('admin')} usuario={usuario} onUniversidad={handleUniversidad} />
   if (pantalla === 'ramo' && ramoActivo) return <RamoScreen ramo={ramoActivo} onBack={() => setPantalla('ramos')} onUpdate={handleUpdateRamo} onDelete={handleDeleteRamo} onPlan={(ev) => { setPlanEv(ev); setPantalla('plan') }} />
-  if (pantalla === 'plan' && planEv && ramoActivo) return <PlanEstudio evaluacion={planEv} ramo={ramoActivo} onBack={() => setPantalla('ramo')} />
+  if (pantalla === 'plan' && planEv && ramoActivo) return <PlanEstudio evaluacion={planEv} ramo={ramoActivo} onBack={async () => {
+    const token = localStorage.getItem('token')
+    await cargarRamos(token, true)
+    setPantalla('ramo')
+  }} />
   return null
 }
