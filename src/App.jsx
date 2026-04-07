@@ -71,7 +71,7 @@ function BadgeFecha({ fecha }) {
   if (dias === 1) return <span style={{ fontSize: 10, background: 'rgba(239,68,68,0.2)', color: '#f87171', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>¡Mañana!</span>
   if (dias <= 7) return <span style={{ fontSize: 10, background: 'rgba(239,68,68,0.15)', color: '#f87171', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>En {dias} días</span>
   if (dias <= 14) return <span style={{ fontSize: 10, background: 'rgba(245,158,11,0.15)', color: '#fbbf24', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>En {dias} días</span>
-  return <span style={{ fontSize: 10, background: 'var(--shadow-color)', color: 'var(--color-secondary)', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>En {dias} días</span>
+  return <span style={{ fontSize: 10, background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>En {dias} días</span>
 }
 
 function BackgroundOrbs() {
@@ -87,7 +87,7 @@ function BackgroundOrbs() {
         @keyframes slideUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
         @keyframes fadeIn { from{opacity:0} to{opacity:1} }
         @keyframes confettiFall { 0%{transform:translateY(-10px) rotate(0deg);opacity:1} 100%{transform:translateY(100vh) rotate(720deg);opacity:0} }
-        @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+        @keyframes float { 0%{transform:translateY(0) scale(1)} 40%{transform:translateY(-16px) scale(1.07)} 55%{transform:translateY(-14px) scale(1.06)} 70%{transform:translateY(-18px) scale(1.08)} 100%{transform:translateY(0) scale(1)} }
       `}</style>
     </div>
   )
@@ -215,7 +215,7 @@ function LoginScreen({ onLogin }) {
     <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <BackgroundOrbs />
       <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', animation: 'slideUp 0.6s ease' }}>
-        <img src="/icon-512.png" alt="APPrueba" style={{ width: 80, height: 80, borderRadius: 20, marginBottom: 16, animation: 'float 3s ease-in-out infinite' }} />
+        <img src="/icon-512.png" alt="APPrueba" style={{ width: 80, height: 80, borderRadius: 20, marginBottom: 16, display: 'block', margin: '0 auto 16px', animation: 'float 1.2s cubic-bezier(0.36,0.07,0.19,0.97) infinite' }} />
         <h1 style={{ fontSize: 36, fontWeight: 800, color: 'white', margin: '0 0 8px', background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>APPrueba</h1>
         <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 15, margin: '0 0 48px' }}>Tu compañero académico inteligente</p>
         <button onClick={onLogin} style={{ background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', color: 'white', border: 'none', borderRadius: 16, padding: '16px 32px', fontSize: 16, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, margin: '0 auto', boxShadow: '0 8px 32px var(--shadow-color)' }}>
@@ -230,7 +230,6 @@ function LoginScreen({ onLogin }) {
 
 function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, usuario, onUniversidad }) {
   const [nuevo, setNuevo] = useState('')
-  const [mostrarUniversidad, setMostrarUniversidad] = useState(false)
   const [min, setMin] = useState('4.0')
   const [exim, setExim] = useState('')
   const [condExim, setCondExim] = useState('')
@@ -275,43 +274,13 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, usuario, onUni
             <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', margin: '0 0 4px' }}>Hola, {usuario?.nombre?.split(' ')[0] || 'estudiante'} 👋</p>
             <h1 style={{ fontSize: 28, fontWeight: 800, color: 'white', margin: 0 }}>Mis Ramos</h1>
           </div>
-          {usuario?.email === 'abelespinozav@gmail.com' && (
-            <button onClick={onAdmin} style={{ background: 'var(--shadow-color)', border: '1px solid var(--shadow-color)', borderRadius: 12, padding: '8px 14px', color: 'var(--color-secondary)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>🛡️ Admin</button>
-          )}
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => setMostrarUniversidad(true)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '8px 14px', color: 'rgba(255,255,255,0.5)', fontSize: 12, cursor: 'pointer' }}>🎓</button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {usuario?.email === 'abelespinozav@gmail.com' && (
+              <button onClick={onAdmin} style={{ background: 'var(--shadow-color)', border: '1px solid var(--shadow-color)', borderRadius: 12, padding: '8px 14px', color: 'var(--color-secondary)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>🛡️ Admin</button>
+            )}
             <button onClick={onLogout} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '8px 14px', color: 'rgba(255,255,255,0.5)', fontSize: 12, cursor: 'pointer' }}>Salir</button>
           </div>
-          {mostrarUniversidad && (
-            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setMostrarUniversidad(false)}>
-              <div style={{ background: 'var(--bg-secondary)', borderRadius: '24px 24px 0 0', padding: '24px 20px 40px', width: '100%', maxWidth: 480 }} onClick={e => e.stopPropagation()}>
-                <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 6px' }}>Tu universidad</p>
-                <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 20px' }}>Elige para personalizar los colores de la app</p>
-                {[
-                  { id: 'ufro', nombre: 'U. de La Frontera', bg: '#003087', accent: '#4a90d9' },
-                  { id: 'mayor', nombre: 'Universidad Mayor', bg: '#1a3a5c', accent: '#f5c518' },
-                  { id: 'autonoma', nombre: 'U. Autónoma de Chile', bg: '#1a1a1a', accent: '#cc2200' },
-                  { id: 'inacap', nombre: 'INACAP', bg: '#f5f5f5', accent: '#c8001e' },
-                  { id: 'stoomas', nombre: 'U. Santo Tomás', bg: '#1a4a2e', accent: '#4caf50' },
-                ].map(u => (
-                  <div key={u.id} onClick={() => { onUniversidad(u.id); setMostrarUniversidad(false) }}
-                    style={{ background: u.bg, borderRadius: 14, padding: '14px 18px', marginBottom: 10, cursor: 'pointer',
-                      border: usuario?.universidad === u.id ? `2px solid ${u.accent}` : '2px solid transparent',
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: u.id === 'inacap' ? '#1a1a1a' : 'white', fontWeight: 600, fontSize: 14 }}>{u.nombre}</span>
-                    {usuario?.universidad === u.id && <span style={{ color: u.accent, fontSize: 18 }}>✓</span>}
-                  </div>
-                ))}
-                <div onClick={() => { onUniversidad(null); setMostrarUniversidad(false) }}
-                  style={{ background: 'var(--bg-card)', borderRadius: 14, padding: '14px 18px', marginTop: 4, cursor: 'pointer',
-                    border: !usuario?.universidad ? '2px solid var(--color-primary)' : '2px solid transparent',
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 14 }}>🎨 Por defecto (morado)</span>
-                  {!usuario?.universidad && <span style={{ color: 'var(--color-primary)', fontSize: 18 }}>✓</span>}
-                </div>
-              </div>
-            </div>
-          )}
+
         </div>
         <div style={{ padding: '0 16px' }}>
           <TipInteligente ramos={ramos} />
@@ -345,12 +314,12 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, usuario, onUni
                   return (
                     <div key={i} style={{ background: 'var(--bg-secondary)', borderRadius: 14, padding: '12px 14px', border: `1px solid ${borderColor}`, flexShrink: 0, minWidth: 140, maxWidth: 160 }}>
                       <p style={{ fontSize: 12, fontWeight: 700, color: 'white', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.nombre}</p>
-                      <span style={{ fontSize: 10, color: 'var(--color-secondary)', background: 'rgba(167,139,250,0.12)', padding: '2px 7px', borderRadius: 20, display: 'inline-block', marginBottom: 8, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.ramoNombre}</span>
+                      <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)', background: 'rgba(255,255,255,0.1)', padding: '2px 7px', borderRadius: 20, display: 'inline-block', marginBottom: 8, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.ramoNombre}</span>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <p style={{ fontSize: 12, fontWeight: 700, color: diasColor, margin: 0 }}>
                           {dias === 0 ? '¡Hoy!' : dias === 1 ? 'Mañana' : dias < 0 ? 'Vencida' : `${dias}d`}
                         </p>
-                        <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', margin: 0 }}>{ev.ponderacion}%</p>
+                        <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', margin: 0, fontWeight: 600 }}>{ev.ponderacion}%</p>
                       </div>
                     </div>
                   )
@@ -727,7 +696,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: 14, fontWeight: 600, color: '#e2e8f0', margin: 0 }}>{ev.nombre}</p>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
-                        <span style={{ fontSize: 11, color: 'var(--color-primary)', fontWeight: 600, background: 'var(--shadow-color)', padding: '1px 7px', borderRadius: 20 }}>{ev.ponderacion}%</span>
+                        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.85)', fontWeight: 600, background: 'rgba(255,255,255,0.1)', padding: '1px 7px', borderRadius: 20 }}>{ev.ponderacion}%</span>
                         {ev.fecha && <BadgeFecha fecha={ev.fecha} />}
                       </div>
                     </div>
@@ -745,12 +714,12 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                         <div style={{ display: 'flex', gap: 5 }}>
-                          <button onClick={() => setEditando({ ...editando, [ev.id]: true })} style={{ background: 'var(--shadow-color)', border: 'none', borderRadius: 10, padding: '7px 12px', color: 'var(--color-secondary)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
+                          <button onClick={() => setEditando({ ...editando, [ev.id]: true })} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 10, padding: '7px 12px', color: 'rgba(255,255,255,0.85)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
                             {tieneNota ? '✏️ Editar' : '+ Nota'}
                           </button>
                           <button onClick={() => eliminarEv(ev.id)} style={{ background: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: 10, padding: '7px 10px', color: '#f87171', fontSize: 12, cursor: 'pointer' }}>🗑</button>
                         </div>
-                        <button onClick={(e) => { e.stopPropagation(); onPlan(ev) }} style={{ background: 'var(--shadow-color)', border: 'none', borderRadius: 10, padding: '7px 12px', color: 'var(--color-secondary)', fontSize: 12, cursor: 'pointer', fontWeight: 600, width: '100%' }}>🤖 Plan IA</button>
+                        <button onClick={(e) => { e.stopPropagation(); onPlan(ev) }} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 10, padding: '7px 12px', color: 'rgba(255,255,255,0.85)', fontSize: 12, cursor: 'pointer', fontWeight: 600, width: '100%' }}>🤖 Plan IA</button>
                       </div>
                     )}
                   </div>
