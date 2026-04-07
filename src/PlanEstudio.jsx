@@ -20,7 +20,15 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
   const [guia, setGuia] = useState(null)
   const [mostrandoQuiz, setMostrandoQuiz] = useState(false)
   const [cargandoGuia, setCargandoGuia] = useState(false)
+  const [archivosGuardados, setArchivosGuardados] = useState(evaluacion.archivos || [])
   const fileRef = useRef()
+
+  const eliminarArchivo = async (id) => {
+    try {
+      await fetch(`${API}/archivos/${id}`, { method: 'DELETE', headers: authHeaders() })
+      setArchivosGuardados(prev => prev.filter(a => a.id !== id))
+    } catch (e) { console.error(e) }
+  }
 
   const diasRestantes = evaluacion.fecha
     ? Math.round((new Date(evaluacion.fecha + 'T00:00:00') - new Date().setHours(0,0,0,0)) / 86400000)
@@ -236,6 +244,20 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
                 🔄 Regenerar plan
               </button>
               <input type="file" ref={fileRef} multiple accept=".pdf,.doc,.docx" style={{ display: 'none' }} onChange={e => setArchivos(Array.from(e.target.files))} />
+              {archivosGuardados.length > 0 && (
+                <div style={{ marginBottom: 10 }}>
+                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Material guardado</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {archivosGuardados.map(a => (
+                      <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(108,99,255,0.1)', borderRadius: 10, padding: '8px 12px', border: '1px solid rgba(108,99,255,0.2)' }}>
+                        <span style={{ fontSize: 14 }}>📄</span>
+                        <span style={{ flex: 1, fontSize: 12, color: 'rgba(255,255,255,0.7)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.nombre}</span>
+                        <button onClick={() => eliminarArchivo(a.id)} style={{ background: 'rgba(248,113,113,0.15)', border: 'none', borderRadius: 6, width: 24, height: 24, color: '#f87171', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>×</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <button onClick={() => fileRef.current.click()} style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1.5px dashed rgba(108,99,255,0.3)', borderRadius: 12, padding: 10, color: '#a78bfa', fontSize: 13, cursor: 'pointer', marginBottom: 10 }}>
                 {archivos.length > 0 ? `📎 ${archivos.length} archivo(s)` : '📎 Subir material (opcional)'}
               </button>
@@ -250,6 +272,20 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
             <p style={{ fontSize: 16, fontWeight: 700, color: 'white', margin: '0 0 8px' }}>Genera tu plan de estudio</p>
             <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', margin: '0 0 20px', lineHeight: 1.5 }}>La IA creará 5 tareas priorizadas para prepararte para esta evaluación</p>
             <input type="file" ref={fileRef} multiple accept=".pdf,.doc,.docx" style={{ display: 'none' }} onChange={e => setArchivos(Array.from(e.target.files))} />
+            {archivosGuardados.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Material guardado</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {archivosGuardados.map(a => (
+                    <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(108,99,255,0.1)', borderRadius: 10, padding: '8px 12px', border: '1px solid rgba(108,99,255,0.2)' }}>
+                      <span style={{ fontSize: 14 }}>📄</span>
+                      <span style={{ flex: 1, fontSize: 12, color: 'rgba(255,255,255,0.7)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.nombre}</span>
+                      <button onClick={() => eliminarArchivo(a.id)} style={{ background: 'rgba(248,113,113,0.15)', border: 'none', borderRadius: 6, width: 24, height: 24, color: '#f87171', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>×</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <button onClick={() => fileRef.current.click()} style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1.5px dashed rgba(108,99,255,0.3)', borderRadius: 12, padding: 12, color: '#a78bfa', fontSize: 13, cursor: 'pointer', marginBottom: 12 }}>
               {archivos.length > 0 ? `📎 ${archivos.length} archivo(s) seleccionado(s)` : '📎 Subir material de estudio (opcional)'}
             </button>
