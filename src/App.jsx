@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import PlanEstudio from './PlanEstudio'
+import OnboardingScreen from './OnboardingScreen.jsx'
 import { useTheme } from './useTheme'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -881,7 +882,11 @@ export default function App() {
     if (token && user) {
       setUsuario(JSON.parse(user))
       cargarRamos(token)
-      setPantalla('ramos')
+      if (desdeLogin && !data.user.onboarding_completado) {
+          setPantalla('onboarding')
+        } else {
+          setPantalla('ramos')
+        }
     }
   }, [])
 
@@ -919,8 +924,12 @@ export default function App() {
           const user = data.user || data
           localStorage.setItem('usuario', JSON.stringify(user))
           setUsuario(user)
-          cargarRamos(token)
-          setPantalla('ramos')
+          if (!user.onboarding_completado) {
+            setPantalla('onboarding')
+          } else {
+            cargarRamos(token)
+            setPantalla('ramos')
+          }
         })
         .catch(e => console.error('Error auth/me:', e))
     }
@@ -973,6 +982,7 @@ export default function App() {
 
   if (pantalla === 'admin' && usuario?.email === 'abelespinozav@gmail.com') return <AdminScreen usuario={usuario} onBack={() => setPantalla('ramos')} />
   if (pantalla === 'login') return <LoginScreen onLogin={handleLogin} />
+  if (pantalla === 'onboarding') return <OnboardingScreen user={usuario} API={API} onComplete={(u) => { setUsuario({ ...usuario, ...u, name: u.nombre }); const token = localStorage.getItem('token'); cargarRamos(token); setPantalla('ramos') }} />
   if (pantalla === 'ramos') return <RamosScreen ramos={ramos} onSelect={r => { setRamoActivo(r); setPantalla('ramo') }} onAdd={handleAddRamo} onLogout={handleLogout} onAdmin={() => setPantalla('admin')} usuario={usuario} onUniversidad={handleUniversidad} />
   if (pantalla === 'ramo' && ramoActivo) return <RamoScreen ramo={ramoActivo} onBack={() => setPantalla('ramos')} onUpdate={handleUpdateRamo} onDelete={handleDeleteRamo} onPlan={(ev) => { setPlanEv(ev); setPantalla('plan') }} />
   if (pantalla === 'plan' && planEv && ramoActivo) return <PlanEstudio evaluacion={planEv} ramo={ramoActivo} onBack={async () => {
