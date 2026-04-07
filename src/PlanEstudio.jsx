@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import Quiz from './Quiz'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const getToken = () => localStorage.getItem('token')
@@ -17,6 +18,7 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
   const [archivos, setArchivos] = useState([])
   const [tareaActiva, setTareaActiva] = useState(null)
   const [guia, setGuia] = useState(null)
+  const [mostrandoQuiz, setMostrandoQuiz] = useState(false)
   const [cargandoGuia, setCargandoGuia] = useState(false)
   const fileRef = useRef()
 
@@ -82,6 +84,8 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
 
   const totalTareas = plan?.tareas?.length || 0
   const numCompletadas = completadas.size
+
+  if (mostrandoQuiz) return <Quiz evaluacion={evaluacion} ramo={ramo} onBack={() => setMostrandoQuiz(false)} />
 
   // Vista guía de tarea
   if (tareaActiva) return (
@@ -220,7 +224,10 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
             </div>
 
             <div style={{ background: '#1a1a2e', borderRadius: 16, padding: 16, border: '1px solid rgba(108,99,255,0.15)' }}>
-              <p style={{ fontSize: 13, fontWeight: 600, color: 'white', margin: '0 0 10px' }}>🔄 Regenerar plan</p>
+              <p style={{ fontSize: 13, fontWeight: 600, color: 'white', margin: '0 0 10px' }}>🧠 Hacer Quiz
+        </button>
+        <button onClick={() => setMostrandoQuiz(true)} style={{ background: 'linear-gradient(135deg, #6c63ff, #a78bfa)', border: 'none', borderRadius: 12, padding: '10px 20px', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', width: '100%', marginBottom: 10 }}>
+        🔄 Regenerar plan</p>
               <input type="file" ref={fileRef} multiple accept=".pdf,.doc,.docx" style={{ display: 'none' }} onChange={e => setArchivos(Array.from(e.target.files))} />
               <button onClick={() => fileRef.current.click()} style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1.5px dashed rgba(108,99,255,0.3)', borderRadius: 12, padding: 10, color: '#a78bfa', fontSize: 13, cursor: 'pointer', marginBottom: 10 }}>
                 {archivos.length > 0 ? `📎 ${archivos.length} archivo(s)` : '📎 Subir material (opcional)'}
