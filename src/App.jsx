@@ -882,11 +882,7 @@ export default function App() {
     if (token && user) {
       setUsuario(JSON.parse(user))
       cargarRamos(token)
-      if (desdeLogin && !data.user.onboarding_completado) {
-          setPantalla('onboarding')
-        } else {
-          setPantalla('ramos')
-        }
+      setPantalla('ramos')
     }
   }, [])
 
