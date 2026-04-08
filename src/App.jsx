@@ -763,28 +763,99 @@ function AdminScreen({ usuario, onBack }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [busqueda, setBusqueda] = useState('')
+  const [resetando, setResetando] = useState(null)
+  const [mensaje, setMensaje] = useState(null)
+  const [detalleUsuario, setDetalleUsuario] = useState(null)
+  const [detalleData, setDetalleData] = useState(null)
+  const [cargandoDetalle, setCargandoDetalle] = useState(false)
 
-  useEffect(() => {
+  const cargarStats = () => {
+    setLoading(true)
     fetch(`${API}/admin/stats`, { headers: authHeaders() })
       .then(r => r.json())
       .then(data => { setStats(data); setLoading(false) })
       .catch(e => { setError(e.message); setLoading(false) })
-  }, [])
+  }
+
+  useEffect(() => { cargarStats() }, [])
+
+  const resetContador = async (usuario_id, campo, nombre) => {
+    const label = campo === 'todos' ? 'todos los contadores' : campo.replace('_usados', '').replace('_', ' ')
+    if (!confirm(`¿Resetear ${label} de ${nombre}?`)) return
+    setResetando(`${usuario_id}-${campo}`)
+    try {
+      const res = await fetch(`${API}/admin/reset-contadores`, {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ usuario_id, campo })
+      })
+      if (res.ok) {
+        setMensaje(`✅ Reseteado ${label} de ${nombre}`)
+        setTimeout(() => setMensaje(null), 3000)
+        cargarStats()
+      }
+    } catch(e) { console.error(e) }
+    setResetando(null)
+  }
+
+  const verDetalle = async (u) => {
+    setDetalleUsuario(u)
+    setDetalleData(null)
+    setCargandoDetalle(true)
+    try {
+      const res = await fetch(`${API}/admin/usuario/${u.id}/detalle`, { headers: authHeaders() })
+      if (res.ok) setDetalleData(await res.json())
+    } catch(e) { console.error(e) }
+    setCargandoDetalle(false)
+  }
+
+  const calcularPromedio = (evaluaciones) => {
+    if (!evaluaciones?.length) return null
+    const conNota = evaluaciones.filter(e => e.nota != null && e.ponderacion != null)
+    if (!conNota.length) return null
+    const totalPeso = conNota.reduce((s, e) => s + parseFloat(e.ponderacion), 0)
+    const suma = conNota.reduce((s, e) => s + parseFloat(e.nota) * parseFloat(e.ponderacion), 0)
+    return totalPeso > 0 ? (suma / totalPeso).toFixed(1) : null
+  }
+
+  const eliminarUsuario = async (u) => {
+    if (!confirm(`⚠️ ¿Eliminar a ${u.nombre} y TODOS sus datos? Esta acción no se puede deshacer.`)) return
+    try {
+      const res = await fetch(`${API}/admin/usuario/${u.id}`, {
+        method: 'DELETE',
+        headers: authHeaders()
+      })
+      if (res.ok) {
+        setMensaje(`🗑️ Usuario ${u.nombre} eliminado`)
+        setTimeout(() => setMensaje(null), 3000)
+        if (detalleUsuario?.id === u.id) setDetalleUsuario(null)
+        cargarStats()
+      }
+    } catch(e) { console.error(e) }
+  }
 
   const usuariosFiltrados = stats?.usuarios?.filter(u =>
     u.nombre?.toLowerCase().includes(busqueda.toLowerCase()) ||
     u.email?.toLowerCase().includes(busqueda.toLowerCase())
   ) || []
 
+  const CONTADORES = [
+    { campo: 'podcasts_usados', label: '🎙️', limite: 3 },
+    { campo: 'ejercicios_usados', label: '📥', limite: 5 },
+    { campo: 'quizzes_usados', label: '🧠', limite: 5 },
+    { campo: 'planes_usados', label: '🤖', limite: 3 },
+  ]
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', padding: 24, color: 'white' }}>
       <BackgroundOrbs />
       <BannerInstalar />
-      <div style={{ position: 'relative', zIndex: 1, maxWidth: 700, margin: '0 auto' }}>
+      <div style={{ position: 'relative', zIndex: 1, maxWidth: 750, margin: '0 auto' }}>
         <button onClick={onBack} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 10, padding: '8px 16px', color: 'rgba(255,255,255,0.7)', fontSize: 14, cursor: 'pointer', marginBottom: 24 }}>← Volver</button>
         <h2 style={{ fontSize: 28, fontWeight: 800, margin: '0 0 6px', background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Panel Admin 🛡️</h2>
         <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, margin: '0 0 24px' }}>Solo visible para {usuario?.email}</p>
 
+        {mensaje && <div style={{ background: 'rgba(74,222,128,0.15)', border: '1px solid #4ade80', borderRadius: 10, padding: '10px 16px', color: '#4ade80', fontSize: 13, marginBottom: 16 }}>{mensaje}</div>}
         {loading && <p style={{ color: 'rgba(255,255,255,0.5)' }}>Cargando...</p>}
         {error && <p style={{ color: '#f87171' }}>Error: {error}</p>}
 
@@ -807,23 +878,46 @@ function AdminScreen({ usuario, onBack }) {
             </div>
 
             <div style={{ background: 'var(--bg-secondary)', borderRadius: 16, padding: 20, border: '1px solid var(--shadow-color)' }}>
-              <p style={{ margin: '0 0 12px', fontWeight: 700, fontSize: 15 }}>👤 Usuarios registrados</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <p style={{ margin: 0, fontWeight: 700, fontSize: 15 }}>👤 Usuarios registrados</p>
+                <div style={{ display: 'flex', gap: 8, fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>
+                  <span>🎙️ Podcasts</span><span>📥 Ejercicios</span><span>🧠 Quizzes</span><span>🤖 Planes</span>
+                </div>
+              </div>
               <input
                 placeholder="Buscar por nombre o email..."
                 value={busqueda}
                 onChange={e => setBusqueda(e.target.value)}
                 style={{ width: '100%', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '8px 12px', color: 'white', fontSize: 13, outline: 'none', marginBottom: 12, boxSizing: 'border-box' }}
               />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {usuariosFiltrados.map((u, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'rgba(255,255,255,0.04)', borderRadius: 10, flexWrap: 'wrap', gap: 6 }}>
-                    <div>
-                      <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>{u.nombre}</p>
-                      <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{u.email}</p>
+                  <div key={i} style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.04)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                      <div style={{ cursor: 'pointer' }} onClick={() => verDetalle(u)}>
+                        <p style={{ margin: 0, fontWeight: 600, fontSize: 14, color: '#a78bfa' }}>{u.nombre} <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', fontWeight: 400 }}>ver detalle →</span></p>
+                        <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{u.email}</p>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>Registro: {u.created_at ? new Date(u.created_at).toLocaleDateString('es-CL') : '—'}</p>
+                        <p style={{ margin: 0, fontSize: 11, color: u.last_login ? '#4ade80' : 'rgba(255,255,255,0.2)' }}>Último login: {u.last_login ? new Date(u.last_login).toLocaleDateString('es-CL') : 'Sin registro'}</p>
+                      </div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>Registro: {u.created_at ? new Date(u.created_at).toLocaleDateString('es-CL') : '—'}</p>
-                      <p style={{ margin: 0, fontSize: 11, color: u.last_login ? '#4ade80' : 'rgba(255,255,255,0.2)' }}>Último login: {u.last_login ? new Date(u.last_login).toLocaleDateString('es-CL') : 'Sin registro'}</p>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                      {CONTADORES.map(({ campo, label, limite }) => {
+                        const usado = u[campo] || 0
+                        const lleno = usado >= limite
+                        return (
+                          <button key={campo} onClick={() => resetContador(u.id, campo, u.nombre)} disabled={resetando === `${u.id}-${campo}`}
+                            style={{ background: lleno ? 'rgba(248,113,113,0.15)' : 'rgba(255,255,255,0.06)', border: `1px solid ${lleno ? '#f87171' : 'rgba(255,255,255,0.1)'}`, borderRadius: 8, padding: '4px 10px', color: lleno ? '#f87171' : 'rgba(255,255,255,0.5)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
+                            {label} {usado}/{limite} {lleno ? '🔴' : ''}
+                          </button>
+                        )
+                      })}
+                      <button onClick={() => resetContador(u.id, 'todos', u.nombre)} disabled={resetando === `${u.id}-todos`}
+                        style={{ background: 'rgba(108,99,255,0.15)', border: '1px solid rgba(108,99,255,0.4)', borderRadius: 8, padding: '4px 10px', color: '#a78bfa', fontSize: 12, cursor: 'pointer', fontWeight: 600, marginLeft: 'auto' }}>
+                        {resetando === `${u.id}-todos` ? '⏳' : '🔄 Reset todo'}
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -832,6 +926,94 @@ function AdminScreen({ usuario, onBack }) {
           </>
         )}
       </div>
+
+      {/* MODAL DETALLE USUARIO */}
+      {detalleUsuario && (
+        <div onClick={() => setDetalleUsuario(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '20px 16px', overflowY: 'auto' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#1a1a2e', borderRadius: 20, padding: 24, width: '100%', maxWidth: 680, border: '1px solid rgba(255,255,255,0.1)', marginTop: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#fff' }}>{detalleUsuario.nombre}</h3>
+                <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>{detalleUsuario.email}</p>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => { setDetalleUsuario(null); eliminarUsuario(detalleUsuario) }} style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 8, padding: '6px 12px', color: '#f87171', cursor: 'pointer', fontSize: 13 }}>🗑️ Eliminar</button>
+                <button onClick={() => setDetalleUsuario(null)} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 8, padding: '6px 12px', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: 13 }}>✕ Cerrar</button>
+              </div>
+            </div>
+
+            {/* Uso de IA */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 20 }}>
+              {[
+                { label: 'Podcasts', valor: detalleUsuario.podcasts_usados || 0, limite: 3, icon: '🎙️' },
+                { label: 'Ejercicios', valor: detalleUsuario.ejercicios_usados || 0, limite: 5, icon: '📥' },
+                { label: 'Quizzes', valor: detalleUsuario.quizzes_usados || 0, limite: 5, icon: '🧠' },
+                { label: 'Planes', valor: detalleUsuario.planes_usados || 0, limite: 3, icon: '🤖' },
+              ].map(({ label, valor, limite, icon }) => (
+                <div key={label} style={{ background: valor >= limite ? 'rgba(248,113,113,0.1)' : 'rgba(255,255,255,0.05)', borderRadius: 12, padding: '10px 12px', textAlign: 'center', border: `1px solid ${valor >= limite ? '#f87171' : 'rgba(255,255,255,0.08)'}` }}>
+                  <div style={{ fontSize: 20 }}>{icon}</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: valor >= limite ? '#f87171' : '#a78bfa' }}>{valor}/{limite}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>{label}</div>
+                </div>
+              ))}
+            </div>
+
+            {cargandoDetalle && <p style={{ color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>Cargando detalle...</p>}
+
+            {detalleData && (
+              <>
+                {/* Ramos y evaluaciones */}
+                <p style={{ margin: '0 0 10px', fontWeight: 700, fontSize: 14, color: 'rgba(255,255,255,0.7)' }}>📚 Ramos ({detalleData.ramos.length})</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+                  {detalleData.ramos.map((r, i) => {
+                    const promedio = calcularPromedio(r.evaluaciones)
+                    const aprobado = promedio && parseFloat(promedio) >= (r.min_aprobacion || 4.0)
+                    return (
+                      <div key={i} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(255,255,255,0.07)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                          <span style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>{r.nombre}</span>
+                          {promedio && <span style={{ fontWeight: 800, fontSize: 16, color: aprobado ? '#4ade80' : '#f87171' }}>{promedio}</span>}
+                        </div>
+                        {r.evaluaciones?.length > 0 ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            {r.evaluaciones.map((e, j) => (
+                              <div key={j} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, padding: '4px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: 6 }}>
+                                <span style={{ color: 'rgba(255,255,255,0.7)' }}>{e.nombre}</span>
+                                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                  {e.ponderacion && <span style={{ color: 'rgba(255,255,255,0.3)' }}>{e.ponderacion}%</span>}
+                                  {e.nota ? <span style={{ fontWeight: 700, color: parseFloat(e.nota) >= (r.min_aprobacion || 4.0) ? '#4ade80' : '#f87171' }}>{parseFloat(e.nota).toFixed(1)}</span> : <span style={{ color: 'rgba(255,255,255,0.2)' }}>Sin nota</span>}
+                                  {e.tiene_plan && <span title="Tiene plan">🤖</span>}
+                                  {e.tiene_quiz && <span title="Tiene quiz">🧠</span>}
+                                  {e.archivos?.length > 0 && <span title={`${e.archivos.length} archivo(s)`}>📁{e.archivos.length}</span>}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.2)' }}>Sin evaluaciones</p>}
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Podcasts recientes */}
+                {detalleData.podcasts?.length > 0 && (
+                  <>
+                    <p style={{ margin: '0 0 8px', fontWeight: 700, fontSize: 14, color: 'rgba(255,255,255,0.7)' }}>🎙️ Podcasts generados</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {detalleData.podcasts.map((p, i) => (
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '6px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: 8 }}>
+                          <span style={{ color: 'rgba(255,255,255,0.6)' }}>{p.titulo || 'Sin título'} <span style={{ color: 'rgba(255,255,255,0.3)' }}>· {p.ramo_nombre}</span></span>
+                          <span style={{ color: 'rgba(255,255,255,0.3)' }}>{new Date(p.created_at).toLocaleDateString('es-CL')}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

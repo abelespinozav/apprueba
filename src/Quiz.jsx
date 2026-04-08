@@ -12,6 +12,17 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
   const [preguntaActual, setPreguntaActual] = useState(0)
   const [mostrarExplicacion, setMostrarExplicacion] = useState(false)
   const [error, setError] = useState(null)
+  const [quizzesUsados, setQuizzesUsados] = useState(null)
+
+  const cargarContador = async () => {
+    try {
+      const res = await fetch(API + '/auth/me', { headers: authHeaders() })
+      if (res.ok) { const d = await res.json(); setQuizzesUsados(d.quizzes_usados || 0) }
+    } catch(e) {}
+  }
+
+  // Cargar contador al montar
+  useState(() => { cargarContador() })
 
   const generarQuiz = async (forzar = false) => {
     setEstado('cargando')
@@ -23,7 +34,11 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
         body: JSON.stringify({ forzar })
       })
       const data = await res.json()
+      if (res.status === 403 && data.error === 'limite_alcanzado') {
+        setQuizzesUsados(5); setEstado('inicio'); return
+      }
       if (!res.ok) { setError(data.error); setEstado('inicio'); return }
+      setQuizzesUsados(prev => forzar ? (prev || 0) + 1 : prev)
       setPreguntas(data.preguntas)
       setRespuestas({})
       setPreguntaActual(0)
@@ -74,7 +89,14 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
             ⚠️ No hay material subido. Sube archivos en el Plan de Estudio para un quiz más preciso.
           </div>
         ) : null}
-        <button onClick={() => generarQuiz(false)} style={s.btn}>🤖 Generar Quiz con IA</button>
+        {quizzesUsados >= 5 ? (
+          <div style={{ background: 'rgba(248,113,113,0.1)', border: '1px solid #f87171', borderRadius: 10, padding: 12, color: '#f87171', fontSize: 13, marginBottom: 16 }}>
+            🔒 Alcanzaste el límite de 5 quizzes en el plan gratuito.
+          </div>
+        ) : null}
+        <button onClick={() => generarQuiz(false)} disabled={quizzesUsados >= 5} style={{ ...s.btn, background: quizzesUsados >= 5 ? 'rgba(108,99,255,0.3)' : 'linear-gradient(135deg, #6c63ff, #a78bfa)', cursor: quizzesUsados >= 5 ? 'not-allowed' : 'pointer' }}>
+          {quizzesUsados >= 5 ? '🔒 Límite alcanzado' : `🤖 Generar Quiz con IA (${5 - (quizzesUsados || 0)} restantes)`}
+        </button>
       </div>
     </div>
   )
@@ -163,7 +185,9 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={() => generarQuiz(true)} style={{ ...s.btn, flex: 1, background: 'rgba(255,255,255,0.08)' }}>🔄 Nuevo quiz</button>
+            <button onClick={() => generarQuiz(true)} disabled={quizzesUsados >= 5} style={{ ...s.btn, flex: 1, background: quizzesUsados >= 5 ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.08)', cursor: quizzesUsados >= 5 ? 'not-allowed' : 'pointer' }}>
+              {quizzesUsados >= 5 ? '🔒 Límite' : '🔄 Nuevo quiz'}
+            </button>
             <button onClick={onBack} style={{ ...s.btn, flex: 1 }}>← Volver</button>
           </div>
         </div>

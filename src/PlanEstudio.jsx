@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Quiz from './Quiz'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -20,6 +20,21 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
   const [guia, setGuia] = useState(null)
   const [mostrandoQuiz, setMostrandoQuiz] = useState(false)
   const [cargandoGuia, setCargandoGuia] = useState(false)
+  const [generandoPodcastId, setGenerandoPodcastId] = useState(null)
+  const [descargandoEjerciciosId, setDescargandoEjerciciosId] = useState(null)
+  const [podcast, setPodcast] = useState(null)
+  const [podcastsExistentes, setPodcastsExistentes] = useState([]) // [{tarea_idx, titulo}]
+  const [podcastTitulo, setPodcastTitulo] = useState('')
+  const [podcastPlaying, setPodcastPlaying] = useState(false)
+  const [podcastProgress, setPodcastProgress] = useState(0)
+  const [podcastDuration, setPodcastDuration] = useState(0)
+  const [podcastsUsados, setPodcastsUsados] = useState(null)
+  const [ejerciciosUsados, setEjerciciosUsados] = useState(null)
+  const [quizzesUsados, setQuizzesUsados] = useState(null)
+  const [planesUsados, setPlanesUsados] = useState(null)
+  const [guiasGeneradas, setGuiasGeneradas] = useState({})
+  const [ejerciciosGenerados, setEjerciciosGenerados] = useState({})
+  const audioRef = useRef(null)
   const [archivosGuardados, setArchivosGuardados] = useState(evaluacion.archivos || [])
   const fileRef = useRef()
 
@@ -53,9 +68,19 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
         const data = await res.json()
         setPlan(data)
         setCompletadas(new Set())
+        if (plan) setPlanesUsados(prev => (prev || 0) + 1)
       } else {
         const err = await res.json()
-        alert('Error: ' + (err.error || 'No se pudo generar el plan'))
+        if (err.error === 'limite_alcanzado') {
+          setPlanesUsados(3)
+          alert('🔒 Alcanzaste el límite de 3 regeneraciones de plan en el plan gratuito.')
+        } else if (err.error === 'sin_material') {
+          alert('📚 Debes subir tu material de estudio (PDF o Word) para generar el plan.')
+        } else if (err.error === 'archivo_no_legible') {
+          alert('⚠️ No pudimos leer tu archivo. Por favor sube un PDF o Word (.docx)')
+        } else {
+          alert('Error: ' + (err.mensaje || err.error || 'No se pudo generar el plan'))
+        }
       }
     } catch (e) {
       console.error(e)
@@ -89,10 +114,128 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
         headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ tarea, tareaIndex: index })
       })
-      if (res.ok) setGuia(await res.json())
+      if (res.ok) { const g = await res.json(); setGuia(g); setGuiasGeneradas(prev => ({ ...prev, [index]: true })) }
       else setGuia({ error: true })
     } catch (e) { setGuia({ error: true }) }
     setCargandoGuia(false)
+  }
+
+  const escucharPodcast = async (evId, tareaIdx, titulo) => {
+    try {
+      const res = await fetch(API + '/evaluaciones/' + evId + '/podcast/audio?tareaIdx=' + tareaIdx, { headers: authHeaders() })
+      if (!res.ok) return
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      setPodcastTitulo(titulo)
+      setPodcast(url)
+      setPodcastPlaying(true)
+      setTimeout(() => { if (audioRef.current) audioRef.current.play() }, 100)
+    } catch(e) { console.error(e) }
+  }
+
+  const cargarPodcastExistente = async (evId) => {
+    try {
+      const res = await fetch(API + '/evaluaciones/' + evId + '/podcast', { headers: authHeaders() })
+      const data = await res.json()
+      if (data.podcasts) setPodcastsExistentes(data.podcasts)
+    } catch(e) {}
+  }
+
+  const cargarArchivos = async () => {
+    try {
+      const res = await fetch(API + '/evaluaciones/' + evaluacion.id + '/archivos', { headers: authHeaders() })
+      if (res.ok) { const data = await res.json(); setArchivosGuardados(data) }
+    } catch(e) {}
+  }
+
+  useEffect(() => {
+    cargarPodcastExistente(evaluacion.id)
+    cargarArchivos()
+    cargarContadores()
+    if (evaluacion.guias_tareas) {
+      const indices = Object.keys(evaluacion.guias_tareas).reduce((acc, k) => ({ ...acc, [k]: true }), {})
+      setGuiasGeneradas(indices)
+    }
+  }, [evaluacion.id])
+
+  const cargarContadores = async () => {
+    try {
+      const res = await fetch(API + '/auth/me', { headers: authHeaders() })
+      if (res.ok) {
+        const data = await res.json()
+        setPodcastsUsados(data.podcasts_usados || 0)
+        setEjerciciosUsados(data.ejercicios_usados || 0)
+        setQuizzesUsados(data.quizzes_usados || 0)
+        setPlanesUsados(data.planes_usados || 0)
+      }
+    } catch(e) {}
+  }
+  const cargarPodcastsUsados = cargarContadores
+
+  const descargarEjercicios = async (tarea, tareaIndex) => {
+    if (ejerciciosUsados >= 5) return
+    setDescargandoEjerciciosId(tareaIndex)
+    try {
+      const res = await fetch(API + '/evaluaciones/' + evaluacion.id + '/ejercicios-pdf', {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tarea, tareaIndex })
+      })
+      if (res.status === 403) {
+        const data = await res.json()
+        if (data.error === 'limite_alcanzado') setEjerciciosUsados(5)
+        setDescargandoEjerciciosId(null); return
+      }
+      if (!res.ok) { alert('Error generando ejercicios'); setDescargandoEjerciciosId(null); return }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'ejercicios-' + (tareaIndex + 1) + '-' + tarea.titulo.replace(/[^a-z0-9]/gi, '-').toLowerCase() + '.pdf'
+      a.click()
+      URL.revokeObjectURL(url)
+      setEjerciciosGenerados(prev => ({ ...prev, [tareaIndex]: true }))
+      setEjerciciosUsados(prev => (prev || 0) + 1)
+    } catch(e) { console.error(e); alert('Error descargando ejercicios') }
+    setDescargandoEjerciciosId(null)
+  }
+
+  const generarPodcast = async (tareaIdx) => {
+    if (podcastsUsados >= 100) return
+    setGenerandoPodcastId(tareaIdx)
+    try {
+      const res = await fetch(API + '/evaluaciones/' + evaluacion.id + '/podcast', {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tareaIdx })
+      })
+      if (res.status === 403) {
+        const data = await res.json()
+        if (data.error === 'limite_alcanzado') setPodcastsUsados(3)
+        return
+      }
+      if (res.status === 400) {
+        const data = await res.json()
+        if (data.error === 'sin_material') alert('📚 Debes subir material de estudio para generar el podcast.')
+        else alert('Error: ' + (data.mensaje || 'No se pudo generar el podcast'))
+        return
+      }
+      if (!res.ok) { alert('Error generando podcast'); return }
+      const usados = parseInt(res.headers.get('X-Podcasts-Usados') || '1')
+      const titulo = decodeURIComponent(res.headers.get('X-Podcast-Titulo') || evaluacion.nombre)
+      setPodcastsUsados(usados)
+      setPodcastsExistentes(prev => {
+        const filtered = prev.filter(p => Number(p.tarea_idx) !== Number(tareaIdx))
+        return [...filtered, { tarea_idx: tareaIdx, titulo }]
+      })
+      setPodcastTitulo(titulo)
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      setPodcast(url)
+      setPodcastPlaying(true)
+      setTimeout(() => { if (audioRef.current) { audioRef.current.play() } }, 100)
+    } catch(e) { console.error(e); alert('Error generando podcast') }
+    setGenerandoPodcastId(null)
   }
 
   const totalTareas = plan?.tareas?.length || 0
@@ -229,7 +372,26 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
                         {t.duracion && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>⏱ {t.duracion} min</span>}
                       </div>
                       <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', margin: '0 0 8px', lineHeight: 1.5 }}>{t.descripcion}</p>
-                      <button onClick={() => verGuia(t, i)} style={{ background: 'rgba(108,99,255,0.15)', border: 'none', borderRadius: 8, padding: '6px 12px', color: '#a78bfa', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>📖 Ver guía</button>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <button onClick={() => verGuia(t, i)} style={{ background: 'rgba(108,99,255,0.15)', border: 'none', borderRadius: 8, padding: '6px 12px', color: '#a78bfa', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
+  {guiasGeneradas[i] ? '📖 Ver guía' : '✨ Generar guía'}
+</button>
+                      <button onClick={() => descargarEjercicios(t, i)} disabled={descargandoEjerciciosId === i || ejerciciosUsados >= 5} style={{ background: ejerciciosUsados >= 5 ? 'rgba(255,255,255,0.05)' : 'rgba(74,222,128,0.15)', border: 'none', borderRadius: 8, padding: '6px 12px', color: ejerciciosUsados >= 5 ? 'rgba(255,255,255,0.2)' : '#4ade80', fontSize: 12, cursor: (descargandoEjerciciosId === i || ejerciciosUsados >= 5) ? 'not-allowed' : 'pointer', fontWeight: 600 }}>
+  {descargandoEjerciciosId === i ? '⏳ Generando...' : ejerciciosUsados >= 5 ? '🔒 Límite alcanzado' : ejerciciosGenerados[i] ? '📥 Ver ejercicios PDF' : `✨ Ejercicios PDF (${5 - (ejerciciosUsados || 0)} restantes)`}
+</button>
+                      {podcastsExistentes.some(p => Number(p.tarea_idx) === i) ? (
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button onClick={() => { const p = podcastsExistentes.find(p => Number(p.tarea_idx) === i); escucharPodcast(evaluacion.id, i, p?.titulo || '') }} style={{ background: 'rgba(251,191,36,0.15)', border: 'none', borderRadius: 8, padding: '6px 12px', color: '#fbbf24', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>🎧 Escuchar</button>
+                          <button onClick={() => generarPodcast(i)} disabled={generandoPodcastId === i} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: 8, padding: '6px 10px', color: 'rgba(255,255,255,0.4)', fontSize: 11, cursor: 'pointer' }}>
+                            {generandoPodcastId === i ? '⏳' : '🔄'}
+                          </button>
+                        </div>
+                      ) : (
+                        <button onClick={() => generarPodcast(i)} disabled={generandoPodcastId === i || podcastsUsados >= 3} style={{ background: podcastsUsados >= 3 ? 'rgba(255,255,255,0.05)' : 'rgba(251,191,36,0.15)', border: 'none', borderRadius: 8, padding: '6px 12px', color: podcastsUsados >= 3 ? 'rgba(255,255,255,0.2)' : '#fbbf24', fontSize: 12, cursor: podcastsUsados >= 3 ? 'not-allowed' : 'pointer', fontWeight: 600 }}>
+                          {generandoPodcastId === i ? '⏳ Generando...' : podcastsUsados >= 3 ? '🔒 Límite alcanzado' : '🎙️ Podcast (' + (3 - (podcastsUsados || 0)) + ' restantes)'}
+                        </button>
+                      )}
+                    </div>
                     </div>
                   </div>
                 </div>
@@ -240,9 +402,7 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
               <button onClick={() => setMostrandoQuiz(true)} style={{ background: 'linear-gradient(135deg, #6c63ff, #a78bfa)', border: 'none', borderRadius: 12, padding: '10px 20px', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', width: '100%', marginBottom: 10 }}>
                 🧠 Hacer Quiz
               </button>
-              <button onClick={regenerarPlan} style={{ background: 'rgba(108,99,255,0.2)', border: '1px solid rgba(108,99,255,0.4)', borderRadius: 12, padding: '10px 20px', color: '#a78bfa', fontSize: 14, fontWeight: 700, cursor: 'pointer', width: '100%', marginBottom: 10 }}>
-                🔄 Regenerar plan
-              </button>
+
               <input type="file" ref={fileRef} multiple accept=".pdf,.doc,.docx" style={{ display: 'none' }} onChange={e => setArchivos(Array.from(e.target.files))} />
               {archivosGuardados.length > 0 && (
                 <div style={{ marginBottom: 10 }}>
@@ -261,8 +421,8 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
               <button onClick={() => fileRef.current.click()} style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1.5px dashed rgba(108,99,255,0.3)', borderRadius: 12, padding: 10, color: '#a78bfa', fontSize: 13, cursor: 'pointer', marginBottom: 10 }}>
                 {archivos.length > 0 ? `📎 ${archivos.length} archivo(s)` : '📎 Subir material (opcional)'}
               </button>
-              <button onClick={generarPlan} disabled={generando} style={{ width: '100%', background: generando ? 'rgba(108,99,255,0.3)' : 'linear-gradient(135deg, #6c63ff, #8b5cf6)', border: 'none', borderRadius: 12, padding: 12, color: 'white', fontSize: 14, fontWeight: 700, cursor: generando ? 'not-allowed' : 'pointer' }}>
-                {generando ? '⏳ Generando...' : '🤖 Regenerar plan con IA'}
+              <button onClick={generarPlan} disabled={generando || planesUsados >= 3} style={{ width: '100%', background: (generando || planesUsados >= 3) ? 'rgba(108,99,255,0.3)' : 'linear-gradient(135deg, #6c63ff, #8b5cf6)', border: 'none', borderRadius: 12, padding: 12, color: 'white', fontSize: 14, fontWeight: 700, cursor: (generando || planesUsados >= 3) ? 'not-allowed' : 'pointer' }}>
+                {generando ? '⏳ Generando...' : planesUsados >= 3 ? '🔒 Límite de regeneraciones alcanzado' : `🤖 Regenerar plan con IA (${3 - (planesUsados || 0)} restantes)`}
               </button>
             </div>
           </>
@@ -295,6 +455,29 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
           </div>
         )}
       </div>
+      {/* Mini Player Flotante */}
+      {podcast && (
+        <div style={{ position: 'fixed', bottom: 20, left: 16, right: 16, background: 'linear-gradient(135deg, #1a1a2e, #16213e)', borderRadius: 20, padding: '14px 16px', border: '1px solid rgba(251,191,36,0.3)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <audio ref={audioRef} src={podcast} onTimeUpdate={e => { setPodcastProgress(e.target.currentTime); setPodcastDuration(e.target.duration || 0) }} onEnded={() => setPodcastPlaying(false)} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 20 }}>🎙️</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 12, fontWeight: 700, color: '#fbbf24', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{podcastTitulo}</p>
+              <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: 0 }}>{ramo.nombre}</p>
+            </div>
+            <button onClick={() => { if (podcastPlaying) { audioRef.current?.pause(); setPodcastPlaying(false) } else { audioRef.current?.play(); setPodcastPlaying(true) } }} style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg, #fbbf24, #f59e0b)', border: 'none', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {podcastPlaying ? '⏸' : '▶️'}
+            </button>
+            <button onClick={() => { audioRef.current?.pause(); setPodcast(null); setPodcastPlaying(false) }} style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>✕</button>
+          </div>
+          <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 99, height: 4, cursor: 'pointer' }} onClick={e => { const rect = e.currentTarget.getBoundingClientRect(); const pct = (e.clientX - rect.left) / rect.width; if (audioRef.current) audioRef.current.currentTime = pct * podcastDuration }}>
+            <div style={{ height: '100%', width: podcastDuration > 0 ? (podcastProgress / podcastDuration * 100) + '%' : '0%', background: 'linear-gradient(90deg, #fbbf24, #f59e0b)', borderRadius: 99, transition: 'width 0.5s' }} />
+          </div>
+          <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', margin: 0, textAlign: 'center' }}>
+            {Math.floor(podcastProgress/60)}:{String(Math.floor(podcastProgress%60)).padStart(2,'0')} / {Math.floor(podcastDuration/60)}:{String(Math.floor(podcastDuration%60)).padStart(2,'0')}
+          </p>
+        </div>
+      )}
     </div>
   )
 }
