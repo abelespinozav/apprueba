@@ -370,6 +370,7 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
                         <p style={{ fontSize: 14, fontWeight: 600, color: completadas.has(i) ? 'rgba(255,255,255,0.4)' : 'white', margin: 0, textDecoration: completadas.has(i) ? 'line-through' : 'none' }}>{t.titulo}</p>
                         {t.prioridad && <span style={{ fontSize: 10, fontWeight: 700, color: PRIORIDAD_COLOR[t.prioridad], background: PRIORIDAD_BG[t.prioridad], padding: '2px 8px', borderRadius: 20, textTransform: 'uppercase' }}>{t.prioridad}</span>}
                         {t.duracion && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>⏱ {t.duracion} min</span>}
+                        {t.fecha && <span style={{ fontSize: 11, color: 'rgba(108,99,255,0.8)', background: 'rgba(108,99,255,0.1)', padding: '2px 7px', borderRadius: 6, fontWeight: 600 }}>📅 {t.fecha}</span>}
                       </div>
                       <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', margin: '0 0 8px', lineHeight: 1.5 }}>{t.descripcion}</p>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

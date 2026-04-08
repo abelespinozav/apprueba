@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import PlanEstudio from './PlanEstudio'
 import OnboardingScreen from './OnboardingScreen.jsx'
 import { useTheme } from './useTheme'
@@ -502,7 +503,7 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
   )
 }
 
-function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usuario, onUniversidad }) {
+function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usuario, onUniversidad, horario }) {
   const [nuevo, setNuevo] = useState('')
   const [min, setMin] = useState('4.0')
   const [exim, setExim] = useState('')
@@ -524,6 +525,14 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
   const aprobados = statsRamos.filter(c => c && (c.estado === 'aprobado' || c.estado === 'eximido')).length
   const conExamen = statsRamos.filter(c => c && c.estado === 'con_examen').length
   const enCurso = statsRamos.filter(c => !c || c.estado === null).length
+
+  // Clases de hoy
+  const DIAS_ES = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
+  const diaHoy = DIAS_ES[new Date().getDay()]
+  const clasesHoy = (horario || []).filter(h => h.dia === diaHoy).sort((a,b) => (a.hora_inicio||'').localeCompare(b.hora_inicio||''))
+  const ahoraStr = new Date().toTimeString().slice(0,5)
+  const claseActual = clasesHoy.find(h => h.hora_inicio <= ahoraStr && h.hora_fin > ahoraStr)
+  const proximaClase = clasesHoy.find(h => h.hora_inicio > ahoraStr)
 
   // Próximas evaluaciones (todas las evaluaciones con fecha, ordenadas)
   const proximas = ramos.flatMap(r =>
@@ -566,18 +575,63 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
                 { label: 'En curso', value: enCurso, color: 'var(--color-secondary)', bg: 'rgba(167,139,250,0.1)' },
                 { label: 'Con examen', value: conExamen, color: '#fbbf24', bg: 'rgba(251,191,36,0.1)' },
                 { label: 'Aprobados', value: aprobados, color: '#4ade80', bg: 'rgba(74,222,128,0.1)' },
-              ].map(s => (
-                <div key={s.label} style={{ background: s.bg, border: `1px solid ${s.color}30`, borderRadius: 16, padding: '12px 10px', textAlign: 'center' }}>
+              ].map((s, i) => (
+                <motion.div key={s.label}
+                  initial={{ opacity: 0, scale: 0.85 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: i * 0.08, duration: 0.3, ease: 'backOut' }}
+                  style={{ background: s.bg, border: `1px solid ${s.color}30`, borderRadius: 16, padding: '12px 10px', textAlign: 'center' }}>
                   <p style={{ fontSize: 24, fontWeight: 800, color: s.color, margin: 0 }}>{s.value}</p>
                   <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', margin: 0 }}>{s.label}</p>
-                </div>
+                </motion.div>
               ))}
             </div>
           )}
 
+          {/* Clases de hoy */}
+          {clasesHoy.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
+              style={{ marginBottom: 20, background: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: '14px 16px', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <p style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: 1, margin: '0 0 10px', textTransform: 'uppercase' }}>🗓️ Hoy · {diaHoy}</p>
+              {claseActual && (
+                <div style={{ background: 'rgba(108,99,255,0.15)', border: '1px solid rgba(108,99,255,0.3)', borderRadius: 12, padding: '10px 14px', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#a78bfa' }}>{claseActual.ramo_nombre}</p>
+                      <p style={{ margin: '2px 0 0', fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>{claseActual.hora_inicio}–{claseActual.hora_fin} {claseActual.sala ? '· ' + claseActual.sala : ''}</p>
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#a78bfa', background: 'rgba(108,99,255,0.2)', padding: '3px 8px', borderRadius: 6 }}>EN CURSO</span>
+                  </div>
+                </div>
+              )}
+              {proximaClase && (
+                <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: '10px 14px', marginBottom: 6 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <p style={{ margin: 0, fontSize: 12, fontWeight: 700 }}>{proximaClase.ramo_nombre}</p>
+                      <p style={{ margin: '2px 0 0', fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>{proximaClase.hora_inicio}–{proximaClase.hora_fin} {proximaClase.sala ? '· ' + proximaClase.sala : ''}</p>
+                    </div>
+                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>próxima</span>
+                  </div>
+                </div>
+              )}
+              {!claseActual && !proximaClase && (
+                <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>No quedan más clases por hoy 🎉</p>
+              )}
+              <button onClick={onHorario} style={{ marginTop: 8, background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', fontSize: 11, cursor: 'pointer', padding: 0 }}>Ver horario completo →</button>
+            </motion.div>
+          )}
+
           {/* Próximas evaluaciones */}
           {proximas.length > 0 && (
-            <div style={{ marginBottom: 20 }}>
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.15, ease: 'easeOut' }}
+              style={{ marginBottom: 20 }}>
               <p style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: 1, margin: '0 0 10px', textTransform: 'uppercase' }}>📅 Próximas evaluaciones</p>
               <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
                 {proximas.map((ev, i) => {
@@ -600,7 +654,7 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
                   )
                 })}
               </div>
-            </div>
+            </motion.div>
           )}
 
           {/* Grid de ramos */}
@@ -1301,6 +1355,7 @@ export default function App() {
   const [ramos, setRamos] = useState([])
   const [ramoActivo, setRamoActivo] = useState(null)
   const [planEv, setPlanEv] = useState(null)
+  const [horarioGlobal, setHorarioGlobal] = useState([])
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -1308,6 +1363,7 @@ export default function App() {
     if (token && user) {
       setUsuario(JSON.parse(user))
       cargarRamos(token)
+      cargarHorarioGlobal()
       setPantalla('ramos')
     }
   }, [])
@@ -1332,6 +1388,16 @@ export default function App() {
     } catch (e) { console.error(e) }
   }
 
+  const cargarHorarioGlobal = async () => {
+    try {
+      const res = await fetch(`${API}/horario`, { headers: authHeaders() })
+      if (res.ok) {
+        const data = await res.json()
+        setHorarioGlobal(Array.isArray(data) ? data : [])
+      }
+    } catch(e) { console.error(e) }
+  }
+
   const handleLogin = () => { window.location.href = `${API}/auth/google` }
 
   useEffect(() => {
@@ -1350,6 +1416,7 @@ export default function App() {
             setPantalla('onboarding')
           } else {
             cargarRamos(token)
+            cargarHorarioGlobal()
             setPantalla('ramos')
           }
         })
@@ -1405,9 +1472,9 @@ export default function App() {
   if (pantalla === 'admin' && usuario?.email === 'abelespinozav@gmail.com') return <AdminScreen usuario={usuario} onBack={() => setPantalla('ramos')} />
   if (pantalla === 'login') return <LoginScreen onLogin={handleLogin} />
   if (pantalla === 'onboarding') return <OnboardingScreen user={usuario} API={API} onComplete={(u) => { setUsuario({ ...usuario, ...u, name: u.nombre }); const token = localStorage.getItem('token'); cargarRamos(token); setPantalla('ramos') }} />
-  if (pantalla === 'ramos') return <RamosScreen ramos={ramos} onSelect={r => { setRamoActivo(r); setPantalla('ramo') }} onAdd={handleAddRamo} onLogout={handleLogout} onAdmin={() => setPantalla('admin')} onHorario={() => setPantalla('horario')} usuario={usuario} onUniversidad={handleUniversidad} />
+  if (pantalla === 'ramos') return <RamosScreen ramos={ramos} onSelect={r => { setRamoActivo(r); setPantalla('ramo') }} onAdd={handleAddRamo} onLogout={handleLogout} onAdmin={() => setPantalla('admin')} onHorario={() => setPantalla('horario')} usuario={usuario} onUniversidad={handleUniversidad} horario={horarioGlobal} />
   if (pantalla === 'ramo' && ramoActivo) return <RamoScreen ramo={ramoActivo} onBack={() => setPantalla('ramos')} onUpdate={handleUpdateRamo} onDelete={handleDeleteRamo} onPlan={(ev) => { setPlanEv(ev); setPantalla('plan') }} />
-  if (pantalla === 'horario') return <HorarioScreen usuario={usuario} onBack={() => setPantalla('ramos')} API={API} authHeaders={authHeaders} />
+  if (pantalla === 'horario') return <HorarioScreen usuario={usuario} onBack={() => { cargarHorarioGlobal(); setPantalla('ramos') }} API={API} authHeaders={authHeaders} />
   if (pantalla === 'plan' && planEv && ramoActivo) return <PlanEstudio evaluacion={planEv} ramo={ramoActivo} onBack={async () => {
     const token = localStorage.getItem('token')
     await cargarRamos(token, true)
