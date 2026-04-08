@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import PlanEstudio from './PlanEstudio'
 import OnboardingScreen from './OnboardingScreen.jsx'
 import { useTheme } from './useTheme'
@@ -228,7 +228,281 @@ function LoginScreen({ onLogin }) {
   )
 }
 
-function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, usuario, onUniversidad }) {
+
+
+function HorarioScreen({ usuario, onBack, API, authHeaders }) {
+  const DIAS_ORDEN = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+  const TIPOS = [
+    { value: 'clase', label: 'Clase', color: '#6c63ff' },
+    { value: 'topon', label: 'Topón', color: '#f59e0b' },
+    { value: 'ayudantia', label: 'Ayudantía', color: '#a3e635' },
+    { value: 'prueba', label: 'Prueba', color: '#f97316' },
+    { value: 'otra', label: 'Otra', color: '#86efac' },
+  ]
+
+  const [horario, setHorario] = useState([])
+  const [extrayendo, setExtrayendo] = useState(false)
+  const [bloquesPreview, setBloquesPreview] = useState(null)
+  const [guardando, setGuardando] = useState(false)
+  const [mensaje, setMensaje] = useState(null)
+  const [editandoBloque, setEditandoBloque] = useState(null)
+  const [formBloque, setFormBloque] = useState({})
+  const [vistaGrid, setVistaGrid] = useState(false)
+  const inputRef = useRef()
+
+  useEffect(() => { cargar() }, [])
+
+  const cargar = async () => {
+    const res = await fetch(API + '/horario', { headers: authHeaders() })
+    const data = await res.json()
+    setHorario(Array.isArray(data) ? data : [])
+  }
+
+  const handleImagen = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    setExtrayendo(true)
+    setMensaje(null)
+    const formData = new FormData()
+    formData.append('imagen', file)
+    try {
+      const res = await fetch(API + '/horario/extraer', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: formData
+      })
+      const data = await res.json()
+      if (data.bloques) {
+        setBloquesPreview(data.bloques)
+      } else {
+        setMensaje('❌ No se pudo extraer el horario. Intenta con otra imagen.')
+      }
+    } catch(e) {
+      setMensaje('❌ Error al procesar la imagen.')
+    }
+    setExtrayendo(false)
+  }
+
+  const confirmarHorario = async () => {
+    setGuardando(true)
+    await fetch(API + '/horario/limpiar', { method: 'POST', headers: authHeaders() })
+    for (const b of bloquesPreview) {
+      await fetch(API + '/horario', {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(b)
+      })
+    }
+    await cargar()
+    setBloquesPreview(null)
+    setGuardando(false)
+    setMensaje('✅ Horario guardado correctamente')
+    setTimeout(() => setMensaje(null), 3000)
+  }
+
+  const eliminarBloque = async (id) => {
+    await fetch(API + '/horario/' + id, { method: 'DELETE', headers: authHeaders() })
+    cargar()
+  }
+
+  const abrirEditar = (h) => {
+    setFormBloque({ ramo_nombre: h.ramo_nombre || '', codigo: h.codigo || '', sala: h.sala || '', tipo: h.tipo || 'clase', dia: h.dia, hora_inicio: h.hora_inicio || '', hora_fin: h.hora_fin || '' })
+    setEditandoBloque(h)
+  }
+
+  const guardarEdicion = async () => {
+    setGuardando(true)
+    await fetch(API + '/horario/' + editandoBloque.id, { method: 'DELETE', headers: authHeaders() })
+    await fetch(API + '/horario', {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(formBloque)
+    })
+    await cargar()
+    setEditandoBloque(null)
+    setGuardando(false)
+  }
+
+  const diasConClases = [...new Set(horario.map(h => h.dia))].sort((a,b) => DIAS_ORDEN.indexOf(a) - DIAS_ORDEN.indexOf(b))
+
+  const getTipoColor = (tipo) => TIPOS.find(t => t.value === tipo)?.color || '#6c63ff'
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', padding: '20px 16px' }}>
+      <div style={{ maxWidth: 700, margin: '0 auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+          <button onClick={onBack} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 12, padding: '8px 14px', color: 'rgba(255,255,255,0.6)', fontSize: 13, cursor: 'pointer' }}>← Volver</button>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>📅 Mi Horario</h2>
+        </div>
+
+        {mensaje && (
+          <div style={{ background: 'rgba(255,255,255,0.07)', borderRadius: 12, padding: '12px 16px', marginBottom: 16, fontSize: 14 }}>{mensaje}</div>
+        )}
+
+        {/* Subir imagen */}
+        <div
+          onClick={() => inputRef.current.click()}
+          style={{ border: '2px dashed rgba(255,255,255,0.15)', borderRadius: 16, padding: '28px 20px', textAlign: 'center', cursor: 'pointer', marginBottom: 24, background: 'rgba(255,255,255,0.02)', transition: 'all 0.2s' }}
+        >
+          <div style={{ fontSize: 32, marginBottom: 8 }}>📸</div>
+          <p style={{ margin: 0, fontWeight: 700, fontSize: 15 }}>{extrayendo ? 'Analizando imagen...' : 'Sube una foto o PDF de tu horario'}</p>
+          <p style={{ margin: '6px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>La IA extrae automáticamente tus ramos, días y horarios</p>
+          <input ref={inputRef} type="file" accept="image/*,.pdf" style={{ display: 'none' }} onChange={handleImagen} />
+        </div>
+
+        {/* Preview bloques extraídos */}
+        {bloquesPreview && (
+          <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 16, padding: 20, marginBottom: 24 }}>
+            <h3 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 700 }}>✨ Bloques detectados ({bloquesPreview.length})</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 300, overflowY: 'auto', marginBottom: 16 }}>
+              {bloquesPreview.map((b, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '10px 14px', borderLeft: '3px solid ' + getTipoColor(b.tipo) }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13 }}>{b.ramo_nombre}</div>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>{b.dia} · {b.hora_inicio}–{b.hora_fin} {b.sala ? '· ' + b.sala : ''}</div>
+                  </div>
+                  <div style={{ fontSize: 11, color: getTipoColor(b.tipo), fontWeight: 600 }}>{TIPOS.find(t=>t.value===b.tipo)?.label}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setBloquesPreview(null)} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: 12, color: 'rgba(255,255,255,0.5)', fontSize: 14, cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={confirmarHorario} disabled={guardando} style={{ flex: 2, background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', border: 'none', borderRadius: 12, padding: 12, color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                {guardando ? 'Guardando...' : '✅ Confirmar y guardar'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Horario guardado */}
+        {horario.length > 0 ? (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>Tu horario actual</h3>
+              <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 10, padding: 3 }}>
+                <button onClick={() => setVistaGrid(false)} style={{ padding: '5px 10px', borderRadius: 8, border: 'none', background: !vistaGrid ? 'rgba(255,255,255,0.12)' : 'transparent', color: !vistaGrid ? 'white' : 'rgba(255,255,255,0.4)', fontSize: 13, cursor: 'pointer' }}>☰</button>
+                <button onClick={() => setVistaGrid(true)} style={{ padding: '5px 10px', borderRadius: 8, border: 'none', background: vistaGrid ? 'rgba(255,255,255,0.12)' : 'transparent', color: vistaGrid ? 'white' : 'rgba(255,255,255,0.4)', fontSize: 13, cursor: 'pointer' }}>⊞</button>
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {TIPOS.map(t => (
+                  <div key={t.value} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
+                    <div style={{ width: 8, height: 8, borderRadius: 2, background: t.color }} />{t.label}
+                  </div>
+                ))}
+              </div>
+            </div>
+            {!vistaGrid ? (
+              diasConClases.map(dia => (
+                <div key={dia} style={{ marginBottom: 16 }}>
+                  <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 1 }}>{dia}</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {horario.filter(h => h.dia === dia).sort((a,b) => (a.hora_inicio||'').localeCompare(b.hora_inicio||'')).map(h => (
+                      <div key={h.id} onClick={() => abrirEditar(h)} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: '10px 14px', borderLeft: '3px solid ' + getTipoColor(h.tipo), cursor: 'pointer' }}>
+                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', minWidth: 90, fontWeight: 600 }}>{h.hora_inicio}–{h.hora_fin}</div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 700, fontSize: 13 }}>{h.ramo_nombre}</div>
+                          {(h.codigo || h.sala) && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>{[h.codigo, h.sala].filter(Boolean).join(' · ')}</div>}
+                        </div>
+                        <button onClick={e => { e.stopPropagation(); eliminarBloque(h.id) }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.2)', cursor: 'pointer', fontSize: 16, padding: 4 }}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
+                  <thead>
+                    <tr>
+                      <th style={{ padding: '6px 8px', fontSize: 11, color: 'rgba(255,255,255,0.4)', fontWeight: 700, textAlign: 'left', width: 80 }}>Hora</th>
+                      {diasConClases.map(d => (
+                        <th key={d} style={{ padding: '6px 4px', fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 700, textAlign: 'center' }}>{d.slice(0,3)}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const todasHoras = [...new Set(horario.map(h => h.hora_inicio))].sort()
+                      return todasHoras.map(hora => (
+                        <tr key={hora}>
+                          <td style={{ padding: '4px 8px', fontSize: 10, color: 'rgba(255,255,255,0.35)', borderTop: '1px solid rgba(255,255,255,0.05)', whiteSpace: 'nowrap', fontWeight: 600 }}>{hora}</td>
+                          {diasConClases.map(dia => {
+                            const bloque = horario.find(h => h.dia === dia && h.hora_inicio === hora)
+                            const color = bloque ? getTipoColor(bloque.tipo) : null
+                            return (
+                              <td key={dia} style={{ padding: 3, borderTop: '1px solid rgba(255,255,255,0.05)', verticalAlign: 'top' }}>
+                                {bloque ? (
+                                  <div onClick={() => abrirEditar(bloque)} style={{ borderRadius: 8, padding: '5px 7px', background: color + '22', border: '1px solid ' + color + '55', cursor: 'pointer', minHeight: 44 }}>
+                                    <div style={{ fontSize: 10, fontWeight: 700, color: color, lineHeight: 1.3 }}>{bloque.ramo_nombre}</div>
+                                    {bloque.sala && <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>{bloque.sala}</div>}
+                                  </div>
+                                ) : (
+                                  <div style={{ minHeight: 44, borderRadius: 8, border: '1px dashed rgba(255,255,255,0.05)' }} />
+                                )}
+                              </td>
+                            )
+                          })}
+                        </tr>
+                      ))
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        ) : !bloquesPreview && (
+          <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 14 }}>Aún no tienes horario guardado. ¡Sube una imagen para comenzar!</p>
+        )}
+      </div>
+
+      {/* Modal editar bloque */}
+      {editandoBloque && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
+          <div style={{ background: 'var(--bg-secondary)', borderRadius: 20, padding: 24, width: '100%', maxWidth: 360 }}>
+            <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 800 }}>✏️ Editar bloque</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <input placeholder="Nombre del ramo *" value={formBloque.ramo_nombre} onChange={e => setFormBloque({...formBloque, ramo_nombre: e.target.value})}
+                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 12px', color: 'white', fontSize: 14, outline: 'none' }} />
+              <select value={formBloque.dia} onChange={e => setFormBloque({...formBloque, dia: e.target.value})}
+                style={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 12px', color: 'white', fontSize: 14, outline: 'none' }}>
+                {['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'].map(d => <option key={d} value={d} style={{ background: '#1a1a2e' }}>{d}</option>)}
+              </select>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input placeholder="Inicio (08:30)" value={formBloque.hora_inicio} onChange={e => setFormBloque({...formBloque, hora_inicio: e.target.value})}
+                  style={{ flex: 1, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 12px', color: 'white', fontSize: 14, outline: 'none' }} />
+                <input placeholder="Fin (09:30)" value={formBloque.hora_fin} onChange={e => setFormBloque({...formBloque, hora_fin: e.target.value})}
+                  style={{ flex: 1, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 12px', color: 'white', fontSize: 14, outline: 'none' }} />
+              </div>
+              <input placeholder="Sala (ej: RA-2003)" value={formBloque.sala} onChange={e => setFormBloque({...formBloque, sala: e.target.value})}
+                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 12px', color: 'white', fontSize: 14, outline: 'none' }} />
+              <input placeholder="Código (ej: IME086-6)" value={formBloque.codigo} onChange={e => setFormBloque({...formBloque, codigo: e.target.value})}
+                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 12px', color: 'white', fontSize: 14, outline: 'none' }} />
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {[{value:'clase',label:'Clase',color:'#6c63ff'},{value:'topon',label:'Topón',color:'#f59e0b'},{value:'ayudantia',label:'Ayudantía',color:'#a3e635'},{value:'prueba',label:'Prueba',color:'#f97316'},{value:'otra',label:'Otra',color:'#86efac'}].map(t => (
+                  <button key={t.value} onClick={() => setFormBloque({...formBloque, tipo: t.value})}
+                    style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid ' + (formBloque.tipo === t.value ? t.color : 'rgba(255,255,255,0.1)'),
+                      background: formBloque.tipo === t.value ? t.color + '33' : 'transparent', color: formBloque.tipo === t.value ? t.color : 'rgba(255,255,255,0.5)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+              <button onClick={() => setEditandoBloque(null)}
+                style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: 12, color: 'rgba(255,255,255,0.5)', fontSize: 14, cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={guardarEdicion} disabled={guardando || !formBloque.ramo_nombre.trim()}
+                style={{ flex: 2, background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', border: 'none', borderRadius: 12, padding: 12, color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: !formBloque.ramo_nombre.trim() ? 0.5 : 1 }}>
+                {guardando ? 'Guardando...' : '💾 Guardar cambios'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usuario, onUniversidad }) {
   const [nuevo, setNuevo] = useState('')
   const [min, setMin] = useState('4.0')
   const [exim, setExim] = useState('')
@@ -275,6 +549,7 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, usuario, onUni
             <h1 style={{ fontSize: 28, fontWeight: 800, color: 'white', margin: 0 }}>Mis Ramos</h1>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button onClick={onHorario} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '8px 14px', color: 'rgba(255,255,255,0.6)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>📅 Horario</button>
             {usuario?.email === 'abelespinozav@gmail.com' && (
               <button onClick={onAdmin} style={{ background: 'var(--shadow-color)', border: '1px solid var(--shadow-color)', borderRadius: 12, padding: '8px 14px', color: 'var(--color-secondary)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>🛡️ Admin</button>
             )}
@@ -1130,8 +1405,9 @@ export default function App() {
   if (pantalla === 'admin' && usuario?.email === 'abelespinozav@gmail.com') return <AdminScreen usuario={usuario} onBack={() => setPantalla('ramos')} />
   if (pantalla === 'login') return <LoginScreen onLogin={handleLogin} />
   if (pantalla === 'onboarding') return <OnboardingScreen user={usuario} API={API} onComplete={(u) => { setUsuario({ ...usuario, ...u, name: u.nombre }); const token = localStorage.getItem('token'); cargarRamos(token); setPantalla('ramos') }} />
-  if (pantalla === 'ramos') return <RamosScreen ramos={ramos} onSelect={r => { setRamoActivo(r); setPantalla('ramo') }} onAdd={handleAddRamo} onLogout={handleLogout} onAdmin={() => setPantalla('admin')} usuario={usuario} onUniversidad={handleUniversidad} />
+  if (pantalla === 'ramos') return <RamosScreen ramos={ramos} onSelect={r => { setRamoActivo(r); setPantalla('ramo') }} onAdd={handleAddRamo} onLogout={handleLogout} onAdmin={() => setPantalla('admin')} onHorario={() => setPantalla('horario')} usuario={usuario} onUniversidad={handleUniversidad} />
   if (pantalla === 'ramo' && ramoActivo) return <RamoScreen ramo={ramoActivo} onBack={() => setPantalla('ramos')} onUpdate={handleUpdateRamo} onDelete={handleDeleteRamo} onPlan={(ev) => { setPlanEv(ev); setPantalla('plan') }} />
+  if (pantalla === 'horario') return <HorarioScreen usuario={usuario} onBack={() => setPantalla('ramos')} API={API} authHeaders={authHeaders} />
   if (pantalla === 'plan' && planEv && ramoActivo) return <PlanEstudio evaluacion={planEv} ramo={ramoActivo} onBack={async () => {
     const token = localStorage.getItem('token')
     await cargarRamos(token, true)
