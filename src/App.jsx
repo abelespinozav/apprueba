@@ -260,8 +260,29 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
   }
 
   const handleImagen = async (e) => {
+    // Si es Excel, usar endpoint específico
     const file = e.target.files[0]
     if (!file) return
+    if (file.name.endsWith('.xls') || file.name.endsWith('.xlsx')) {
+      setExtrayendo(true)
+      try {
+        const formData = new FormData()
+        formData.append('archivo', file)
+        const res = await fetch(`${API}/horario/extraer-excel`, {
+          method: 'POST',
+          headers: authHeaders(),
+          body: formData
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Error procesando Excel')
+        setBloquesPreview(data.bloques)
+      } catch(err) {
+        alert('Error: ' + err.message)
+      } finally {
+        setExtrayendo(false)
+      }
+      return
+    }
     setExtrayendo(true)
     setMensaje(null)
     const formData = new FormData()
@@ -294,10 +315,11 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
         body: JSON.stringify(b)
       })
     }
+    await fetch(API + '/horario/sincronizar-ramos', { method: 'POST', headers: authHeaders() })
     await cargar()
     setBloquesPreview(null)
     setGuardando(false)
-    setMensaje('✅ Horario guardado correctamente')
+    setMensaje('✅ Horario guardado y ramos sincronizados')
     setTimeout(() => setMensaje(null), 3000)
   }
 
@@ -324,6 +346,14 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
     setGuardando(false)
   }
 
+  const borrarHorario = async () => {
+    if (!window.confirm('¿Seguro que quieres borrar todo el horario?')) return
+    await fetch(API + '/horario/limpiar', { method: 'POST', headers: authHeaders() })
+    await cargar()
+    setMensaje('🗑️ Horario borrado')
+    setTimeout(() => setMensaje(null), 3000)
+  }
+
   const diasConClases = [...new Set(horario.map(h => h.dia))].sort((a,b) => DIAS_ORDEN.indexOf(a) - DIAS_ORDEN.indexOf(b))
 
   const getTipoColor = (tipo) => TIPOS.find(t => t.value === tipo)?.color || '#6c63ff'
@@ -341,6 +371,11 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
         )}
 
         {/* Subir imagen */}
+        {horario.length > 0 && (
+          <button onClick={borrarHorario} style={{ width: '100%', marginBottom: 12, padding: '10px', background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 12, color: '#f87171', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+            🗑️ Borrar horario completo
+          </button>
+        )}
         <div
           onClick={() => inputRef.current.click()}
           style={{ border: '2px dashed rgba(255,255,255,0.15)', borderRadius: 16, padding: '28px 20px', textAlign: 'center', cursor: 'pointer', marginBottom: 24, background: 'rgba(255,255,255,0.02)', transition: 'all 0.2s' }}
@@ -348,7 +383,7 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
           <div style={{ fontSize: 32, marginBottom: 8 }}>📸</div>
           <p style={{ margin: 0, fontWeight: 700, fontSize: 15 }}>{extrayendo ? 'Analizando imagen...' : 'Sube una foto o PDF de tu horario'}</p>
           <p style={{ margin: '6px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>La IA extrae automáticamente tus ramos, días y horarios</p>
-          <input ref={inputRef} type="file" accept="image/*,.pdf" style={{ display: 'none' }} onChange={handleImagen} />
+          <input ref={inputRef} type="file" accept="image/*,.pdf,.xls,.xlsx" style={{ display: 'none' }} onChange={handleImagen} />
         </div>
 
         {/* Preview bloques extraídos */}
