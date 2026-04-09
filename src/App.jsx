@@ -382,7 +382,7 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
           style={{ border: '2px dashed rgba(255,255,255,0.15)', borderRadius: 16, padding: '28px 20px', textAlign: 'center', cursor: 'pointer', marginBottom: 24, background: 'rgba(255,255,255,0.02)', transition: 'all 0.2s' }}
         >
           <div style={{ fontSize: 32, marginBottom: 8 }}>📸</div>
-          <p style={{ margin: 0, fontWeight: 700, fontSize: 15 }}>{extrayendo ? 'Analizando imagen...' : 'Sube una foto o PDF de tu horario'}</p>
+          <p style={{ margin: 0, fontWeight: 700, fontSize: 15 }}>{extrayendo ? 'Analizando imagen...' : 'Sube una foto, PDF o Excel de tu horario'}</p>
           <p style={{ margin: '6px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>La IA extrae automáticamente tus ramos, días y horarios</p>
           <input ref={inputRef} type="file" accept="image/*,.pdf,.xls,.xlsx" style={{ display: 'none' }} onChange={handleImagen} />
         </div>
