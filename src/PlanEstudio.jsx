@@ -398,7 +398,7 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
                           </button>
                         </div>
                       ) : (
-                        <button onClick={() => generarPodcast(i)} disabled={generandoPodcastId === i || podcastsUsados >= limiteGlobal} style={{ background: podcastsUsados >= 3 ? 'rgba(255,255,255,0.05)' : 'rgba(251,191,36,0.15)', border: 'none', borderRadius: 8, padding: '6px 12px', color: podcastsUsados >= 3 ? 'rgba(255,255,255,0.2)' : '#fbbf24', fontSize: 12, cursor: podcastsUsados >= 3 ? 'not-allowed' : 'pointer', fontWeight: 600 }}>
+                        <button onClick={() => generarPodcast(i)} disabled={generandoPodcastId === i || podcastsUsados >= limiteGlobal} style={{ background: podcastsUsados >= limiteGlobal ? 'rgba(255,255,255,0.05)' : 'rgba(251,191,36,0.15)', border: 'none', borderRadius: 8, padding: '6px 12px', color: podcastsUsados >= limiteGlobal ? 'rgba(255,255,255,0.2)' : '#fbbf24', fontSize: 12, cursor: podcastsUsados >= limiteGlobal ? 'not-allowed' : 'pointer', fontWeight: 600 }}>
                           {generandoPodcastId === i ? <><span style={spinnerStyle}></span>Generando...</> : podcastsUsados >= limiteGlobal ? '🔒 Límite alcanzado' : '🎙️ Podcast (' + (limiteGlobal - (podcastsUsados || 0)) + ' restantes)'}
                         </button>
                       )}
@@ -432,7 +432,7 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
               <button onClick={() => fileRef.current.click()} style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1.5px dashed rgba(108,99,255,0.3)', borderRadius: 12, padding: 10, color: '#a78bfa', fontSize: 13, cursor: 'pointer', marginBottom: 10 }}>
                 {archivos.length > 0 ? `📎 ${archivos.length} archivo(s)` : '📎 Subir material (opcional)'}
               </button>
-              <button onClick={generarPlan} disabled={generando || planesUsados >= limiteGlobal} style={{ width: '100%', background: (generando || planesUsados >= 3) ? 'rgba(108,99,255,0.3)' : 'linear-gradient(135deg, #6c63ff, #8b5cf6)', border: 'none', borderRadius: 12, padding: 12, color: 'white', fontSize: 14, fontWeight: 700, cursor: (generando || planesUsados >= 3) ? 'not-allowed' : 'pointer' }}>
+              <button onClick={generarPlan} disabled={generando || planesUsados >= limiteGlobal} style={{ width: '100%', background: (generando || planesUsados >= limiteGlobal) ? 'rgba(108,99,255,0.3)' : 'linear-gradient(135deg, #6c63ff, #8b5cf6)', border: 'none', borderRadius: 12, padding: 12, color: 'white', fontSize: 14, fontWeight: 700, cursor: (generando || planesUsados >= limiteGlobal) ? 'not-allowed' : 'pointer' }}>
                 {generando ? <><span style={spinnerStyle}></span>Generando...</> : planesUsados >= limiteGlobal ? '🔒 Límite de regeneraciones alcanzado' : `🤖 Regenerar plan con IA (${limiteGlobal - (planesUsados || 0)} restantes)`}
               </button>
             </div>

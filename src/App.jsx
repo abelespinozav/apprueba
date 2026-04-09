@@ -1536,7 +1536,7 @@ export default function App() {
           const user = data.user || data
           localStorage.setItem('usuario', JSON.stringify(user))
           setUsuario(user)
-          if (!user.onboarding_completado) {
+          if (!user.onboarding_v2) {
             setPantalla('onboarding')
           } else {
             cargarRamos(token)
