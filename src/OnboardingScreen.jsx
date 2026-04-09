@@ -2,12 +2,12 @@ import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 const UNIVERSIDADES = [
-  { id: 'ufro', nombre: 'Universidad de La Frontera', color: '#003087', secundario: '#002266', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Escudo_UFRO.svg/200px-Escudo_UFRO.svg.png' },
-  { id: 'umayor', nombre: 'Universidad Mayor', color: '#1B4F72', secundario: '#F5C400', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Logo_Universidad_Mayor.svg/200px-Logo_Universidad_Mayor.svg.png' },
-  { id: 'uautonoma', nombre: 'Universidad Autónoma de Chile', color: '#C8102E', secundario: '#9b0d24', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Logo_Universidad_Autonoma_de_Chile.svg/200px-Logo_Universidad_Autonoma_de_Chile.svg.png' },
-  { id: 'inacap', nombre: 'INACAP', color: '#CC0000', secundario: '#990000', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/INACAP_logo.svg/200px-INACAP_logo.svg.png' },
-  { id: 'santotomas', nombre: 'Universidad Santo Tomás', color: '#1B5E3B', secundario: '#144d2f', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Logo_Santo_Tomas.svg/200px-Logo_Santo_Tomas.svg.png' },
-  { id: 'uctemuco', nombre: 'Universidad Católica de Temuco', color: '#003087', secundario: '#002266', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Logo_UCT.svg/200px-Logo_UCT.svg.png' },
+  { id: 'ufro', nombre: 'Universidad de La Frontera', color: '#003087', secundario: '#002266', logo: '/logos/ufro.png' },
+  { id: 'umayor', nombre: 'Universidad Mayor', color: '#2B7A6F', secundario: '#F5C400', logo: '/logos/umayor.png' },
+  { id: 'uautonoma', nombre: 'Universidad Autónoma de Chile', color: '#C8102E', secundario: '#9b0d24', logo: '/logos/uautonoma.png' },
+  { id: 'inacap', nombre: 'INACAP', color: '#CC0000', secundario: '#990000', logo: '/logos/inacap.png' },
+  { id: 'santotomas', nombre: 'Universidad Santo Tomás', color: '#1B5E3B', secundario: '#144d2f', logo: '/logos/santotomas.png' },
+  { id: 'uctemuco', nombre: 'Universidad Católica de Temuco', color: '#003087', secundario: '#F5C400', logo: '/logos/uctemuco.png' },
 ]
 
 function urlBase64ToUint8Array(base64String) {
