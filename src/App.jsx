@@ -268,7 +268,7 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
   const [mensaje, setMensaje] = useState(null)
   const [editandoBloque, setEditandoBloque] = useState(null)
   const [formBloque, setFormBloque] = useState({})
-  const [vistaGrid, setVistaGrid] = useState(false)
+  const [vistaGrid, setVistaGrid] = useState(true)
   const inputRef = useRef()
 
   useEffect(() => { cargar() }, [])
