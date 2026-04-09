@@ -317,6 +317,7 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
     }
     await fetch(API + '/horario/sincronizar-ramos', { method: 'POST', headers: authHeaders() })
     await cargar()
+    window.dispatchEvent(new Event('ramos-actualizados'))
     setBloquesPreview(null)
     setGuardando(false)
     setMensaje('✅ Horario guardado y ramos sincronizados')
@@ -461,7 +462,7 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
                       const todasHoras = [...new Set(horario.map(h => h.hora_inicio))].sort()
                       return todasHoras.map(hora => (
                         <tr key={hora}>
-                          <td style={{ padding: '4px 8px', fontSize: 10, color: 'rgba(255,255,255,0.35)', borderTop: '1px solid rgba(255,255,255,0.05)', whiteSpace: 'nowrap', fontWeight: 600 }}>{hora}</td>
+                          <td style={{ padding: '4px 8px', fontSize: 10, color: 'rgba(255,255,255,0.35)', borderTop: '1px solid rgba(255,255,255,0.05)', whiteSpace: 'nowrap', fontWeight: 600 }}>{hora}<br/><span style={{fontSize:10,opacity:0.5}}>{horario.find(h => h.hora_inicio === hora)?.hora_fin}</span></td>
                           {diasConClases.map(dia => {
                             const bloque = horario.find(h => h.dia === dia && h.hora_inicio === hora)
                             const color = bloque ? getTipoColor(bloque.tipo) : null
@@ -1401,6 +1402,9 @@ export default function App() {
       cargarHorarioGlobal()
       setPantalla('ramos')
     }
+    const handler = () => cargarRamos(localStorage.getItem('token'))
+    window.addEventListener('ramos-actualizados', handler)
+    return () => window.removeEventListener('ramos-actualizados', handler)
   }, [])
 
   const cargarRamos = async (token, refreshActivo = false) => {
