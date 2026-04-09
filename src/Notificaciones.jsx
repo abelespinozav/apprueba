@@ -18,7 +18,7 @@ async function suscribirPush(reg, vapidKey) {
   await fetch(`${API}/notificaciones/subscribe`, {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ subscription: sub })
+    body: JSON.stringify({ subscription: sub.toJSON() })
   })
   return sub
 }
