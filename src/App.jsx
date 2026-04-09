@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import PanelNotificaciones from './Notificaciones'
 import { motion, AnimatePresence } from 'framer-motion'
 import PlanEstudio from './PlanEstudio'
 import OnboardingScreen from './OnboardingScreen.jsx'
@@ -546,6 +547,7 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
   const [condExim, setCondExim] = useState('')
   const [mostrarExim, setMostrarExim] = useState(false)
   const [mostrando, setMostrando] = useState(false)
+  const [mostrarNotif, setMostrarNotif] = useState(false)
 
   const agregar = () => {
     if (!nuevo.trim()) return
@@ -577,6 +579,12 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
       .map(e => ({ ...e, ramoNombre: r.nombre, ramoId: r.id }))
   ).sort((a, b) => new Date(a.fecha) - new Date(b.fecha)).slice(0, 5)
 
+  // Badge notificaciones (evaluaciones en los próximos 3 días)
+  const evalProximas3dias = proximas.filter(e => {
+    const dias = Math.ceil((new Date(e.fecha) - new Date()) / 86400000)
+    return dias >= 0 && dias <= 3
+  }).length
+
   const hoy = new Date()
   const diasRestantes = (fecha) => {
     const diff = Math.ceil((new Date(fecha) - hoy) / (1000 * 60 * 60 * 24))
@@ -584,6 +592,7 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
   }
 
   return (
+    <>
     <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', padding: '0 0 120px' }}>
       <BackgroundOrbs />
           <BannerInstalar />
@@ -595,6 +604,12 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <button onClick={onHorario} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '8px 14px', color: 'rgba(255,255,255,0.6)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>📅 Horario</button>
+            <button onClick={() => setMostrarNotif(true)} style={{ position: 'relative', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '8px 12px', color: 'rgba(255,255,255,0.6)', fontSize: 16, cursor: 'pointer' }}>
+              🔔
+              {evalProximas3dias > 0 && (
+                <span style={{ position: 'absolute', top: -4, right: -4, background: '#f87171', color: 'white', borderRadius: '50%', width: 16, height: 16, fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{evalProximas3dias}</span>
+              )}
+            </button>
             {usuario?.email === 'abelespinozav@gmail.com' && (
               <button onClick={onAdmin} style={{ background: 'var(--shadow-color)', border: '1px solid var(--shadow-color)', borderRadius: 12, padding: '8px 14px', color: 'var(--color-secondary)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>🛡️ Admin</button>
             )}
@@ -792,6 +807,8 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
         </div>
       </div>
     </div>
+    {mostrarNotif && <PanelNotificaciones onClose={() => setMostrarNotif(false)} proximas={proximas} />}
+    </>
   )
 }
 
