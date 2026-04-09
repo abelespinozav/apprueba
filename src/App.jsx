@@ -1205,10 +1205,10 @@ function AdminScreen({ usuario, onBack }) {
   ) || []
 
   const CONTADORES = [
-    { campo: 'podcasts_usados', label: '🎙️', limite: 3 },
-    { campo: 'ejercicios_usados', label: '📥', limite: 5 },
-    { campo: 'quizzes_usados', label: '🧠', limite: 5 },
-    { campo: 'planes_usados', label: '🤖', limite: 3 },
+    { campo: 'podcasts_usados', label: '🎙️', limite: 100 },
+    { campo: 'ejercicios_usados', label: '📥', limite: 100 },
+    { campo: 'quizzes_usados', label: '🧠', limite: 100 },
+    { campo: 'planes_usados', label: '🤖', limite: 100 },
   ]
 
   return (
@@ -1310,10 +1310,10 @@ function AdminScreen({ usuario, onBack }) {
             {/* Uso de IA */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 20 }}>
               {[
-                { label: 'Podcasts', valor: detalleUsuario.podcasts_usados || 0, limite: 3, icon: '🎙️' },
-                { label: 'Ejercicios', valor: detalleUsuario.ejercicios_usados || 0, limite: 5, icon: '📥' },
-                { label: 'Quizzes', valor: detalleUsuario.quizzes_usados || 0, limite: 5, icon: '🧠' },
-                { label: 'Planes', valor: detalleUsuario.planes_usados || 0, limite: 3, icon: '🤖' },
+                { label: 'Podcasts', valor: detalleUsuario.podcasts_usados || 0, limite: 100, icon: '🎙️' },
+                { label: 'Ejercicios', valor: detalleUsuario.ejercicios_usados || 0, limite: 100, icon: '📥' },
+                { label: 'Quizzes', valor: detalleUsuario.quizzes_usados || 0, limite: 100, icon: '🧠' },
+                { label: 'Planes', valor: detalleUsuario.planes_usados || 0, limite: 100, icon: '🤖' },
               ].map(({ label, valor, limite, icon }) => (
                 <div key={label} style={{ background: valor >= limite ? 'rgba(248,113,113,0.1)' : 'rgba(255,255,255,0.05)', borderRadius: 12, padding: '10px 12px', textAlign: 'center', border: `1px solid ${valor >= limite ? '#f87171' : 'rgba(255,255,255,0.08)'}` }}>
                   <div style={{ fontSize: 20 }}>{icon}</div>
