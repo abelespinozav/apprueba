@@ -15,6 +15,8 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
   const [plan, setPlan] = useState(planInicial)
   const [completadas, setCompletadas] = useState(new Set(completadasIniciales))
   const [generando, setGenerando] = useState(false)
+  const spinnerStyle = { display: 'inline-block', width: 12, height: 12, border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid white', borderRadius: '50%', animation: 'spin 0.8s linear infinite', marginRight: 6 }
+  if (!document.getElementById('spin-style')) { const s = document.createElement('style'); s.id = 'spin-style'; s.textContent = '@keyframes spin { to { transform: rotate(360deg) } }'; document.head.appendChild(s) }
   const [archivos, setArchivos] = useState([])
   const [tareaActiva, setTareaActiva] = useState(null)
   const [guia, setGuia] = useState(null)
@@ -32,6 +34,7 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
   const [ejerciciosUsados, setEjerciciosUsados] = useState(null)
   const [quizzesUsados, setQuizzesUsados] = useState(null)
   const [planesUsados, setPlanesUsados] = useState(null)
+  const [limiteGlobal, setLimiteGlobal] = useState(100)
   const [guiasGeneradas, setGuiasGeneradas] = useState({})
   const [ejerciciosGenerados, setEjerciciosGenerados] = useState({})
   const audioRef = useRef(null)
@@ -160,20 +163,27 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
 
   const cargarContadores = async () => {
     try {
-      const res = await fetch(API + '/auth/me', { headers: authHeaders() })
-      if (res.ok) {
-        const data = await res.json()
+      const [meRes, limiteRes] = await Promise.all([
+        fetch(API + '/auth/me', { headers: authHeaders() }),
+        fetch(API + '/admin/limite-global', { headers: authHeaders() })
+      ])
+      if (meRes.ok) {
+        const data = await meRes.json()
         setPodcastsUsados(data.podcasts_usados || 0)
         setEjerciciosUsados(data.ejercicios_usados || 0)
         setQuizzesUsados(data.quizzes_usados || 0)
         setPlanesUsados(data.planes_usados || 0)
+      }
+      if (limiteRes.ok) {
+        const ldata = await limiteRes.json()
+        if (ldata.limite !== undefined) setLimiteGlobal(ldata.limite)
       }
     } catch(e) {}
   }
   const cargarPodcastsUsados = cargarContadores
 
   const descargarEjercicios = async (tarea, tareaIndex) => {
-    if (ejerciciosUsados >= 5) return
+    if (ejerciciosUsados >= limiteGlobal) return
     setDescargandoEjerciciosId(tareaIndex)
     try {
       const res = await fetch(API + '/evaluaciones/' + evaluacion.id + '/ejercicios-pdf', {
@@ -183,7 +193,7 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
       })
       if (res.status === 403) {
         const data = await res.json()
-        if (data.error === 'limite_alcanzado') setEjerciciosUsados(5)
+        if (data.error === 'limite_alcanzado') setEjerciciosUsados(limiteGlobal)
         setDescargandoEjerciciosId(null); return
       }
       if (!res.ok) { alert('Error generando ejercicios'); setDescargandoEjerciciosId(null); return }
@@ -201,7 +211,7 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
   }
 
   const generarPodcast = async (tareaIdx) => {
-    if (podcastsUsados >= 100) return
+    if (podcastsUsados >= limiteGlobal) return
     setGenerandoPodcastId(tareaIdx)
     try {
       const res = await fetch(API + '/evaluaciones/' + evaluacion.id + '/podcast', {
@@ -211,7 +221,7 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
       })
       if (res.status === 403) {
         const data = await res.json()
-        if (data.error === 'limite_alcanzado') setPodcastsUsados(3)
+        if (data.error === 'limite_alcanzado') setPodcastsUsados(limiteGlobal)
         return
       }
       if (res.status === 400) {
@@ -378,18 +388,18 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
   {guiasGeneradas[i] ? '📖 Ver guía' : '✨ Generar guía'}
 </button>
                       <button onClick={() => descargarEjercicios(t, i)} disabled={descargandoEjerciciosId === i || ejerciciosUsados >= 5} style={{ background: ejerciciosUsados >= 5 ? 'rgba(255,255,255,0.05)' : 'rgba(74,222,128,0.15)', border: 'none', borderRadius: 8, padding: '6px 12px', color: ejerciciosUsados >= 5 ? 'rgba(255,255,255,0.2)' : '#4ade80', fontSize: 12, cursor: (descargandoEjerciciosId === i || ejerciciosUsados >= 5) ? 'not-allowed' : 'pointer', fontWeight: 600 }}>
-  {descargandoEjerciciosId === i ? '⏳ Generando...' : ejerciciosUsados >= 5 ? '🔒 Límite alcanzado' : ejerciciosGenerados[i] ? '📥 Ver ejercicios PDF' : `✨ Ejercicios PDF (${5 - (ejerciciosUsados || 0)} restantes)`}
+  {descargandoEjerciciosId === i ? <><span style={spinnerStyle}></span>Generando...</> : ejerciciosUsados >= limiteGlobal ? '🔒 Límite alcanzado' : ejerciciosGenerados[i] ? '📥 Ver ejercicios PDF' : `✨ Ejercicios PDF (${limiteGlobal - (ejerciciosUsados || 0)} restantes)`}
 </button>
                       {podcastsExistentes.some(p => Number(p.tarea_idx) === i) ? (
                         <div style={{ display: 'flex', gap: 6 }}>
                           <button onClick={() => { const p = podcastsExistentes.find(p => Number(p.tarea_idx) === i); escucharPodcast(evaluacion.id, i, p?.titulo || '') }} style={{ background: 'rgba(251,191,36,0.15)', border: 'none', borderRadius: 8, padding: '6px 12px', color: '#fbbf24', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>🎧 Escuchar</button>
                           <button onClick={() => generarPodcast(i)} disabled={generandoPodcastId === i} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: 8, padding: '6px 10px', color: 'rgba(255,255,255,0.4)', fontSize: 11, cursor: 'pointer' }}>
-                            {generandoPodcastId === i ? '⏳' : '🔄'}
+                            {generandoPodcastId === i ? <span style={spinnerStyle}></span> : '🔄'}
                           </button>
                         </div>
                       ) : (
-                        <button onClick={() => generarPodcast(i)} disabled={generandoPodcastId === i || podcastsUsados >= 3} style={{ background: podcastsUsados >= 3 ? 'rgba(255,255,255,0.05)' : 'rgba(251,191,36,0.15)', border: 'none', borderRadius: 8, padding: '6px 12px', color: podcastsUsados >= 3 ? 'rgba(255,255,255,0.2)' : '#fbbf24', fontSize: 12, cursor: podcastsUsados >= 3 ? 'not-allowed' : 'pointer', fontWeight: 600 }}>
-                          {generandoPodcastId === i ? '⏳ Generando...' : podcastsUsados >= 3 ? '🔒 Límite alcanzado' : '🎙️ Podcast (' + (3 - (podcastsUsados || 0)) + ' restantes)'}
+                        <button onClick={() => generarPodcast(i)} disabled={generandoPodcastId === i || podcastsUsados >= limiteGlobal} style={{ background: podcastsUsados >= 3 ? 'rgba(255,255,255,0.05)' : 'rgba(251,191,36,0.15)', border: 'none', borderRadius: 8, padding: '6px 12px', color: podcastsUsados >= 3 ? 'rgba(255,255,255,0.2)' : '#fbbf24', fontSize: 12, cursor: podcastsUsados >= 3 ? 'not-allowed' : 'pointer', fontWeight: 600 }}>
+                          {generandoPodcastId === i ? <><span style={spinnerStyle}></span>Generando...</> : podcastsUsados >= limiteGlobal ? '🔒 Límite alcanzado' : '🎙️ Podcast (' + (limiteGlobal - (podcastsUsados || 0)) + ' restantes)'}
                         </button>
                       )}
                     </div>
@@ -422,8 +432,8 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
               <button onClick={() => fileRef.current.click()} style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1.5px dashed rgba(108,99,255,0.3)', borderRadius: 12, padding: 10, color: '#a78bfa', fontSize: 13, cursor: 'pointer', marginBottom: 10 }}>
                 {archivos.length > 0 ? `📎 ${archivos.length} archivo(s)` : '📎 Subir material (opcional)'}
               </button>
-              <button onClick={generarPlan} disabled={generando || planesUsados >= 3} style={{ width: '100%', background: (generando || planesUsados >= 3) ? 'rgba(108,99,255,0.3)' : 'linear-gradient(135deg, #6c63ff, #8b5cf6)', border: 'none', borderRadius: 12, padding: 12, color: 'white', fontSize: 14, fontWeight: 700, cursor: (generando || planesUsados >= 3) ? 'not-allowed' : 'pointer' }}>
-                {generando ? '⏳ Generando...' : planesUsados >= 3 ? '🔒 Límite de regeneraciones alcanzado' : `🤖 Regenerar plan con IA (${3 - (planesUsados || 0)} restantes)`}
+              <button onClick={generarPlan} disabled={generando || planesUsados >= limiteGlobal} style={{ width: '100%', background: (generando || planesUsados >= 3) ? 'rgba(108,99,255,0.3)' : 'linear-gradient(135deg, #6c63ff, #8b5cf6)', border: 'none', borderRadius: 12, padding: 12, color: 'white', fontSize: 14, fontWeight: 700, cursor: (generando || planesUsados >= 3) ? 'not-allowed' : 'pointer' }}>
+                {generando ? <><span style={spinnerStyle}></span>Generando...</> : planesUsados >= limiteGlobal ? '🔒 Límite de regeneraciones alcanzado' : `🤖 Regenerar plan con IA (${limiteGlobal - (planesUsados || 0)} restantes)`}
               </button>
             </div>
           </>

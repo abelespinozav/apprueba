@@ -1133,16 +1133,57 @@ function AdminScreen({ usuario, onBack }) {
   const [detalleUsuario, setDetalleUsuario] = useState(null)
   const [detalleData, setDetalleData] = useState(null)
   const [cargandoDetalle, setCargandoDetalle] = useState(false)
+  const [limiteGlobal, setLimiteGlobal] = useState(100)
+  const [limiteInput, setLimiteInput] = useState('100')
+  const [guardandoLimite, setGuardandoLimite] = useState(false)
+
+  const aplicarLimiteGlobal = async () => {
+    const nuevo = parseInt(limiteInput)
+    if (isNaN(nuevo) || nuevo < 0) return alert('Ingresa un número válido')
+    setGuardandoLimite(true)
+    try {
+      const res = await fetch(`${API}/admin/limite-global`, {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ limite: nuevo })
+      })
+      if (res.ok) {
+        setLimiteGlobal(nuevo)
+        setMensaje(`✅ Límite global actualizado a ${nuevo} para todos los usuarios`)
+        setTimeout(() => setMensaje(null), 3000)
+        cargarStats()
+      }
+    } catch(e) { console.error(e) }
+    setGuardandoLimite(false)
+  }
 
   const cargarStats = () => {
     setLoading(true)
     fetch(`${API}/admin/stats`, { headers: authHeaders() })
       .then(r => r.json())
-      .then(data => { setStats(data); setLoading(false) })
+      .then(data => {
+        setStats(data)
+        setLoading(false)
+        if (data.limiteGlobal !== undefined) {
+          setLimiteGlobal(data.limiteGlobal)
+          setLimiteInput(String(data.limiteGlobal))
+        }
+      })
       .catch(e => { setError(e.message); setLoading(false) })
   }
 
-  useEffect(() => { cargarStats() }, [])
+  useEffect(() => {
+    cargarStats()
+    fetch(`${API}/admin/limite-global`, { headers: authHeaders() })
+      .then(r => r.json())
+      .then(data => {
+        if (data.limite !== undefined) {
+          setLimiteGlobal(data.limite)
+          setLimiteInput(String(data.limite))
+        }
+      })
+      .catch(e => console.error(e))
+  }, [])
 
   const resetContador = async (usuario_id, campo, nombre) => {
     const label = campo === 'todos' ? 'todos los contadores' : campo.replace('_usados', '').replace('_', ' ')
@@ -1205,10 +1246,10 @@ function AdminScreen({ usuario, onBack }) {
   ) || []
 
   const CONTADORES = [
-    { campo: 'podcasts_usados', label: '🎙️', limite: 100 },
-    { campo: 'ejercicios_usados', label: '📥', limite: 100 },
-    { campo: 'quizzes_usados', label: '🧠', limite: 100 },
-    { campo: 'planes_usados', label: '🤖', limite: 100 },
+    { campo: 'podcasts_usados', label: '🎙️', limite: limiteGlobal },
+    { campo: 'ejercicios_usados', label: '📥', limite: limiteGlobal },
+    { campo: 'quizzes_usados', label: '🧠', limite: limiteGlobal },
+    { campo: 'planes_usados', label: '🤖', limite: limiteGlobal },
   ]
 
   return (
@@ -1240,6 +1281,33 @@ function AdminScreen({ usuario, onBack }) {
                   <p style={{ margin: '2px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{s.label}</p>
                 </div>
               ))}
+            </div>
+
+            <div style={{ background: 'var(--bg-secondary)', borderRadius: 16, padding: 20, border: '1px solid var(--shadow-color)', marginBottom: 16 }}>
+              <p style={{ margin: '0 0 12px', fontWeight: 700, fontSize: 15 }}>⚙️ Límite global de uso</p>
+              <p style={{ margin: '0 0 12px', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>Define cuántas generaciones puede hacer cada usuario (podcasts, ejercicios, quizzes, planes)</p>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <input
+                  type="number"
+                  min="0"
+                  value={limiteInput}
+                  onChange={e => setLimiteInput(e.target.value)}
+                  style={{ width: 100, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, padding: '8px 12px', color: 'white', fontSize: 16, fontWeight: 700, outline: 'none', textAlign: 'center' }}
+                />
+                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>generaciones por usuario</span>
+                <button onClick={aplicarLimiteGlobal} disabled={guardandoLimite}
+                  style={{ background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', border: 'none', borderRadius: 10, padding: '8px 18px', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', marginLeft: 'auto' }}>
+                  {guardandoLimite ? '⏳ Guardando...' : '💾 Aplicar'}
+                </button>
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                {[10, 25, 50, 100, 999].map(n => (
+                  <button key={n} onClick={() => { setLimiteInput(String(n)); setLimiteGlobal(n) }}
+                    style={{ background: limiteGlobal === n ? 'rgba(108,99,255,0.3)' : 'rgba(255,255,255,0.06)', border: `1px solid ${limiteGlobal === n ? '#a78bfa' : 'rgba(255,255,255,0.1)'}`, borderRadius: 8, padding: '4px 12px', color: limiteGlobal === n ? '#a78bfa' : 'rgba(255,255,255,0.5)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
+                    {n === 999 ? '∞' : n}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div style={{ background: 'var(--bg-secondary)', borderRadius: 16, padding: 20, border: '1px solid var(--shadow-color)' }}>
