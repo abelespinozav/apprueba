@@ -29,6 +29,7 @@ export default function OnboardingScreen({ user, onComplete, API }) {
   const [bloquesPreview, setBloquesPreview] = useState(null)
   const [guardandoHorario, setGuardandoHorario] = useState(false)
   const [notifEstado, setNotifEstado] = useState('idle') // idle | activando | ok | error
+  const [datosFundador, setDatosFundador] = useState(null)
   const inputRef = useRef()
 
   const univSeleccionada = UNIVERSIDADES.find(u => u.id === universidad)
@@ -139,12 +140,33 @@ export default function OnboardingScreen({ user, onComplete, API }) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error al guardar')
+      if (data.usuario?.es_fundador) {
+        setDatosFundador({ numero: data.usuario.numero_registro })
+        setLoading(false)
+        return
+      }
       onComplete(data.usuario)
     } catch(err) {
       setError(err.message)
     }
     setLoading(false)
   }
+
+  if (datosFundador) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #0f0c29, #302b63, #24243e)', padding: 24 }}>
+      <div style={{ textAlign: 'center', maxWidth: 360 }}>
+        <div style={{ fontSize: 72, marginBottom: 16 }}>🏅</div>
+        <h1 style={{ color: 'white', fontSize: 28, fontWeight: 800, margin: '0 0 8px' }}>¡Eres fundador!</h1>
+        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 16, margin: '0 0 24px' }}>
+          Eres el usuario <span style={{ color: '#a5b4fc', fontWeight: 700 }}>#{datosFundador.numero}</span> de APPrueba.<br/>
+          Tienes acceso <span style={{ color: '#4ade80', fontWeight: 700 }}>ilimitado de por vida</span> 🎉
+        </p>
+        <button onClick={() => { fetch(`${API}/auth/me`, { headers: authHeaders() }).then(r => r.json()).then(d => onComplete(d.user || d.usuario)) }} style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: 'white', border: 'none', borderRadius: 14, padding: '14px 32px', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>
+          Entrar a APPrueba →
+        </button>
+      </div>
+    </div>
+  )
 
   const totalPasos = 5
 
