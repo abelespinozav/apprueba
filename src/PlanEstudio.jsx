@@ -59,6 +59,8 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
 
   const generarPlan = async () => {
     setGenerando(true)
+    console.log('🔍 evaluacion completa:', JSON.stringify(evaluacion))
+    console.log('🔍 evaluacion.id:', evaluacion.id, typeof evaluacion.id)
     try {
       const form = new FormData()
       archivos.forEach(f => form.append('archivo', f))
