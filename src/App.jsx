@@ -368,8 +368,8 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
     setGuardando(false)
   }
 
-  const abrirNuevoBloque = (dia, hora) => {
-    setFormBloque({ ramo_nombre: '', codigo: '', sala: '', tipo: 'clase', dia: dia || 'Lunes', hora_inicio: hora || '', hora_fin: '' })
+  const abrirNuevoBloque = (dia, hora, horaFin) => {
+    setFormBloque({ ramo_nombre: '', codigo: '', sala: '', tipo: 'clase', dia: dia || 'Lunes', hora_inicio: hora || '', hora_fin: horaFin || '' })
     setEditandoBloque({ id: null, _nuevo: true })
   }
 
@@ -395,7 +395,10 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
     setTimeout(() => setMensaje(null), 3000)
   }
 
-  const diasConClases = [...new Set(horario.map(h => h.dia))].sort((a,b) => DIAS_ORDEN.indexOf(a) - DIAS_ORDEN.indexOf(b))
+  const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes']
+  const diasConClases = horario.length > 0
+    ? [...new Set([...DIAS_SEMANA, ...horario.map(h => h.dia)])].sort((a,b) => DIAS_ORDEN.indexOf(a) - DIAS_ORDEN.indexOf(b))
+    : DIAS_SEMANA
 
   const getTipoColor = (tipo) => TIPOS.find(t => t.value === tipo)?.color || '#6c63ff'
 
@@ -420,13 +423,12 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
         <button onClick={() => abrirNuevoBloque('Lunes', '')} style={{ width: '100%', marginBottom: 12, padding: '10px', background: 'rgba(108,99,255,0.1)', border: '1px solid rgba(108,99,255,0.3)', borderRadius: 12, color: '#a5b4fc', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
           ➕ Agregar bloque manualmente
         </button>
-        <div
-          onClick={() => inputRef.current.click()}
-          style={{ border: '2px dashed rgba(255,255,255,0.15)', borderRadius: 16, padding: '28px 20px', textAlign: 'center', cursor: 'pointer', marginBottom: 24, background: 'rgba(255,255,255,0.02)', transition: 'all 0.2s' }}
-        >
-          <div style={{ fontSize: 32, marginBottom: 8 }}>📸</div>
-          <p style={{ margin: 0, fontWeight: 700, fontSize: 15 }}>{extrayendo ? 'Analizando imagen...' : 'Sube una foto, PDF o Excel de tu horario'}</p>
-          <p style={{ margin: '6px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>La IA extrae automáticamente tus ramos, días y horarios</p>
+        <div onClick={() => inputRef.current.click()} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.04)', border: '1px dashed rgba(255,255,255,0.12)', borderRadius: 12, padding: '10px 14px', cursor: 'pointer', marginBottom: 16, transition: 'all 0.2s' }}>
+          <span style={{ fontSize: 18 }}>{extrayendo ? '⏳' : '📸'}</span>
+          <div>
+            <p style={{ margin: 0, fontWeight: 600, fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>{extrayendo ? 'Analizando...' : 'Importar desde foto, PDF o Excel'}</p>
+            <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>La IA detecta tus ramos automáticamente</p>
+          </div>
           <input ref={inputRef} type="file" accept="image/*,.pdf,.xls,.xlsx" style={{ display: 'none' }} onChange={handleImagen} />
         </div>
 
@@ -455,10 +457,10 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
         )}
 
         {/* Horario guardado */}
-        {horario.length > 0 ? (
+        {!bloquesPreview && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>Tu horario actual</h3>
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>{horario.length > 0 ? 'Tu horario actual' : 'Toca cualquier celda para agregar una clase'}</h3>
               <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 10, padding: 3 }}>
                 <button onClick={() => setVistaGrid(false)} style={{ padding: '5px 10px', borderRadius: 8, border: 'none', background: !vistaGrid ? 'rgba(255,255,255,0.12)' : 'transparent', color: !vistaGrid ? 'white' : 'rgba(255,255,255,0.4)', fontSize: 13, cursor: 'pointer' }}>☰</button>
                 <button onClick={() => setVistaGrid(true)} style={{ padding: '5px 10px', borderRadius: 8, border: 'none', background: vistaGrid ? 'rgba(255,255,255,0.12)' : 'transparent', color: vistaGrid ? 'white' : 'rgba(255,255,255,0.4)', fontSize: 13, cursor: 'pointer' }}>⊞</button>
@@ -502,7 +504,9 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
                   </thead>
                   <tbody>
                     {(() => {
-                      const todasHoras = [...new Set(horario.map(h => h.hora_inicio))].sort()
+                      const horasFijas = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00']
+                      const horasDelHorario = [...new Set(horario.map(h => h.hora_inicio))]
+                      const todasHoras = [...new Set([...horasFijas, ...horasDelHorario])].sort()
                       return todasHoras.map(hora => (
                         <tr key={hora}>
                           <td style={{ padding: '4px 8px', fontSize: 10, color: 'rgba(255,255,255,0.35)', borderTop: '1px solid rgba(255,255,255,0.05)', whiteSpace: 'nowrap', fontWeight: 600 }}>{hora}<br/><span style={{fontSize:10,opacity:0.5}}>{horario.find(h => h.hora_inicio === hora)?.hora_fin}</span></td>
@@ -517,7 +521,7 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
                                     {bloque.sala && <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>{bloque.sala}</div>}
                                   </div>
                                 ) : (
-                                  <div onClick={() => abrirNuevoBloque(dia, hora)} style={{ minHeight: 44, borderRadius: 8, border: '1px dashed rgba(255,255,255,0.08)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.1)', fontSize: 16, transition: 'all 0.15s' }}
+                                  <div onClick={() => { const idx = todasHoras.indexOf(hora); const fin = todasHoras[idx+1] || ''; abrirNuevoBloque(dia, hora, fin) }} style={{ minHeight: 44, borderRadius: 8, border: '1px dashed rgba(255,255,255,0.08)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.1)', fontSize: 16, transition: 'all 0.15s' }}
                                     onMouseEnter={e => { e.currentTarget.style.background = 'rgba(108,99,255,0.08)'; e.currentTarget.style.borderColor = 'rgba(108,99,255,0.3)'; e.currentTarget.style.color = 'rgba(108,99,255,0.5)' }}
                                     onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(255,255,255,0.1)' }}>+</div>
                                 )}
@@ -532,8 +536,6 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
               </div>
             )}
           </div>
-        ) : !bloquesPreview && (
-          <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 14 }}>Aún no tienes horario guardado. ¡Sube una imagen para comenzar!</p>
         )}
       </div>
 
