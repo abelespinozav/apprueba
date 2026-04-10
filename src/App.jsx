@@ -3,7 +3,7 @@ import PanelNotificaciones from './Notificaciones'
 import { motion, AnimatePresence } from 'framer-motion'
 import PlanEstudio from './PlanEstudio'
 import OnboardingScreen from './OnboardingScreen.jsx'
-import { useTheme } from './useTheme'
+import { useTheme, aplicarTema } from './useTheme'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const getToken = () => localStorage.getItem('token')
@@ -1523,7 +1523,8 @@ function AdminScreen({ usuario, onBack }) {
 
 export default function App() {
   const [pantalla, setPantalla] = useState('login')
-  const [usuario, setUsuario] = useState(null)
+  const usuarioGuardado = (() => { try { return JSON.parse(localStorage.getItem('usuario')) } catch { return null } })()
+  const [usuario, setUsuario] = useState(usuarioGuardado)
 
   useTheme(usuario?.universidad)
   const [ramos, setRamos] = useState([])
@@ -1648,7 +1649,7 @@ export default function App() {
 
   if (pantalla === 'admin' && usuario?.email === 'abelespinozav@gmail.com') return <AdminScreen usuario={usuario} onBack={() => setPantalla('ramos')} />
   if (pantalla === 'login') return <LoginScreen onLogin={handleLogin} />
-  if (pantalla === 'onboarding') return <OnboardingScreen user={usuario} API={API} onComplete={(u) => { setUsuario({ ...usuario, ...u, name: u.nombre }); const token = localStorage.getItem('token'); cargarRamos(token); setPantalla('ramos') }} />
+  if (pantalla === 'onboarding') return <OnboardingScreen user={usuario} API={API} onComplete={(u) => { const updated = { ...usuario, ...u, name: u.nombre }; setUsuario(updated); localStorage.setItem('usuario', JSON.stringify(updated)); aplicarTema(u.universidad); const token = localStorage.getItem('token'); cargarRamos(token); cargarHorarioGlobal(); setPantalla('ramos') }} />
   if (pantalla === 'ramos') return <RamosScreen ramos={ramos} onSelect={r => { setRamoActivo(r); setPantalla('ramo') }} onAdd={handleAddRamo} onLogout={handleLogout} onAdmin={() => setPantalla('admin')} onHorario={() => setPantalla('horario')} usuario={usuario} onUniversidad={handleUniversidad} horario={horarioGlobal} esFundador={usuario?.es_fundador} numeroRegistro={usuario?.numero_registro} />
   if (pantalla === 'ramo' && ramoActivo) return <RamoScreen ramo={ramoActivo} onBack={() => setPantalla('ramos')} onUpdate={handleUpdateRamo} onDelete={handleDeleteRamo} onPlan={(ev) => { if (!ev || !ev.id) { alert('Error: evaluación inválida'); return; } setPlanEv(ev); setPantalla('plan') }} />
   if (pantalla === 'horario') return <HorarioScreen usuario={usuario} onBack={() => { cargarHorarioGlobal(); setPantalla('ramos') }} API={API} authHeaders={authHeaders} />

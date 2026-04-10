@@ -65,15 +65,30 @@ export const TEMAS = {
     gradientTo: '#4caf50',
     shadowColor: 'rgba(76,175,80,0.4)',
   },
+  uctemuco: {
+    bgPrimary: '#0a0f1a',
+    bgSecondary: '#001a4d',
+    bgCard: '#0a1535',
+    colorPrimary: '#4a90d9',
+    colorSecondary: '#F5C400',
+    colorAccent: '#2176cc',
+    gradientFrom: '#003087',
+    gradientTo: '#F5C400',
+    shadowColor: 'rgba(74,144,217,0.4)',
+  },
 }
 
 export function getTema(universidad) {
   const map = {
     'ufro': 'ufro',
+    'umayor': 'mayor',
     'mayor': 'mayor',
+    'uautonoma': 'autonoma',
     'autonoma': 'autonoma',
     'inacap': 'inacap',
+    'santotomas': 'stoomas',
     'stoomas': 'stoomas',
+    'uctemuco': 'uctemuco',
   }
   return TEMAS[map[universidad]] || TEMAS.default
 }
