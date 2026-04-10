@@ -83,6 +83,8 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
           alert('📚 Debes subir tu material de estudio (PDF o Word) para generar el plan.')
         } else if (err.error === 'archivo_no_legible') {
           alert('⚠️ No pudimos leer tu archivo. Por favor sube un PDF o Word (.docx)')
+        } else if (err.error === 'archivo_muy_grande') {
+          alert('⚠️ Tu archivo es muy grande. El máximo permitido es 25MB.')
         } else {
           alert('Error: ' + (err.mensaje || err.error || 'No se pudo generar el plan'))
         }
