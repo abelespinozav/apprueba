@@ -355,6 +355,7 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
   }
 
   const guardarEdicion = async () => {
+    if (editandoBloque._nuevo) { await guardarNuevoBloque(); return }
     setGuardando(true)
     await fetch(API + '/horario/' + editandoBloque.id, { method: 'DELETE', headers: authHeaders() })
     await fetch(API + '/horario', {
@@ -363,6 +364,25 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
       body: JSON.stringify(formBloque)
     })
     await cargar()
+    setEditandoBloque(null)
+    setGuardando(false)
+  }
+
+  const abrirNuevoBloque = (dia, hora) => {
+    setFormBloque({ ramo_nombre: '', codigo: '', sala: '', tipo: 'clase', dia: dia || 'Lunes', hora_inicio: hora || '', hora_fin: '' })
+    setEditandoBloque({ id: null, _nuevo: true })
+  }
+
+  const guardarNuevoBloque = async () => {
+    setGuardando(true)
+    await fetch(API + '/horario', {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(formBloque)
+    })
+    await fetch(API + '/horario/sincronizar-ramos', { method: 'POST', headers: authHeaders() })
+    await cargar()
+    window.dispatchEvent(new Event('ramos-actualizados'))
     setEditandoBloque(null)
     setGuardando(false)
   }
@@ -397,6 +417,9 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
             🗑️ Borrar horario completo
           </button>
         )}
+        <button onClick={() => abrirNuevoBloque('Lunes', '')} style={{ width: '100%', marginBottom: 12, padding: '10px', background: 'rgba(108,99,255,0.1)', border: '1px solid rgba(108,99,255,0.3)', borderRadius: 12, color: '#a5b4fc', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+          ➕ Agregar bloque manualmente
+        </button>
         <div
           onClick={() => inputRef.current.click()}
           style={{ border: '2px dashed rgba(255,255,255,0.15)', borderRadius: 16, padding: '28px 20px', textAlign: 'center', cursor: 'pointer', marginBottom: 24, background: 'rgba(255,255,255,0.02)', transition: 'all 0.2s' }}
@@ -494,7 +517,9 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
                                     {bloque.sala && <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>{bloque.sala}</div>}
                                   </div>
                                 ) : (
-                                  <div style={{ minHeight: 44, borderRadius: 8, border: '1px dashed rgba(255,255,255,0.05)' }} />
+                                  <div onClick={() => abrirNuevoBloque(dia, hora)} style={{ minHeight: 44, borderRadius: 8, border: '1px dashed rgba(255,255,255,0.08)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.1)', fontSize: 16, transition: 'all 0.15s' }}
+                                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(108,99,255,0.08)'; e.currentTarget.style.borderColor = 'rgba(108,99,255,0.3)'; e.currentTarget.style.color = 'rgba(108,99,255,0.5)' }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(255,255,255,0.1)' }}>+</div>
                                 )}
                               </td>
                             )
@@ -516,7 +541,7 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
       {editandoBloque && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
           <div style={{ background: 'var(--bg-secondary)', borderRadius: 20, padding: 24, width: '100%', maxWidth: 360 }}>
-            <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 800 }}>✏️ Editar bloque</h3>
+            <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 800 }}>{editandoBloque?._nuevo ? '➕ Nuevo bloque' : '✏️ Editar bloque'}</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <input placeholder="Nombre del ramo *" value={formBloque.ramo_nombre} onChange={e => setFormBloque({...formBloque, ramo_nombre: e.target.value})}
                 style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 12px', color: 'white', fontSize: 14, outline: 'none' }} />
