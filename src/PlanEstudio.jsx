@@ -291,7 +291,8 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
                   {guia.conceptos_clave.map((c, i) => (
                     <div key={i} style={{ background: 'rgba(108,99,255,0.08)', borderRadius: 10, padding: '10px 14px' }}>
                       <p style={{ fontSize: 13, fontWeight: 700, color: '#a78bfa', margin: '0 0 4px' }}>{c.termino}</p>
-                      <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', margin: 0, lineHeight: 1.6 }}>{c.definicion}</p>
+                      <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', margin: '0 0 6px', lineHeight: 1.6 }}>{c.definicion}</p>
+                      {c.truco && <p style={{ fontSize: 12, color: '#fbbf24', margin: 0, fontStyle: 'italic' }}>🧠 {c.truco}</p>}
                     </div>
                   ))}
                 </div>
@@ -310,7 +311,8 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
                   {guia.ejemplos.map((e, i) => (
                     <div key={i} style={{ background: 'rgba(251,191,36,0.06)', borderRadius: 10, padding: '12px 14px', border: '1px solid rgba(251,191,36,0.15)' }}>
                       <p style={{ fontSize: 13, fontWeight: 600, color: '#fbbf24', margin: '0 0 8px' }}>Ejemplo {i+1}: {e.enunciado}</p>
-                      <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', margin: 0, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{e.solucion}</p>
+                      <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', margin: '0 0 8px', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{e.solucion}</p>
+                      {e.insight && <p style={{ fontSize: 12, color: '#34d399', margin: 0, fontStyle: 'italic' }}>🎯 Para el examen: {e.insight}</p>}
                     </div>
                   ))}
                 </div>
@@ -322,16 +324,25 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {guia.ejercicios_practica.map((e, i) => (
                     <div key={i} style={{ background: 'rgba(74,222,128,0.06)', borderRadius: 10, padding: '12px 14px', border: '1px solid rgba(74,222,128,0.15)' }}>
-                      <p style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.8)', margin: '0 0 6px' }}>{i+1}. {e.enunciado}</p>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.8)', margin: 0 }}>{i+1}. {e.enunciado}</p>
+                        {e.nivel && <span style={{ fontSize: 10, fontWeight: 700, color: e.nivel === 'básico' ? '#4ade80' : e.nivel === 'intermedio' ? '#fbbf24' : '#f87171', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: 20, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{e.nivel}</span>}
+                      </div>
                       <p style={{ fontSize: 12, color: '#4ade80', margin: 0 }}>💡 Pista: {e.pista}</p>
                     </div>
                   ))}
                 </div>
               </div>
             )}
+            {guia.conexiones && (
+              <div style={{ background: '#1a1a2e', borderRadius: 16, padding: 20, border: '1px solid rgba(56,189,248,0.2)' }}>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 10px' }}>🔗 Conexiones y aplicaciones reales</p>
+                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', margin: 0, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{guia.conexiones}</p>
+              </div>
+            )}
             {guia.resumen_final && (
               <div style={{ background: 'linear-gradient(135deg, rgba(108,99,255,0.15), rgba(139,92,246,0.1))', borderRadius: 16, padding: 20, border: '1px solid rgba(108,99,255,0.25)' }}>
-                <p style={{ fontSize: 11, fontWeight: 700, color: '#6c63ff', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 10px' }}>✅ Resumen final</p>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#6c63ff', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 10px' }}>✅ Cheat Sheet para el examen</p>
                 <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', margin: 0, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{guia.resumen_final}</p>
               </div>
             )}
