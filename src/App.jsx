@@ -3,7 +3,7 @@ import PanelNotificaciones from './Notificaciones'
 import { motion, AnimatePresence } from 'framer-motion'
 import PlanEstudio from './PlanEstudio'
 import OnboardingScreen from './OnboardingScreen.jsx'
-import { useTheme, aplicarTema } from './useTheme'
+import { useTheme } from './useTheme'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const getToken = () => localStorage.getItem('token')
@@ -643,41 +643,33 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
     return diff
   }
 
-  const [tabActiva, setTabActiva] = useState('inicio')
-
   return (
     <>
-    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', padding: '0 0 90px' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', padding: '0 0 120px' }}>
       <BackgroundOrbs />
-      <BannerInstalar />
+          <BannerInstalar />
       <div style={{ position: 'relative', zIndex: 1 }}>
-        {/* Header con gradiente universidad */}
-        <div style={{
-          background: 'linear-gradient(135deg, var(--gradient-from) 0%, var(--bg-secondary) 60%, var(--bg-primary) 100%)',
-          padding: '52px 20px 20px',
-          position: 'relative',
-          borderBottom: '3px solid var(--color-primary)',
-        }}>
-          {/* Franja superior */}
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: 'var(--color-primary)' }}/>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', margin: '0 0 4px' }}>Hola, {usuario?.nombre?.split(' ')[0] || 'estudiante'} 👋</p>
-              <h1 style={{ fontSize: 28, fontWeight: 800, color: 'white', margin: 0 }}>Mis Ramos</h1>
-              {esFundador && (
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--color-primary)', borderRadius: 20, padding: '4px 12px', marginTop: 8 }}>
-                  <span style={{ fontSize: 12 }}>🏅</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--bg-primary)' }}>Fundador #{numeroRegistro}</span>
-                </div>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              {usuario?.email === 'abelespinozav@gmail.com' && (
-                <button onClick={onAdmin} style={{ background: 'var(--color-primary)', border: 'none', borderRadius: 12, padding: '8px 14px', color: 'var(--bg-primary)', fontSize: 12, cursor: 'pointer', fontWeight: 700 }}>🛡️ Admin</button>
-              )}
-              <button onClick={onLogout} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, padding: '8px 14px', color: 'rgba(255,255,255,0.5)', fontSize: 12, cursor: 'pointer' }}>Salir</button>
-            </div>
+        <div style={{ padding: '56px 20px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', margin: '0 0 4px' }}>Hola, {usuario?.nombre?.split(' ')[0] || 'estudiante'} 👋</p>
+            <h1 style={{ fontSize: 28, fontWeight: 800, color: 'white', margin: 0 }}>Mis Ramos</h1>
+            {badgeFundador}
           </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button onClick={onHorario} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '8px 14px', color: 'rgba(255,255,255,0.6)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>📅 Horario</button>
+            <button onClick={() => setMostrarNotif(true)} style={{ position: 'relative', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '8px 12px', color: 'rgba(255,255,255,0.6)', fontSize: 16, cursor: 'pointer' }}>
+              🔔
+              {evalProximas3dias > 0 && (
+                <span style={{ position: 'absolute', top: -4, right: -4, background: '#f87171', color: 'white', borderRadius: '50%', width: 16, height: 16, fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{evalProximas3dias}</span>
+              )}
+            </button>
+            {usuario?.email === 'abelespinozav@gmail.com' && (
+              <button onClick={onAdmin} style={{ background: 'var(--shadow-color)', border: '1px solid var(--shadow-color)', borderRadius: 12, padding: '8px 14px', color: 'var(--color-secondary)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>🛡️ Admin</button>
+            )}
+            <button onClick={onLogout} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '8px 14px', color: 'rgba(255,255,255,0.5)', fontSize: 12, cursor: 'pointer' }}>Salir</button>
+          </div>
+
+        </div>
         <div style={{ padding: '0 16px' }}>
           <TipInteligente ramos={ramos} />
           {/* Mini stats */}
@@ -753,7 +745,7 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
                   const borderColor = urgente ? '#f87171' : pronto ? '#fbbf24' : 'rgba(255,255,255,0.08)'
                   const diasColor = urgente ? '#f87171' : pronto ? '#fbbf24' : 'rgba(255,255,255,0.4)'
                   return (
-                    <div key={i} style={{ background: 'var(--bg-secondary)', borderRadius: 14, padding: '12px 14px', border: `1px solid ${borderColor}`, borderTop: `3px solid ${borderColor}`, flexShrink: 0, minWidth: 140, maxWidth: 160 }}>
+                    <div key={i} style={{ background: 'var(--bg-secondary)', borderRadius: 14, padding: '12px 14px', border: `1px solid ${borderColor}`, flexShrink: 0, minWidth: 140, maxWidth: 160 }}>
                       <p style={{ fontSize: 12, fontWeight: 700, color: 'white', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.nombre}</p>
                       <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)', background: 'rgba(255,255,255,0.1)', padding: '2px 7px', borderRadius: 20, display: 'inline-block', marginBottom: 8, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.ramoNombre}</span>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -789,7 +781,7 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
                   const estadoLabel = !calc ? null : calc.estado === 'eximido' ? '🎓 Eximido' : calc.estado === 'aprobado' ? '✓ Aprobado' : calc.estado === 'con_examen' ? '📝 Examen' : calc.estado === 'reprobado_sin_examen' ? '🚫 Sin examen' : calc.estado === 'reprobado_imposible' || calc.estado === 'imposible' ? '✗ Reprobado' : null
                   return (
                     <div key={r.id} onClick={() => onSelect(r)}
-                      style={{ background: 'var(--bg-secondary)', borderRadius: 20, padding: '16px', cursor: 'pointer', border: `1px solid ${estadoColor}25`, borderTop: `3px solid ${estadoColor}`, animation: `slideUp 0.4s ${i * 0.07}s ease both`, transition: 'transform 0.15s, box-shadow 0.15s', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 140 }}
+                      style={{ background: 'var(--bg-secondary)', borderRadius: 20, padding: '16px', cursor: 'pointer', border: `1px solid ${estadoColor}25`, animation: `slideUp 0.4s ${i * 0.07}s ease both`, transition: 'transform 0.15s, box-shadow 0.15s', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 140 }}
                       onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = `0 8px 24px ${estadoColor}20` }}
                       onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
@@ -868,37 +860,7 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
         </div>
       </div>
     </div>
-
-    {/* Bottom Nav */}
-    <div style={{
-      position: 'fixed', bottom: 0, left: 0, right: 0,
-      background: 'rgba(10,10,26,0.95)',
-      backdropFilter: 'blur(20px)',
-      borderTop: '1px solid var(--color-primary)33',
-      display: 'flex', justifyContent: 'space-around',
-      padding: '10px 0 20px',
-      zIndex: 100,
-    }}>
-      {[
-        { icon: '🏠', label: 'Inicio', id: 'inicio', action: () => setTabActiva('inicio') },
-        { icon: '📅', label: 'Horario', id: 'horario', action: () => { setTabActiva('horario'); onHorario() } },
-        { icon: '🔔', label: 'Alertas', id: 'alertas', action: () => { setTabActiva('alertas'); setMostrarNotif(true) } },
-        { icon: '👤', label: 'Perfil', id: 'perfil', action: () => setTabActiva('perfil') },
-      ].map(item => (
-        <button key={item.id} onClick={item.action} style={{
-          background: 'none', border: 'none', cursor: 'pointer',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-          padding: '4px 16px',
-        }}>
-          <span style={{ fontSize: 22 }}>{item.icon}</span>
-          <span style={{ fontSize: 10, fontWeight: 600, color: tabActiva === item.id ? 'var(--color-primary)' : 'rgba(255,255,255,0.35)' }}>{item.label}</span>
-          {tabActiva === item.id && <div style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--color-primary)' }}/>}
-        </button>
-      ))}
-    </div>
-
     {mostrarNotif && <PanelNotificaciones onClose={() => setMostrarNotif(false)} proximas={proximas} />}
-    </div>
     </>
   )
 }
@@ -1561,8 +1523,7 @@ function AdminScreen({ usuario, onBack }) {
 
 export default function App() {
   const [pantalla, setPantalla] = useState('login')
-  const usuarioGuardado = (() => { try { return JSON.parse(localStorage.getItem('usuario')) } catch { return null } })()
-  const [usuario, setUsuario] = useState(usuarioGuardado)
+  const [usuario, setUsuario] = useState(null)
 
   useTheme(usuario?.universidad)
   const [ramos, setRamos] = useState([])
@@ -1687,7 +1648,7 @@ export default function App() {
 
   if (pantalla === 'admin' && usuario?.email === 'abelespinozav@gmail.com') return <AdminScreen usuario={usuario} onBack={() => setPantalla('ramos')} />
   if (pantalla === 'login') return <LoginScreen onLogin={handleLogin} />
-  if (pantalla === 'onboarding') return <OnboardingScreen user={usuario} API={API} onComplete={(u) => { const updated = { ...usuario, ...u, name: u.nombre }; setUsuario(updated); localStorage.setItem('usuario', JSON.stringify(updated)); aplicarTema(u.universidad); const token = localStorage.getItem('token'); cargarRamos(token); cargarHorarioGlobal(); setPantalla('ramos') }} />
+  if (pantalla === 'onboarding') return <OnboardingScreen user={usuario} API={API} onComplete={(u) => { setUsuario({ ...usuario, ...u, name: u.nombre }); const token = localStorage.getItem('token'); cargarRamos(token); setPantalla('ramos') }} />
   if (pantalla === 'ramos') return <RamosScreen ramos={ramos} onSelect={r => { setRamoActivo(r); setPantalla('ramo') }} onAdd={handleAddRamo} onLogout={handleLogout} onAdmin={() => setPantalla('admin')} onHorario={() => setPantalla('horario')} usuario={usuario} onUniversidad={handleUniversidad} horario={horarioGlobal} esFundador={usuario?.es_fundador} numeroRegistro={usuario?.numero_registro} />
   if (pantalla === 'ramo' && ramoActivo) return <RamoScreen ramo={ramoActivo} onBack={() => setPantalla('ramos')} onUpdate={handleUpdateRamo} onDelete={handleDeleteRamo} onPlan={(ev) => { if (!ev || !ev.id) { alert('Error: evaluación inválida'); return; } setPlanEv(ev); setPantalla('plan') }} />
   if (pantalla === 'horario') return <HorarioScreen usuario={usuario} onBack={() => { cargarHorarioGlobal(); setPantalla('ramos') }} API={API} authHeaders={authHeaders} />
