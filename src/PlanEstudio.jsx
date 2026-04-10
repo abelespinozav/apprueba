@@ -484,7 +484,7 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
       {/* Mini Player Flotante */}
       {podcast && (
         <div style={{ position: 'fixed', bottom: 20, left: 16, right: 16, background: 'linear-gradient(135deg, #1a1a2e, #16213e)', borderRadius: 20, padding: '14px 16px', border: '1px solid rgba(251,191,36,0.3)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <audio ref={audioRef} src={podcast} onTimeUpdate={e => { setPodcastProgress(e.target.currentTime); setPodcastDuration(e.target.duration || 0) }} onEnded={() => setPodcastPlaying(false)} />
+          <audio ref={audioRef} src={podcast} onLoadedMetadata={e => setPodcastDuration(e.target.duration || 0)} onTimeUpdate={e => { setPodcastProgress(e.target.currentTime); if (e.target.duration) setPodcastDuration(e.target.duration) }} onEnded={() => setPodcastPlaying(false)} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 20 }}>🎙️</span>
             <div style={{ flex: 1, minWidth: 0 }}>
