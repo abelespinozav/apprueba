@@ -504,9 +504,7 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
                   </thead>
                   <tbody>
                     {(() => {
-                      const horasFijas = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00']
-                      const horasDelHorario = [...new Set(horario.map(h => h.hora_inicio))]
-                      const todasHoras = [...new Set([...horasFijas, ...horasDelHorario])].sort()
+                      const todasHoras = [...new Set(horario.map(h => h.hora_inicio).filter(Boolean))].sort()
                       return todasHoras.map(hora => (
                         <tr key={hora}>
                           <td style={{ padding: '4px 8px', fontSize: 10, color: 'rgba(255,255,255,0.35)', borderTop: '1px solid rgba(255,255,255,0.05)', whiteSpace: 'nowrap', fontWeight: 600 }}>{hora}<br/><span style={{fontSize:10,opacity:0.5}}>{horario.find(h => h.hora_inicio === hora)?.hora_fin}</span></td>
