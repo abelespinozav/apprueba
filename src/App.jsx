@@ -317,7 +317,7 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
       if (data.bloques) {
         setBloquesPreview(data.bloques)
       } else {
-        setMensaje('❌ No se pudo extraer el horario. Intenta con otra imagen.')
+        setMensaje('❌ No se pudo leer el horario automáticamente. ¡No te preocupes! Puedes agregarlo manualmente tocando ➕ Agregar bloque.')
       }
     } catch(e) {
       setMensaje('❌ Error al procesar la imagen.')
