@@ -898,6 +898,7 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
     </div>
 
     {mostrarNotif && <PanelNotificaciones onClose={() => setMostrarNotif(false)} proximas={proximas} />}
+    </div>
     </>
   )
 }
