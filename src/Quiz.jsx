@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const getToken = () => localStorage.getItem('token')
 const authHeaders = (extra = {}) => ({ ...extra, 'Authorization': `Bearer ${getToken()}` })
@@ -13,6 +13,8 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
   const [mostrarExplicacion, setMostrarExplicacion] = useState(false)
   const [error, setError] = useState(null)
   const [quizzesUsados, setQuizzesUsados] = useState(null)
+  const [progresoMsg, setProgresoMsg] = useState('')
+  const [mostrarModal, setMostrarModal] = useState(false)
 
   const cargarContador = async () => {
     try {
@@ -22,31 +24,89 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
   }
 
   // Cargar contador al montar
-  useState(() => { cargarContador() })
+  useEffect(() => { cargarContador() }, [])
 
   const generarQuiz = async (forzar = false) => {
     setEstado('cargando')
     setError(null)
+    setProgresoMsg('🧠 Iniciando...')
+    setMostrarModal(false)
     try {
       const res = await fetch(`${API}/evaluaciones/${evaluacion.id}/quiz`, {
         method: 'POST',
         headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ forzar })
       })
-      const data = await res.json()
-      if (res.status === 403 && data.error === 'limite_alcanzado') {
-        setQuizzesUsados(5); setEstado('inicio'); return
+
+      // Respuesta JSON directa (cache o error antes de SSE)
+      const contentType = res.headers.get('content-type') || ''
+      if (!contentType.includes('text/event-stream')) {
+        const data = await res.json()
+        if (res.status === 403 && data.error === 'limite_alcanzado') {
+          setQuizzesUsados(5); setEstado('inicio'); return
+        }
+        if (!res.ok) { setError(data.error || 'Error desconocido'); setEstado('inicio'); return }
+        setPreguntas(data.preguntas)
+        setRespuestas({})
+        setPreguntaActual(0)
+        setMostrarExplicacion(false)
+        setEstado('quiz')
+        return
       }
-      if (!res.ok) { setError(data.error); setEstado('inicio'); return }
-      setQuizzesUsados(prev => forzar ? (prev || 0) + 1 : prev)
-      setPreguntas(data.preguntas)
+
+      // SSE stream
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop()
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          try {
+            const evento = JSON.parse(line.slice(6))
+            if (evento.tipo === 'progreso') {
+              setProgresoMsg(evento.msg)
+            } else if (evento.tipo === 'iniciado') {
+              setMostrarModal(true)
+            } else if (evento.tipo === 'quiz') {
+              setMostrarModal(false)
+              setPreguntas(evento.preguntas)
+              setRespuestas({})
+              setPreguntaActual(0)
+              setMostrarExplicacion(false)
+              setQuizzesUsados(prev => (prev || 0) + 1)
+              setEstado('quiz')
+            } else if (evento.tipo === 'error') {
+              if (evento.error === 'limite_alcanzado') setQuizzesUsados(5)
+              else setError(evento.mensaje || 'Error generando quiz')
+              setMostrarModal(false)
+              setEstado('inicio')
+            }
+          } catch(e) {}
+        }
+      }
+    } catch (e) {
+      setError('Error de conexión')
+      setMostrarModal(false)
+      setEstado('inicio')
+    }
+    setProgresoMsg('')
+  }
+
+  const verQuizGuardado = () => {
+    if (evaluacion.quiz_generado) {
+      const pregs = typeof evaluacion.quiz_generado === 'string'
+        ? JSON.parse(evaluacion.quiz_generado)
+        : evaluacion.quiz_generado
+      setPreguntas(pregs)
       setRespuestas({})
       setPreguntaActual(0)
       setMostrarExplicacion(false)
       setEstado('quiz')
-    } catch (e) {
-      setError('Error de conexión')
-      setEstado('inicio')
     }
   }
 
@@ -73,8 +133,35 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
 
   const s = { container: { maxWidth: 700, margin: '0 auto', padding: 20 }, card: { background: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 24, marginBottom: 16 }, btn: { background: 'linear-gradient(135deg, #6c63ff, #a78bfa)', border: 'none', borderRadius: 12, padding: '12px 24px', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', width: '100%' }, btnSecondary: { background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 12, padding: '8px 16px', color: 'rgba(255,255,255,0.6)', fontSize: 13, cursor: 'pointer' } }
 
+  const modalStyle = {
+    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+    background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center',
+    justifyContent: 'center', zIndex: 9999, padding: 24
+  }
+  const modalCardStyle = {
+    background: '#1a1a2e', border: '1px solid rgba(108,99,255,0.4)',
+    borderRadius: 20, padding: 32, maxWidth: 420, width: '100%', textAlign: 'center'
+  }
+
   if (estado === 'inicio') return (
     <div style={s.container}>
+      {mostrarModal && (
+        <div style={modalStyle}>
+          <div style={modalCardStyle}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>⚙️</div>
+            <h3 style={{ color: '#fff', marginBottom: 8 }}>Generando tu quiz...</h3>
+            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, marginBottom: 16 }}>
+              Puedes cerrar esta pantalla. Te avisaremos cuando tu quiz esté listo.
+            </p>
+            <div style={{ background: 'rgba(108,99,255,0.15)', border: '1px solid rgba(108,99,255,0.3)', borderRadius: 10, padding: 12, marginBottom: 20 }}>
+              <p style={{ color: '#a78bfa', fontSize: 13, margin: 0 }}>{progresoMsg}</p>
+            </div>
+            <button onClick={() => setMostrarModal(false)} style={{ ...s.btnSecondary, fontSize: 13 }}>
+              Entendido, volver al inicio
+            </button>
+          </div>
+        </div>
+      )}
       <button onClick={onBack} style={s.btnSecondary}>← Volver</button>
       <div style={{ ...s.card, textAlign: 'center', marginTop: 20 }}>
         <div style={{ fontSize: 48, marginBottom: 12 }}>🧠</div>
@@ -84,28 +171,42 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
           20 preguntas generadas por IA basadas en tu material de estudio
         </p>
         {error && <div style={{ background: 'rgba(248,113,113,0.15)', border: '1px solid #f87171', borderRadius: 10, padding: 12, color: '#f87171', marginBottom: 16, fontSize: 13 }}>{error}</div>}
-        {!evaluacion.archivos || evaluacion.archivos.filter(a => a).length === 0 ? (
-          <div style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid #fbbf24', borderRadius: 10, padding: 12, color: '#fbbf24', fontSize: 13, marginBottom: 16 }}>
-            ⚠️ No hay material subido. Sube archivos en el Plan de Estudio para un quiz más preciso.
-          </div>
-        ) : null}
+
         {quizzesUsados >= 5 ? (
           <div style={{ background: 'rgba(248,113,113,0.1)', border: '1px solid #f87171', borderRadius: 10, padding: 12, color: '#f87171', fontSize: 13, marginBottom: 16 }}>
             🔒 Alcanzaste el límite de 5 quizzes en el plan gratuito.
           </div>
         ) : null}
-        <button onClick={() => generarQuiz(false)} disabled={quizzesUsados >= 5} style={{ ...s.btn, background: quizzesUsados >= 5 ? 'rgba(108,99,255,0.3)' : 'linear-gradient(135deg, #6c63ff, #a78bfa)', cursor: quizzesUsados >= 5 ? 'not-allowed' : 'pointer' }}>
-          {quizzesUsados >= 5 ? '🔒 Límite alcanzado' : `🤖 Generar Quiz con IA (${5 - (quizzesUsados || 0)} restantes)`}
-        </button>
+        {evaluacion.quiz_generado && (
+          <button onClick={verQuizGuardado} style={{ ...s.btn, background: 'linear-gradient(135deg, #059669, #34d399)', marginBottom: 10 }}>
+            📋 Ver quiz generado
+          </button>
+        )}
+        {estado === 'cargando' ? (
+          <button disabled style={{ ...s.btn, background: 'rgba(108,99,255,0.5)', cursor: 'not-allowed' }}>
+            ⏳ {progresoMsg || 'Iniciando...'}
+          </button>
+        ) : (
+          <button onClick={() => generarQuiz(false)} disabled={quizzesUsados >= 5} style={{ ...s.btn, background: quizzesUsados >= 5 ? 'rgba(108,99,255,0.3)' : 'linear-gradient(135deg, #6c63ff, #a78bfa)', cursor: quizzesUsados >= 5 ? 'not-allowed' : 'pointer' }}>
+            {quizzesUsados >= 5 ? '🔒 Límite alcanzado' : `🤖 Generar Quiz con IA (${5 - (quizzesUsados || 0)} restantes)`}
+          </button>
+        )}
       </div>
     </div>
   )
 
-  if (estado === 'cargando') return (
-    <div style={{ ...s.container, textAlign: 'center', paddingTop: 80 }}>
+  if (estado === 'cargando' && !mostrarModal) return (
+    <div style={{ maxWidth: 700, margin: '0 auto', paddingTop: 80, textAlign: 'center' }}>
       <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
-      <p style={{ color: '#a78bfa', fontSize: 16 }}>Generando 20 preguntas con IA...</p>
-      <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>Esto puede tomar unos segundos</p>
+      <p style={{ color: '#a78bfa', fontSize: 16 }}>{progresoMsg || 'Generando 20 preguntas con IA...'}</p>
+      <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>Esto puede tomar unos minutos si hay videos largos</p>
+    </div>
+  )
+
+  if (estado === 'quiz' && preguntas.length === 0) return (
+    <div style={{ maxWidth: 700, margin: '0 auto', paddingTop: 80, textAlign: 'center' }}>
+      <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
+      <p style={{ color: '#a78bfa', fontSize: 16 }}>Cargando quiz...</p>
     </div>
   )
 

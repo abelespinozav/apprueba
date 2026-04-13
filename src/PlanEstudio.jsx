@@ -315,7 +315,7 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
   const totalTareas = plan?.tareas?.length || 0
   const numCompletadas = completadas.size
 
-  if (mostrandoQuiz) return <Quiz evaluacion={evaluacion} ramo={ramo} onBack={() => setMostrandoQuiz(false)} />
+  if (mostrandoQuiz) return <Quiz evaluacion={{ ...evaluacion, archivos: archivosGuardados }} ramo={ramo} onBack={() => setMostrandoQuiz(false)} />
 
   // Vista guía de tarea
   if (tareaActiva) return (
