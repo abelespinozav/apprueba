@@ -358,6 +358,22 @@ export default function OnboardingScreen({ user, onComplete, API }) {
                     </motion.button>
                     {error && <p style={{ color: '#ef4444', fontSize: 13, margin: '0 0 12px', textAlign: 'center' }}>{error}</p>}
                     <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12, textAlign: 'center', margin: 0 }}>Acepta imágenes, PDF y archivos Excel (.xls, .xlsx)</p>
+
+                    {universidad === 'ufro' && (
+                      <div style={{ marginTop: 14, background: 'rgba(0,100,200,0.08)', border: '1px solid rgba(0,150,255,0.2)', borderRadius: 12, padding: '12px 14px' }}>
+                        <p style={{ margin: '0 0 6px', fontWeight: 700, fontSize: 13, color: '#60a5fa' }}>🎓 Tip para estudiantes UFRO</p>
+                        <p style={{ margin: '0 0 8px', fontSize: 12, color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>Descarga tu horario en Excel desde la Intranet:</p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 10 }}>
+                          <span>1️⃣ Intranet → Alumno → Horarios</span>
+                          <span>2️⃣ Haz clic en <strong style={{ color: 'rgba(255,255,255,0.6)' }}>Exportar a Excel</strong></span>
+                          <span>3️⃣ Sube el archivo .xls aquí arriba ⬆️</span>
+                        </div>
+                        <a href="https://intranet.ufro.cl/alumno/ver_horario.php" target="_blank" rel="noopener noreferrer"
+                          style={{ display: 'inline-block', background: 'rgba(0,150,255,0.15)', border: '1px solid rgba(0,150,255,0.3)', borderRadius: 8, padding: '6px 12px', color: '#60a5fa', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
+                          🔗 Ir a Intranet UFRO →
+                        </a>
+                      </div>
+                    )}
                   </div>
                 )}
 

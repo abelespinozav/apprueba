@@ -423,14 +423,33 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
         <button onClick={() => abrirNuevoBloque('Lunes', '')} style={{ width: '100%', marginBottom: 12, padding: '10px', background: 'rgba(108,99,255,0.1)', border: '1px solid rgba(108,99,255,0.3)', borderRadius: 12, color: '#a5b4fc', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
           ➕ Agregar bloque manualmente
         </button>
-        <div onClick={() => inputRef.current.click()} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.04)', border: '1px dashed rgba(255,255,255,0.12)', borderRadius: 12, padding: '10px 14px', cursor: 'pointer', marginBottom: 16, transition: 'all 0.2s' }}>
+        <div onClick={() => inputRef.current.click()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, background: 'rgba(255,255,255,0.04)', border: '1px dashed rgba(255,255,255,0.12)', borderRadius: 12, padding: '10px 14px', cursor: 'pointer', marginBottom: 16, transition: 'all 0.2s' }}>
           <span style={{ fontSize: 18 }}>{extrayendo ? '⏳' : '📸'}</span>
-          <div>
+          <div style={{ textAlign: 'center' }}>
             <p style={{ margin: 0, fontWeight: 600, fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>{extrayendo ? 'Analizando...' : 'Importar desde foto, PDF o Excel'}</p>
             <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>La IA detecta tus ramos automáticamente</p>
           </div>
           <input ref={inputRef} type="file" accept="image/*,.pdf,.xls,.xlsx" style={{ display: 'none' }} onChange={handleImagen} />
         </div>
+
+        {/* Tip específico UFRO */}
+        {usuario?.universidad === 'ufro' && horario.length === 0 && (
+          <div style={{ background: 'rgba(0,100,200,0.08)', border: '1px solid rgba(0,150,255,0.2)', borderRadius: 12, padding: '12px 16px', marginBottom: 16 }}>
+            <p style={{ margin: '0 0 6px', fontWeight: 700, fontSize: 13, color: '#60a5fa' }}>🎓 Tip para estudiantes UFRO</p>
+            <p style={{ margin: '0 0 8px', fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>
+              Descarga tu horario en Excel desde la Intranet para importarlo automáticamente:
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 10 }}>
+              <span>1️⃣ Intranet → Alumno → Horarios</span>
+              <span>2️⃣ Haz clic en <strong style={{color:'rgba(255,255,255,0.6)'}}>Exportar a Excel</strong></span>
+              <span>3️⃣ Sube el archivo .xls aquí arriba ⬆️</span>
+            </div>
+            <a href="https://intranet.ufro.cl/alumno/ver_horario.php" target="_blank" rel="noopener noreferrer"
+              style={{ display: 'inline-block', background: 'rgba(0,150,255,0.15)', border: '1px solid rgba(0,150,255,0.3)', borderRadius: 8, padding: '6px 12px', color: '#60a5fa', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
+              🔗 Ir a Intranet UFRO →
+            </a>
+          </div>
+        )}
 
         {/* Preview bloques extraídos */}
         {bloquesPreview && (
@@ -493,44 +512,84 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
               ))
             ) : (
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
-                  <thead>
-                    <tr>
-                      <th style={{ padding: '6px 8px', fontSize: 11, color: 'rgba(255,255,255,0.4)', fontWeight: 700, textAlign: 'left', width: 80 }}>Hora</th>
-                      {diasConClases.map(d => (
-                        <th key={d} style={{ padding: '6px 4px', fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 700, textAlign: 'center' }}>{d.slice(0,3)}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(() => {
-                      const todasHoras = [...new Set(horario.map(h => h.hora_inicio).filter(Boolean))].sort()
-                      return todasHoras.map(hora => (
-                        <tr key={hora}>
-                          <td style={{ padding: '4px 8px', fontSize: 10, color: 'rgba(255,255,255,0.35)', borderTop: '1px solid rgba(255,255,255,0.05)', whiteSpace: 'nowrap', fontWeight: 600 }}>{hora}<br/><span style={{fontSize:10,opacity:0.5}}>{horario.find(h => h.hora_inicio === hora)?.hora_fin}</span></td>
-                          {diasConClases.map(dia => {
-                            const bloque = horario.find(h => h.dia === dia && h.hora_inicio === hora)
-                            const color = bloque ? getTipoColor(bloque.tipo) : null
-                            return (
-                              <td key={dia} style={{ padding: 3, borderTop: '1px solid rgba(255,255,255,0.05)', verticalAlign: 'top' }}>
-                                {bloque ? (
-                                  <div onClick={() => abrirEditar(bloque)} style={{ borderRadius: 8, padding: '5px 7px', background: color + '22', border: '1px solid ' + color + '55', cursor: 'pointer', minHeight: 44 }}>
-                                    <div style={{ fontSize: 10, fontWeight: 700, color: color, lineHeight: 1.3 }}>{bloque.ramo_nombre}</div>
-                                    {bloque.sala && <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>{bloque.sala}</div>}
+                {(() => {
+                  const HORA_INICIO = 8 * 60  // 08:00 en minutos
+                  const HORA_FIN = 21 * 60 + 30 // 21:30
+                  const TOTAL_MIN = HORA_FIN - HORA_INICIO
+                  const PX_POR_MIN = 1.2
+                  const ALTURA = TOTAL_MIN * PX_POR_MIN
+                  const COL_HORA = 52
+                  const toMin = h => { if (!h) return 0; const [hh,mm] = h.split(':').map(Number); return hh*60+(mm||0) }
+                  const horas = []
+                  for (let m = HORA_INICIO; m <= HORA_FIN; m += 30) {
+                    const hh = String(Math.floor(m/60)).padStart(2,'0')
+                    const mm = String(m%60).padStart(2,'0')
+                    horas.push(hh+':'+mm)
+                  }
+                  // deduplicar bloques por id
+                  const vistos = new Set()
+                  const horarioUnico = horario.filter(h => { if (vistos.has(h.id)) return false; vistos.add(h.id); return true })
+                  return (
+                    <div style={{ display: 'flex', minWidth: 340 }}>
+                      {/* Columna horas */}
+                      <div style={{ width: COL_HORA, flexShrink: 0, position: 'relative', height: ALTURA + 24 }}>
+                        <div style={{ height: 24 }} />
+                        <div style={{ position: 'relative', height: ALTURA }}>
+                          {horas.map(h => (
+                            <div key={h} style={{ position: 'absolute', top: (toMin(h) - HORA_INICIO) * PX_POR_MIN, left: 0, right: 0, fontSize: 9, color: 'rgba(255,255,255,0.3)', fontWeight: 600, paddingRight: 6, textAlign: 'right', lineHeight: 1 }}>{h}</div>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Columnas días */}
+                      {diasConClases.map(dia => {
+                        const bloquesDia = horarioUnico.filter(h => h.dia === dia)
+                        return (
+                          <div key={dia} style={{ flex: 1, minWidth: 60, display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.6)' }}>{dia.slice(0,3)}</div>
+                            <div style={{ position: 'relative', height: ALTURA, borderLeft: '1px solid rgba(255,255,255,0.06)' }}>
+                              {/* Líneas de hora */}
+                              {horas.map(h => (
+                                <div key={h} style={{ position: 'absolute', top: (toMin(h) - HORA_INICIO) * PX_POR_MIN, left: 0, right: 0, borderTop: '1px solid rgba(255,255,255,0.04)', cursor: 'pointer' }}
+                                  onClick={() => abrirNuevoBloque(dia, h, horas[horas.indexOf(h)+2] || '')}
+                                />
+                              ))}
+                              {/* Zona clickeable fondo */}
+                              <div style={{ position: 'absolute', inset: 0, cursor: 'pointer' }}
+                                onClick={e => {
+                                  const rect = e.currentTarget.getBoundingClientRect()
+                                  const y = e.clientY - rect.top
+                                  const minutos = Math.round(y / PX_POR_MIN / 10) * 10 + HORA_INICIO
+                                  const hh = String(Math.floor(minutos/60)).padStart(2,'0')
+                                  const mm = String(minutos%60).padStart(2,'0')
+                                  const horaClick = hh+':'+mm
+                                  const finMin = minutos + 60
+                                  const hf = String(Math.floor(finMin/60)).padStart(2,'0')
+                                  const mf = String(finMin%60).padStart(2,'0')
+                                  abrirNuevoBloque(dia, horaClick, hf+':'+mf)
+                                }}
+                              />
+                              {/* Bloques */}
+                              {bloquesDia.map(b => {
+                                const top = (toMin(b.hora_inicio) - HORA_INICIO) * PX_POR_MIN
+                                const dur = toMin(b.hora_fin) - toMin(b.hora_inicio)
+                                const height = Math.max(dur * PX_POR_MIN - 3, 20)
+                                const color = getTipoColor(b.tipo)
+                                return (
+                                  <div key={b.id} onClick={e => { e.stopPropagation(); abrirEditar(b) }}
+                                    style={{ position: 'absolute', top, left: 2, right: 2, height, borderRadius: 6, background: color + '25', border: '1px solid ' + color + '66', cursor: 'pointer', padding: '3px 5px', overflow: 'hidden', zIndex: 2 }}>
+                                    <div style={{ fontSize: 9, fontWeight: 800, color: color, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.ramo_nombre}</div>
+                                    <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', marginTop: 1 }}>{b.hora_inicio}–{b.hora_fin}</div>
+                                    {b.sala && <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)', marginTop: 1 }}>{b.sala}</div>}
                                   </div>
-                                ) : (
-                                  <div onClick={() => { const idx = todasHoras.indexOf(hora); const fin = todasHoras[idx+1] || ''; abrirNuevoBloque(dia, hora, fin) }} style={{ minHeight: 44, borderRadius: 8, border: '1px dashed rgba(255,255,255,0.08)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.1)', fontSize: 16, transition: 'all 0.15s' }}
-                                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(108,99,255,0.08)'; e.currentTarget.style.borderColor = 'rgba(108,99,255,0.3)'; e.currentTarget.style.color = 'rgba(108,99,255,0.5)' }}
-                                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(255,255,255,0.1)' }}>+</div>
-                                )}
-                              </td>
-                            )
-                          })}
-                        </tr>
-                      ))
-                    })()}
-                  </tbody>
-                </table>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })()}
               </div>
             )}
           </div>
@@ -569,7 +628,13 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
                 ))}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+            {!editandoBloque?._nuevo && (
+              <button onClick={async () => { if(window.confirm('¿Eliminar este bloque?')) { await eliminarBloque(editandoBloque.id); setEditandoBloque(null) } }}
+                style={{ width: '100%', marginTop: 16, padding: 12, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 12, color: '#f87171', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                🗑️ Eliminar bloque
+              </button>
+            )}
+            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
               <button onClick={() => setEditandoBloque(null)}
                 style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: 12, color: 'rgba(255,255,255,0.5)', fontSize: 14, cursor: 'pointer' }}>Cancelar</button>
               <button onClick={guardarEdicion} disabled={guardando || !formBloque.ramo_nombre.trim()}
@@ -584,7 +649,7 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
   )
 }
 
-function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usuario, onUniversidad, horario, esFundador, numeroRegistro }) {
+function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usuario, onUniversidad, horario, esFundador, numeroRegistro, onBorrarRamos }) {
   const [nuevo, setNuevo] = useState('')
   const [min, setMin] = useState('4.0')
   const [exim, setExim] = useState('')
@@ -816,6 +881,11 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
                 })}
               </div>
             </div>
+          )}
+          {ramos.length > 0 && !mostrando && (
+            <button onClick={onBorrarRamos} style={{ width: '100%', marginBottom: 10, padding: '12px', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.25)', borderRadius: 14, color: '#f87171', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+              🗑️ Eliminar todos los ramos
+            </button>
           )}
           {mostrando ? (
             <div style={{ background: 'var(--bg-secondary)', borderRadius: 20, padding: '20px', border: '1.5px solid rgba(108,99,255,0.3)', animation: 'slideUp 0.3s ease' }}>
@@ -1543,6 +1613,12 @@ export default function App() {
     return () => window.removeEventListener('ramos-actualizados', handler)
   }, [])
 
+  const borrarTodosRamos = async () => {
+    if (!window.confirm('¿Seguro que quieres eliminar todos tus ramos? Esta acción no se puede deshacer.')) return
+    await fetch(API + '/ramos/limpiar-todos', { method: 'DELETE', headers: authHeaders() })
+    setRamos([])
+  }
+
   const cargarRamos = async (token, refreshActivo = false) => {
     try {
       const res = await fetch(`${API}/ramos`, { headers: authHeaders({ 'Content-Type': 'application/json' }) })
@@ -1647,7 +1723,7 @@ export default function App() {
   if (pantalla === 'admin' && usuario?.email === 'abelespinozav@gmail.com') return <AdminScreen usuario={usuario} onBack={() => setPantalla('ramos')} />
   if (pantalla === 'login') return <LoginScreen onLogin={handleLogin} />
   if (pantalla === 'onboarding') return <OnboardingScreen user={usuario} API={API} onComplete={(u) => { setUsuario({ ...usuario, ...u, name: u.nombre }); const token = localStorage.getItem('token'); cargarRamos(token); setPantalla('ramos') }} />
-  if (pantalla === 'ramos') return <RamosScreen ramos={ramos} onSelect={r => { setRamoActivo(r); setPantalla('ramo') }} onAdd={handleAddRamo} onLogout={handleLogout} onAdmin={() => setPantalla('admin')} onHorario={() => setPantalla('horario')} usuario={usuario} onUniversidad={handleUniversidad} horario={horarioGlobal} esFundador={usuario?.es_fundador} numeroRegistro={usuario?.numero_registro} />
+  if (pantalla === 'ramos') return <RamosScreen ramos={ramos} onSelect={r => { setRamoActivo(r); setPantalla('ramo') }} onAdd={handleAddRamo} onLogout={handleLogout} onAdmin={() => setPantalla('admin')} onHorario={() => setPantalla('horario')} usuario={usuario} onUniversidad={handleUniversidad} horario={horarioGlobal} esFundador={usuario?.es_fundador} numeroRegistro={usuario?.numero_registro} onBorrarRamos={borrarTodosRamos} />
   if (pantalla === 'ramo' && ramoActivo) return <RamoScreen ramo={ramoActivo} onBack={() => setPantalla('ramos')} onUpdate={handleUpdateRamo} onDelete={handleDeleteRamo} onPlan={(ev) => { if (!ev || !ev.id) { alert('Error: evaluación inválida'); return; } setPlanEv(ev); setPantalla('plan') }} />
   if (pantalla === 'horario') return <HorarioScreen usuario={usuario} onBack={() => { cargarHorarioGlobal(); setPantalla('ramos') }} API={API} authHeaders={authHeaders} />
   if (pantalla === 'plan' && planEv && ramoActivo) return <PlanEstudio evaluacion={planEv} ramo={ramoActivo} onBack={async () => {
