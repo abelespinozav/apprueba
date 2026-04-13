@@ -18,6 +18,10 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
   const spinnerStyle = { display: 'inline-block', width: 12, height: 12, border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid white', borderRadius: '50%', animation: 'spin 0.8s linear infinite', marginRight: 6 }
   if (!document.getElementById('spin-style')) { const s = document.createElement('style'); s.id = 'spin-style'; s.textContent = '@keyframes spin { to { transform: rotate(360deg) } }'; document.head.appendChild(s) }
   const [archivos, setArchivos] = useState([])
+  const [youtubeUrls, setYoutubeUrls] = useState([])
+  const [youtubeInput, setYoutubeInput] = useState('')
+  const [mostrarModalMaterial, setMostrarModalMaterial] = useState(false)
+  const [progresoMsg, setProgresoMsg] = useState('')
   const [tareaActiva, setTareaActiva] = useState(null)
   const [guia, setGuia] = useState(null)
   const [mostrandoQuiz, setMostrandoQuiz] = useState(false)
@@ -57,36 +61,63 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
     setCompletadas(new Set())
   }
 
+  const agregarYoutubeUrl = () => {
+    const url = youtubeInput.trim()
+    if (url && (url.includes('youtube.com') || url.includes('youtu.be'))) {
+      setYoutubeUrls(prev => [...prev, url])
+      setYoutubeInput('')
+    }
+  }
+
   const generarPlan = async () => {
     setGenerando(true)
-    console.log('🔍 evaluacion completa:', JSON.stringify(evaluacion))
-    console.log('🔍 evaluacion.id:', evaluacion.id, typeof evaluacion.id)
+    setProgresoMsg('📋 Iniciando generación del plan...')
     try {
       const form = new FormData()
       archivos.forEach(f => form.append('archivo', f))
+      youtubeUrls.forEach(url => form.append('youtubeUrl', url))
+
       const res = await fetch(`${API}/evaluaciones/${evaluacion.id}/plan-estudio`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${getToken()}` },
         body: form
       })
-      if (res.ok) {
-        const data = await res.json()
-        setPlan(data)
-        setCompletadas(new Set())
-        if (plan) setPlanesUsados(prev => (prev || 0) + 1)
-      } else {
-        const err = await res.json()
-        if (err.error === 'limite_alcanzado') {
-          setPlanesUsados(3)
-          alert('🔒 Alcanzaste el límite de 3 regeneraciones de plan en el plan gratuito.')
-        } else if (err.error === 'sin_material') {
-          alert('📚 Debes subir tu material de estudio (PDF o Word) para generar el plan.')
-        } else if (err.error === 'archivo_no_legible') {
-          alert('⚠️ No pudimos leer tu archivo. Por favor sube un PDF o Word (.docx)')
-        } else if (err.error === 'archivo_muy_grande') {
-          alert('⚠️ Tu archivo es muy grande. El máximo permitido es 25MB.')
-        } else {
-          alert('Error: ' + (err.mensaje || err.error || 'No se pudo generar el plan'))
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop()
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          try {
+            const evento = JSON.parse(line.slice(6))
+            if (evento.tipo === 'progreso') {
+              setProgresoMsg(evento.msg)
+            } else if (evento.tipo === 'plan') {
+              setPlan(evento.plan)
+              setCompletadas(new Set())
+              if (plan) setPlanesUsados(prev => (prev || 0) + 1)
+            } else if (evento.tipo === 'error') {
+              if (evento.error === 'limite_alcanzado') {
+                setPlanesUsados(3)
+                alert('🔒 Alcanzaste el límite de 3 regeneraciones de plan en el plan gratuito.')
+              } else if (evento.error === 'sin_material') {
+                alert('📚 Debes subir tu material de estudio (PDF o Word) para generar el plan.')
+              } else if (evento.error === 'archivo_no_legible') {
+                alert('⚠️ No pudimos leer tu archivo. Por favor sube un PDF o Word (.docx)')
+              } else if (evento.error === 'archivo_muy_grande') {
+                alert('⚠️ Tu archivo es muy grande. El máximo permitido es 25MB.')
+              } else {
+                alert('Error: ' + (evento.mensaje || evento.error || 'No se pudo generar el plan'))
+              }
+            }
+          } catch(e) { /* ignorar líneas mal formadas */ }
         }
       }
     } catch (e) {
@@ -94,7 +125,9 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
       alert('Error generando plan')
     }
     setGenerando(false)
+    setProgresoMsg('')
     setArchivos([])
+    setYoutubeUrls([])
   }
 
   const toggleTarea = async (index) => {
@@ -163,6 +196,33 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
       const indices = Object.keys(evaluacion.guias_tareas).reduce((acc, k) => ({ ...acc, [k]: true }), {})
       setGuiasGeneradas(indices)
     }
+
+    // Polling: si el plan está generándose en background, consultar cada 5s
+    let pollingInterval = null
+    const verificarPlanListo = async () => {
+      try {
+        const res = await fetch(`${API}/evaluaciones/${evaluacion.id}/plan-estado`, { headers: authHeaders() })
+        if (!res.ok) return
+        const data = await res.json()
+        if (data.listo && data.plan && !plan) {
+          setPlan(data.plan)
+          setCompletadas(new Set())
+          setGenerando(false)
+          setProgresoMsg('')
+          clearInterval(pollingInterval)
+        } else if (!data.generando) {
+          clearInterval(pollingInterval)
+        }
+      } catch(e) {}
+    }
+
+    // Iniciar polling solo si no hay plan aún
+    if (!evaluacion.plan_estudio) {
+      verificarPlanListo()
+      pollingInterval = setInterval(verificarPlanListo, 5000)
+    }
+
+    return () => { if (pollingInterval) clearInterval(pollingInterval) }
   }, [evaluacion.id])
 
   const cargarContadores = async () => {
@@ -355,8 +415,61 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
   )
 
   // Vista principal del plan
+  const modalMaterial = (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 2000, display: mostrarModalMaterial ? 'flex' : 'none', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ background: '#1a1a2e', borderRadius: 20, padding: 24, width: '100%', maxWidth: 480, border: '1px solid rgba(108,99,255,0.3)', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h3 style={{ color: 'white', margin: 0, fontSize: 16, fontWeight: 700 }}>📚 Agregar material de estudio</h3>
+          <button onClick={() => setMostrarModalMaterial(false)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+        </div>
+
+        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>📎 Archivos</p>
+        <button onClick={() => fileRef.current.click()} style={{ width: '100%', background: 'rgba(108,99,255,0.1)', border: '1.5px dashed rgba(108,99,255,0.4)', borderRadius: 12, padding: 14, color: '#a78bfa', fontSize: 13, cursor: 'pointer', marginBottom: 8, textAlign: 'left' }}>
+          {archivos.length > 0 ? `📎 ${archivos.length} archivo(s) seleccionado(s) — click para cambiar` : '📎 Subir archivo (PDF, imagen, audio, video)'}
+        </button>
+        {archivos.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            {archivos.map((f, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(108,99,255,0.08)', borderRadius: 8, padding: '6px 10px', marginBottom: 4 }}>
+                <span style={{ flex: 1, fontSize: 12, color: 'rgba(255,255,255,0.7)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📄 {f.name}</span>
+                <button onClick={() => setArchivos(prev => prev.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>🎬 Videos de YouTube</p>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+          <input
+            type="text"
+            value={youtubeInput}
+            onChange={e => setYoutubeInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && agregarYoutubeUrl()}
+            placeholder="https://www.youtube.com/watch?v=..."
+            style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 10, padding: '10px 12px', color: 'white', fontSize: 13, outline: 'none' }}
+          />
+          <button onClick={agregarYoutubeUrl} style={{ background: '#f87171', border: 'none', borderRadius: 10, padding: '10px 16px', color: 'white', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>+</button>
+        </div>
+        {youtubeUrls.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            {youtubeUrls.map((url, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(248,113,113,0.08)', borderRadius: 8, padding: '6px 10px', marginBottom: 4 }}>
+                <span style={{ flex: 1, fontSize: 12, color: 'rgba(255,255,255,0.7)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🎬 {url}</span>
+                <button onClick={() => setYoutubeUrls(prev => prev.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <button onClick={() => setMostrarModalMaterial(false)} style={{ width: '100%', background: 'linear-gradient(135deg, #6c63ff, #8b5cf6)', border: 'none', borderRadius: 12, padding: 13, color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer', marginTop: 8 }}>
+          ✅ Listo ({archivos.length} archivo(s) + {youtubeUrls.length} video(s))
+        </button>
+      </div>
+    </div>
+  )
+
   return (
-    <div style={{ minHeight: '100vh', background: '#0a0a1a', paddingBottom: 100 }}>
+    <>{modalMaterial}<div style={{ minHeight: '100vh', background: '#0a0a1a', paddingBottom: 100 }}>
       <div style={{ background: 'linear-gradient(180deg, #1a1a2e 0%, #0a0a1a 100%)', padding: '56px 20px 24px' }}>
         <button onClick={onBack} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 12, padding: '8px 14px', color: 'rgba(255,255,255,0.6)', fontSize: 13, cursor: 'pointer', marginBottom: 20 }}>← Volver</button>
         <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', margin: '0 0 4px' }}>{ramo.nombre}</p>
@@ -429,7 +542,7 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
                 🧠 Hacer Quiz
               </button>
 
-              <input type="file" ref={fileRef} multiple accept=".pdf,.doc,.docx" style={{ display: 'none' }} onChange={e => setArchivos(Array.from(e.target.files))} />
+              <input type="file" ref={fileRef} multiple accept=".pdf,.doc,.docx,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.heic,.mp3,.m4a,.wav,.ogg,.mp4,.mov" style={{ display: 'none' }} onChange={e => setArchivos(Array.from(e.target.files))} />
               {archivosGuardados.length > 0 && (
                 <div style={{ marginBottom: 10 }}>
                   <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Material guardado</p>
@@ -444,11 +557,11 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
                   </div>
                 </div>
               )}
-              <button onClick={() => fileRef.current.click()} style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1.5px dashed rgba(108,99,255,0.3)', borderRadius: 12, padding: 10, color: '#a78bfa', fontSize: 13, cursor: 'pointer', marginBottom: 10 }}>
-                {archivos.length > 0 ? `📎 ${archivos.length} archivo(s)` : '📎 Subir material (opcional)'}
+              <button onClick={() => setMostrarModalMaterial(true)} style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1.5px dashed rgba(108,99,255,0.3)', borderRadius: 12, padding: 10, color: '#a78bfa', fontSize: 13, cursor: 'pointer', marginBottom: 10 }}>
+                {(archivos.length > 0 || youtubeUrls.length > 0) ? `📎 ${archivos.length} archivo(s) + 🎬 ${youtubeUrls.length} video(s)` : '📎 Agregar material (PDF, video, YouTube...)'}
               </button>
               <button onClick={generarPlan} disabled={generando || planesUsados >= limiteGlobal} style={{ width: '100%', background: (generando || planesUsados >= limiteGlobal) ? 'rgba(108,99,255,0.3)' : 'linear-gradient(135deg, #6c63ff, #8b5cf6)', border: 'none', borderRadius: 12, padding: 12, color: 'white', fontSize: 14, fontWeight: 700, cursor: (generando || planesUsados >= limiteGlobal) ? 'not-allowed' : 'pointer' }}>
-                {generando ? <><span style={spinnerStyle}></span>Generando...</> : planesUsados >= limiteGlobal ? '🔒 Límite de regeneraciones alcanzado' : `🤖 Regenerar plan con IA (${limiteGlobal - (planesUsados || 0)} restantes)`}
+                {generando ? <><span style={spinnerStyle}></span>{progresoMsg || 'Iniciando...'}</> : planesUsados >= limiteGlobal ? '🔒 Límite de regeneraciones alcanzado' : `🤖 Regenerar plan con IA (${limiteGlobal - (planesUsados || 0)} restantes)`}
               </button>
             </div>
           </>
@@ -457,7 +570,7 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
             <div style={{ fontSize: 48, marginBottom: 12 }}>🤖</div>
             <p style={{ fontSize: 16, fontWeight: 700, color: 'white', margin: '0 0 8px' }}>Genera tu plan de estudio</p>
             <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', margin: '0 0 20px', lineHeight: 1.5 }}>La IA creará 5 tareas priorizadas para prepararte para esta evaluación</p>
-            <input type="file" ref={fileRef} multiple accept=".pdf,.doc,.docx" style={{ display: 'none' }} onChange={e => setArchivos(Array.from(e.target.files))} />
+            <input type="file" ref={fileRef} multiple accept=".pdf,.doc,.docx,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.heic,.mp3,.m4a,.wav,.ogg,.mp4,.mov" style={{ display: 'none' }} onChange={e => setArchivos(Array.from(e.target.files))} />
             {archivosGuardados.length > 0 && (
               <div style={{ marginBottom: 12 }}>
                 <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Material guardado</p>
@@ -472,12 +585,18 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
                 </div>
               </div>
             )}
-            <button onClick={() => fileRef.current.click()} style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1.5px dashed rgba(108,99,255,0.3)', borderRadius: 12, padding: 12, color: '#a78bfa', fontSize: 13, cursor: 'pointer', marginBottom: 12 }}>
-              {archivos.length > 0 ? `📎 ${archivos.length} archivo(s) seleccionado(s)` : '📎 Subir material de estudio (opcional)'}
+            <button onClick={() => setMostrarModalMaterial(true)} style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1.5px dashed rgba(108,99,255,0.3)', borderRadius: 12, padding: 12, color: '#a78bfa', fontSize: 13, cursor: 'pointer', marginBottom: 12 }}>
+              {(archivos.length > 0 || youtubeUrls.length > 0) ? `📎 ${archivos.length} archivo(s) + 🎬 ${youtubeUrls.length} video(s)` : '📎 Agregar material (PDF, video, YouTube...)'}
             </button>
             <button onClick={generarPlan} disabled={generando} style={{ width: '100%', background: generando ? 'rgba(108,99,255,0.3)' : 'linear-gradient(135deg, #6c63ff, #8b5cf6)', border: 'none', borderRadius: 16, padding: 14, color: 'white', fontSize: 15, fontWeight: 700, cursor: generando ? 'not-allowed' : 'pointer', boxShadow: '0 4px 20px rgba(108,99,255,0.35)' }}>
-              {generando ? '⏳ Generando plan...' : '🤖 Generar plan con IA'}
+              {generando ? (progresoMsg || '⏳ Iniciando...') : '🤖 Generar plan con IA'}
             </button>
+            {generando && (
+              <div style={{ marginTop: 12, background: 'rgba(108,99,255,0.12)', border: '1px solid rgba(108,99,255,0.3)', borderRadius: 12, padding: '12px 16px', textAlign: 'center' }}>
+                <p style={{ margin: 0, fontSize: 13, color: '#a78bfa', fontWeight: 600 }}>💡 Puedes salir de la app</p>
+                <p style={{ margin: '4px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>Tu plan se está generando en segundo plano. Te notificaremos cuando esté listo.</p>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -504,6 +623,6 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
           </p>
         </div>
       )}
-    </div>
+    </div></>
   )
 }
