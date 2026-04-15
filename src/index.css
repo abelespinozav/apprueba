@@ -1,29 +1,81 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* Evitar zoom automático en inputs en iOS */
-input, textarea, select {
-  font-size: 16px !important;
+/* ===== APPRUEBA — NUEVO DISEÑO UX/UI ===== */
+:root {
+  --bg-primary: #0a1628;
+  --bg-secondary: #0f1f3d;
+  --bg-card: #132244;
+  --bg-header: #003087;
+  --color-primary: #2e7dd1;
+  --color-accent: #C9A84C;
+  --color-purple: #a78bfa;
+  --color-green: #34d399;
+  --color-red: #f87171;
+  --color-text: #ffffff;
+  --color-text-secondary: rgba(255,255,255,0.5);
+  --color-text-muted: rgba(255,255,255,0.3);
+  --color-border: rgba(255,255,255,0.08);
+  --color-border-primary: #003087;
+  --shadow-color: rgba(0,48,135,0.4);
+  --gradient-from: #003087;
+  --gradient-to: #0050cc;
+  --gradient: linear-gradient(135deg, var(--gradient-from) 0%, var(--gradient-to) 100%);
+  --color-secondary: #a78bfa;
+  --color-accent-yellow: #f5c400;
+  --color-accent-bg: rgba(0,48,135,0.3);
 }
 
-/* CSS Variables - tema por defecto (morado) */
-:root {
-  --bg-primary: #0a0a1a;
-  --bg-secondary: #1a1a2e;
-  --bg-card: #16213e;
-  --color-primary: #6c63ff;
-  --color-secondary: #a78bfa;
-  --color-accent: #8b5cf6;
-  --gradient-from: #6c63ff;
-  --gradient-to: #a78bfa;
-  --shadow-color: rgba(108,99,255,0.4);
-  --text-primary: #ffffff;
-  --text-secondary: rgba(255,255,255,0.6);
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg-primary);
+  color: var(--color-text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+input, select, textarea, button { font-family: inherit; }
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+@keyframes slideUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+@keyframes confettiFall { 0%{transform:translateY(-10px) rotate(0deg);opacity:1} 100%{transform:translateY(100vh) rotate(720deg);opacity:0} }
+@keyframes orbMove1 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(40px,30px)} }
+@keyframes orbMove2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-30px,40px)} }
+@keyframes orbMove3 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(20px,-30px)} }
+@keyframes xpPop { 0%{transform:scale(0.5);opacity:0} 60%{transform:scale(1.15)} 100%{transform:scale(1);opacity:1} }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+
+/* ===== TEMA CLARO - Cards y utilidades ===== */
+.card-white {
+  background: var(--bg-card);
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+  border: 1px solid var(--color-border);
 }
 
 body {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  transition: background-color 0.4s ease, color 0.4s ease;
+  background: var(--bg-primary);
+  color: var(--color-text);
+  transition: background 0.3s, color 0.3s;
 }
+
+/* Inputs en tema claro */
+input, textarea, select {
+  color: var(--color-text) !important;
+  background: var(--bg-card) !important;
+  border-color: var(--color-border) !important;
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--color-text-muted) !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 99px; }

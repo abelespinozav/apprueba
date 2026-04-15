@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import PanelNotificaciones from './Notificaciones'
 import { motion, AnimatePresence } from 'framer-motion'
 import PlanEstudio from './PlanEstudio'
+import Quiz from './Quiz'
 import OnboardingScreen from './OnboardingScreen.jsx'
 import { useTheme } from './useTheme'
 
@@ -73,7 +74,7 @@ function BadgeFecha({ fecha }) {
   if (dias === 1) return <span style={{ fontSize: 10, background: 'rgba(239,68,68,0.2)', color: '#f87171', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>¡Mañana!</span>
   if (dias <= 7) return <span style={{ fontSize: 10, background: 'rgba(239,68,68,0.15)', color: '#f87171', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>En {dias} días</span>
   if (dias <= 14) return <span style={{ fontSize: 10, background: 'rgba(245,158,11,0.15)', color: '#fbbf24', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>En {dias} días</span>
-  return <span style={{ fontSize: 10, background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>En {dias} días</span>
+  return <span style={{ fontSize: 10, background: 'var(--bg-secondary)', color: 'var(--color-text-secondary)', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>En {dias} días</span>
 }
 
 function BackgroundOrbs() {
@@ -150,12 +151,584 @@ function TipInteligente({ ramos }) {
   return (
     <div style={{ background: `linear-gradient(135deg, ${tip.color}18, ${tip.color}08)`, border: `1px solid ${tip.color}30`, borderRadius: 16, padding: '14px 16px', marginBottom: 20 }}>
       <p style={{ fontSize: 10, fontWeight: 700, color: tip.color, letterSpacing: 1, margin: '0 0 6px', textTransform: 'uppercase' }}>💡 Tip para ti</p>
-      <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', margin: 0, lineHeight: 1.5 }}>{tip.icon} {tip.text}</p>
+      <p style={{ fontSize: 13, color: 'var(--color-text)', margin: 0, lineHeight: 1.5 }}>{tip.icon} {tip.text}</p>
+    </div>
+  )
+}
+
+
+
+// ============================================================
+// HOME SCREEN (Dashboard)
+// ============================================================
+const diasRestantes = (fecha) => {
+  if (!fecha) return null
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+  const f = new Date(fecha + 'T00:00:00')
+  return Math.round((f - hoy) / (1000 * 60 * 60 * 24))
+}
+
+function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVerRamo, onHorario, onVerHorario }) {
+  const hoy = new Date()
+  const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado']
+  const diaHoy = dias[hoy.getDay()]
+  const ahora = hoy.getHours() * 60 + hoy.getMinutes()
+  const toMin = t => { if (!t) return 0; const [h, m] = t.split(':').map(Number); return h * 60 + m }
+
+  const ramosConNotas = ramos.filter(r => (r.evaluaciones || []).some(e => e.nota !== null && e.nota !== undefined && e.nota !== ''))
+  const promedioGlobal = ramosConNotas.length > 0
+    ? ramosConNotas.reduce((acc, r) => {
+        const evs = (r.evaluaciones || []).map(e => ({ ...e, ponderacion: parseFloat(e.ponderacion) || 0 }))
+        const calc = calcular(evs, r.min_aprobacion, r)
+        return acc + (calc?.promedio || 0)
+      }, 0) / ramosConNotas.length
+    : null
+
+  const aprobados = ramos.filter(r => {
+    const evs = (r.evaluaciones || []).map(e => ({ ...e, ponderacion: parseFloat(e.ponderacion) || 0 }))
+    const calc = evs.length > 0 ? calcular(evs, r.min_aprobacion, r) : null
+    return calc?.estado === 'aprobado' || calc?.estado === 'eximido'
+  }).length
+
+  const enRiesgo = ramos.filter(r => {
+    const evs = (r.evaluaciones || []).map(e => ({ ...e, ponderacion: parseFloat(e.ponderacion) || 0 }))
+    const calc = evs.length > 0 ? calcular(evs, r.min_aprobacion, r) : null
+    return calc?.necesaria > 6 || calc?.estado === 'reprobado_imposible' || calc?.estado === 'imposible'
+  })
+
+  const clasesHoy = (horario || [])
+    .filter(h => h.dia?.toLowerCase() === diaHoy)
+    .sort((a, b) => (a.hora_inicio || '').localeCompare(b.hora_inicio || ''))
+  const claseActual = clasesHoy.find(h => toMin(h.hora_inicio) <= ahora && toMin(h.hora_fin) > ahora)
+
+  const proximas = ramos.flatMap(r =>
+    (r.evaluaciones || [])
+      .filter(e => e.fecha && (e.nota === null || e.nota === undefined || e.nota === ''))
+      .map(e => ({ ...e, ramoNombre: r.nombre, ramoId: r.id }))
+  ).filter(e => { const d = diasRestantes(e.fecha); return d !== null && d >= 0 })
+   .sort((a, b) => diasRestantes(a.fecha) - diasRestantes(b.fecha)).slice(0, 5)
+
+  const xpTotal = ramos.reduce((acc, r) => acc + (r.evaluaciones||[]).filter(e => e.nota).length * 80, 0) + (esFundador ? 500 : 0)
+  const nivel = Math.floor(xpTotal / 500) + 1
+  const xpNivel = xpTotal % 500
+  const xpSiguiente = 500
+  const nivelLabel = nivel <= 1 ? 'Novato' : nivel <= 2 ? 'Estudiante' : nivel <= 3 ? 'Dedicado' : nivel <= 4 ? 'Experto' : 'Maestro'
+
+  const logros = [
+    { id: 'primera_nota', icon: '🎯', label: 'Primera Nota', desbloqueado: ramos.some(r => (r.evaluaciones||[]).some(e => e.nota)) },
+    { id: 'fundador', icon: '👑', label: 'Fundador', desbloqueado: esFundador },
+    { id: 'aprobado', icon: '✅', label: '1er Aprobado', desbloqueado: aprobados > 0 },
+    { id: 'quiz_master', icon: '🧠', label: 'Quiz Master', desbloqueado: false },
+    { id: 'nota7', icon: '⭐', label: 'Nota 7.0', desbloqueado: ramos.some(r => (r.evaluaciones||[]).some(e => parseFloat(e.nota) === 7)) },
+    { id: 'podcast', icon: '🎙️', label: 'Podcast Pro', desbloqueado: false },
+  ]
+
+  return (
+    <div style={{ background: 'var(--bg-primary)', paddingBottom: 20, paddingTop: 130 }}>
+      <div style={{ padding: '16px' }}>
+        {/* XP Bar */}
+        <div style={{ background: 'var(--bg-card)', borderRadius: 16, padding: '14px 16px', marginBottom: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: '1px solid var(--color-border)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 18 }}>⚡</span>
+              <div>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: 'var(--color-text)' }}>Nivel {nivel} — {nivelLabel}</p>
+                <p style={{ margin: 0, fontSize: 11, color: 'var(--color-text-secondary)' }}>{xpTotal} XP totales</p>
+              </div>
+            </div>
+            <span style={{ fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600 }}>{xpSiguiente - xpNivel} XP para Nv.{nivel + 1}</span>
+          </div>
+          <div style={{ background: 'var(--bg-secondary)', borderRadius: 99, height: 8, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${(xpNivel / xpSiguiente) * 100}%`, background: 'linear-gradient(90deg, var(--gradient-from), var(--gradient-to))', borderRadius: 99, transition: 'width 0.6s ease' }} />
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
+          {[
+            { icon: '📊', value: promedioGlobal !== null ? promedioGlobal.toFixed(1) : '—', label: 'Promedio', color: promedioGlobal >= 4 ? '#4ade80' : promedioGlobal !== null ? '#f87171' : 'var(--color-primary)' },
+            { icon: '🔥', value: `${proximas.length}`, label: proximas.length === 1 ? 'Evaluación' : 'Evaluaciones', color: proximas.length > 0 ? '#f97316' : '#4ade80' },
+            { icon: '✅', value: `${aprobados}/${ramos.length}`, label: 'Aprobados', color: '#4ade80' },
+          ].map((s, i) => (
+            <div key={i} style={{ background: 'var(--bg-card)', borderRadius: 14, padding: '12px 8px', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid var(--color-border)' }}>
+              <div style={{ fontSize: 20 }}>{s.icon}</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: s.color, margin: '4px 0 2px', lineHeight: 1 }}>{s.value}</div>
+              <div style={{ fontSize: 10, color: 'var(--color-text-secondary)', fontWeight: 600 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Alerta riesgo */}
+        {enRiesgo.length > 0 && (
+          <div style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 14, padding: '12px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 22 }}>⚠️</span>
+            <div>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#d97706' }}>{enRiesgo.length} ramo{enRiesgo.length > 1 ? 's' : ''} en riesgo</p>
+              <p style={{ margin: 0, fontSize: 11, color: '#92400e' }}>Genera un plan de estudio con IA</p>
+            </div>
+          </div>
+        )}
+
+        {/* Clases de hoy */}
+        {clasesHoy.length > 0 && (
+          <div style={{ background: 'var(--bg-card)', borderRadius: 16, padding: '14px 16px', marginBottom: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: '1px solid var(--color-border)' }}>
+            <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 800, color: 'var(--color-text)' }}>📅 Hoy — {diaHoy.charAt(0).toUpperCase() + diaHoy.slice(1)}</p>
+            {clasesHoy.map((c, i) => {
+              const esActual = claseActual?.id === c.id
+              return (
+                <div key={c.id || i} onClick={onVerHorario} style={{ display: 'flex', gap: 12, alignItems: 'center', cursor: 'pointer', paddingBottom: i < clasesHoy.length - 1 ? 10 : 0, borderBottom: i < clasesHoy.length - 1 ? '1px solid var(--color-border)' : 'none', marginBottom: i < clasesHoy.length - 1 ? 10 : 0, background: esActual ? 'rgba(0,48,135,0.08)' : 'transparent', borderRadius: esActual ? 10 : 0, padding: esActual ? '8px 10px' : undefined, borderLeft: esActual ? '3px solid var(--color-primary)' : '3px solid transparent' }}>
+                  <div style={{ fontSize: 12, color: 'var(--color-text-muted)', width: 44, flexShrink: 0 }}>{c.hora_inicio}</div>
+                  <div style={{ width: 3, height: 36, background: esActual ? '#4ade80' : 'var(--color-primary)', borderRadius: 2, flexShrink: 0 }} />
+                  <div style={{ flex: 1 }}>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>{c.ramo_nombre}</p>
+                    <p style={{ margin: 0, fontSize: 11, color: 'var(--color-text-secondary)' }}>{c.hora_inicio}–{c.hora_fin}{c.sala ? ` · ${c.sala}` : ''}</p>
+                    {esActual && <span style={{ fontSize: 10, fontWeight: 700, color: 'white', background: 'var(--color-primary)', borderRadius: 6, padding: '1px 7px', marginTop: 3, display: 'inline-block' }}>● EN CURSO</span>}
+                    {!esActual && clasesHoy.indexOf(c) === clasesHoy.findIndex(x => toMin(x.hora_inicio) > ahora) && <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--color-primary)', background: 'rgba(0,48,135,0.08)', borderRadius: 6, padding: '1px 7px', marginTop: 3, display: 'inline-block' }}>PRÓXIMA</span>}
+                  </div>
+                </div>
+              )
+            })}
+
+          </div>
+        )}
+
+        {/* Próximas evaluaciones */}
+        {proximas.length > 0 && (
+          <div style={{ background: 'var(--bg-card)', borderRadius: 16, overflow: 'hidden', marginBottom: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: '1px solid var(--color-border)' }}>
+            <p style={{ margin: 0, padding: '14px 16px 10px', fontSize: 13, fontWeight: 800, color: 'var(--color-text)' }}>🗓️ Próximas Evaluaciones</p>
+            {proximas.map((ev, i) => {
+              const d = diasRestantes(ev.fecha)
+              const urgente = d <= 3
+              const pronto = d <= 7
+              return (
+                <div key={i} onClick={() => onVerRamo && onVerRamo(ev, ev.id)} style={{ padding: '10px 16px', borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
+                  <div>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>{ev.nombre}</p>
+                    <p style={{ margin: 0, fontSize: 11, color: 'var(--color-text-secondary)' }}>{ev.ramoNombre}</p>
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'white', background: urgente ? '#f87171' : pronto ? '#fbbf24' : 'var(--color-text-muted)', padding: '4px 10px', borderRadius: 20, minWidth: 48, textAlign: 'center' }}>
+                    {d === 0 ? '¡Hoy!' : d === 1 ? 'Mañana' : `${d}d`}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Logros */}
+        <div style={{ background: 'var(--bg-card)', borderRadius: 16, padding: '14px 16px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: '1px solid var(--color-border)' }}>
+          <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 800, color: 'var(--color-text)' }}>🏆 Logros</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+            {logros.map(l => (
+              <div key={l.id} style={{ background: 'var(--bg-secondary)', borderRadius: 12, padding: '12px 8px', textAlign: 'center', opacity: l.desbloqueado ? 1 : 0.4, filter: l.desbloqueado ? 'none' : 'grayscale(1)', border: '1px solid var(--color-border)' }}>
+                <div style={{ fontSize: 26, marginBottom: 4 }}>{l.icon}</div>
+                <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: 'var(--color-text)' }}>{l.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+// ============================================================
+// QUIZ TAB (selector de ramo para iniciar quiz)
+// ============================================================
+function PlanTab({ ramos, onIniciarPlan }) {
+  const [ramoExpandido, setRamoExpandido] = useState(null)
+  const [evalSinMaterial, setEvalSinMaterial] = useState(null)
+
+  return (
+    <div style={{ padding: '140px 16px 100px', background: 'var(--bg-primary)', minHeight: '100vh' }}>
+      <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--color-text)', margin: '0 0 4px' }}>🧠 Plan IA</h2>
+      <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', margin: '0 0 20px' }}>Elige un ramo y una evaluación para generar tu plan de estudio</p>
+
+      {ramos.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>📚</div>
+          <p style={{ color: 'var(--color-text-secondary)', fontSize: 14 }}>Agrega ramos primero para generar un plan</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 32 }}>
+          {ramos.map(r => (
+            <div key={r.id}>
+              <div onClick={() => setRamoExpandido(ramoExpandido === r.id ? null : r.id)}
+                style={{ background: 'var(--bg-card)', borderRadius: ramoExpandido === r.id ? '16px 16px 0 0' : 16, padding: '16px', cursor: 'pointer', border: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
+                <div>
+                  <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--color-text)' }}>{r.nombre}</p>
+                  <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--color-text-secondary)' }}>{(r.evaluaciones||[]).length} evaluaciones</p>
+                </div>
+                <span style={{ fontSize: 16, color: 'var(--color-primary)', transition: 'transform 0.2s', display: 'inline-block', transform: ramoExpandido === r.id ? 'rotate(90deg)' : 'none' }}>▶</span>
+              </div>
+              {ramoExpandido === r.id && (
+                <div style={{ background: 'var(--bg-card)', borderRadius: '0 0 16px 16px', border: '1px solid var(--color-border)', borderTop: 'none', overflow: 'hidden' }}>
+                  {(r.evaluaciones||[]).length === 0 ? (
+                    <p style={{ padding: '12px 16px', margin: 0, fontSize: 13, color: 'var(--color-text-secondary)' }}>Sin evaluaciones en este ramo</p>
+                  ) : (
+                    (r.evaluaciones||[]).map(ev => (
+                      <div key={ev.id} onClick={() => {
+                        const tieneMaterial = (ev.archivos && ev.archivos.length > 0) || ev.texto_material
+                        if (!tieneMaterial) { setEvalSinMaterial({ ramo: r, ev }); return }
+                        onIniciarPlan(r, ev)
+                      }}
+                        style={{ padding: '12px 16px', borderTop: '1px solid var(--color-border)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(var(--color-primary-rgb),0.08)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                        <div>
+                          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>{ev.nombre}</p>
+                          <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--color-text-secondary)' }}>
+                            {ev.plan_estudio ? '✅ Plan generado' : '📋 Sin plan aún'} · {ev.tipo || 'Evaluación'}
+                          </p>
+                        </div>
+                        <span style={{ fontSize: 18 }}>🧠</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Modal sin material */}
+      {evalSinMaterial && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ background: 'var(--bg-card)', borderRadius: 20, padding: 24, maxWidth: 340, width: '100%', border: '1px solid var(--color-border)' }}>
+            <div style={{ fontSize: 40, textAlign: 'center', marginBottom: 12 }}>📭</div>
+            <h3 style={{ color: 'var(--color-text)', fontSize: 16, fontWeight: 800, textAlign: 'center', margin: '0 0 8px' }}>Sin material de estudio</h3>
+            <p style={{ color: 'var(--color-text-secondary)', fontSize: 13, textAlign: 'center', margin: '0 0 20px' }}>
+              <strong>{evalSinMaterial.ev.nombre}</strong> no tiene archivos cargados. Debes subir material para generar el plan.
+            </p>
+            <label style={{ display: 'block', textAlign: 'center', background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', color: '#fff', borderRadius: 10, padding: '11px', fontSize: 13, fontWeight: 700, cursor: 'pointer', marginBottom: 10 }}>
+              📎 Subir material
+              <input type="file" accept=".pdf,.docx,.txt,.pptx" style={{ display: 'none' }} onChange={async (e) => {
+                const file = e.target.files[0]
+                if (!file) return
+                const fd = new FormData()
+                fd.append('archivo', file)
+                const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+                const r = await fetch(`${API}/evaluaciones/${evalSinMaterial.ev.id}/archivos`, {
+                  method: 'POST',
+                  headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                  body: fd
+                })
+                if (r.ok) {
+                  alert('✅ Material subido. Ahora puedes generar el plan.')
+                  onIniciarPlan(evalSinMaterial.ramo, { ...evalSinMaterial.ev, archivos: [{ nombre: file.name }] })
+                  setEvalSinMaterial(null)
+                } else {
+                  alert('❌ Error al subir el archivo.')
+                }
+              }} />
+            </label>
+            <button onClick={() => setEvalSinMaterial(null)} style={{ width: '100%', padding: '10px', borderRadius: 10, border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text)', fontSize: 13, cursor: 'pointer' }}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function QuizTab({ ramos, onIniciarQuiz }) {
+  const [historial, setHistorial] = useState([])
+  const [ramoExpandido, setRamoExpandido] = useState(null)
+  const [evalSinMaterial, setEvalSinMaterial] = useState(null) // { ramo, ev }
+  const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  const getToken = () => localStorage.getItem('token')
+
+  useEffect(() => {
+    fetch(`${API}/quiz/historial`, { headers: { 'Authorization': `Bearer ${getToken()}` } })
+      .then(r => r.json())
+      .then(data => Array.isArray(data) && setHistorial(data))
+      .catch(() => {})
+  }, [])
+
+  return (
+    <div style={{ padding: '140px 16px 100px', background: 'var(--bg-primary)', minHeight: '100vh' }}>
+      <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--color-text)', margin: '0 0 4px' }}>⚡ Quiz Rápido</h2>
+      <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', margin: '0 0 20px' }}>Elige un ramo y una evaluación para practicar</p>
+
+      {ramos.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>📚</div>
+          <p style={{ color: 'var(--color-text-secondary)', fontSize: 14 }}>Agrega ramos primero para poder hacer quiz</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 32 }}>
+          {ramos.map(r => (
+            <div key={r.id}>
+              <div onClick={() => setRamoExpandido(ramoExpandido === r.id ? null : r.id)}
+                style={{ background: 'var(--bg-card)', borderRadius: ramoExpandido === r.id ? '16px 16px 0 0' : 16, padding: '16px', cursor: 'pointer', border: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
+                <div>
+                  <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--color-text)' }}>{r.nombre}</p>
+                  <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--color-text-secondary)' }}>{(r.evaluaciones||[]).length} evaluaciones</p>
+                </div>
+                <span style={{ fontSize: 16, color: 'var(--color-primary)', transition: 'transform 0.2s', display: 'inline-block', transform: ramoExpandido === r.id ? 'rotate(90deg)' : 'none' }}>▶</span>
+              </div>
+              {ramoExpandido === r.id && (
+                <div style={{ background: 'var(--bg-card)', borderRadius: '0 0 16px 16px', border: '1px solid var(--color-border)', borderTop: 'none', overflow: 'hidden' }}>
+                  {(r.evaluaciones||[]).length === 0 ? (
+                    <p style={{ padding: '12px 16px', margin: 0, fontSize: 13, color: 'var(--color-text-secondary)' }}>Sin evaluaciones en este ramo</p>
+                  ) : (
+                    (r.evaluaciones||[]).map(ev => (
+                      <div key={ev.id} onClick={() => {
+                        const tieneArchivos = ev.archivos && ev.archivos.length > 0
+                        const tieneMaterial = tieneArchivos || ev.texto_material
+                        if (!tieneMaterial) { setEvalSinMaterial({ ramo: r, ev }); return }
+                        onIniciarQuiz(r, ev)
+                      }}
+                        style={{ padding: '12px 16px', borderTop: '1px solid var(--color-border)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(var(--color-primary-rgb),0.08)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                        <div>
+                          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>{ev.nombre}</p>
+                          <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--color-text-secondary)' }}>{ev.tipo || 'Evaluación'}</p>
+                        </div>
+                        <span style={{ fontSize: 18 }}>⚡</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Modal sin material */}
+      {evalSinMaterial && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ background: 'var(--bg-card)', borderRadius: 20, padding: 24, maxWidth: 340, width: '100%', border: '1px solid var(--color-border)' }}>
+            <div style={{ fontSize: 40, textAlign: 'center', marginBottom: 12 }}>📭</div>
+            <h3 style={{ color: 'var(--color-text)', fontSize: 16, fontWeight: 800, textAlign: 'center', margin: '0 0 8px' }}>Sin material de estudio</h3>
+            <p style={{ color: 'var(--color-text-secondary)', fontSize: 13, textAlign: 'center', margin: '0 0 20px' }}>
+              <strong>{evalSinMaterial.ev.nombre}</strong> no tiene archivos cargados. Debes subir material para poder generar el quiz.
+            </p>
+            <label style={{ display: 'block', textAlign: 'center', background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', color: '#fff', borderRadius: 10, padding: '11px', fontSize: 13, fontWeight: 700, cursor: 'pointer', marginBottom: 10 }}>
+              📎 Subir material
+              <input type="file" accept=".pdf,.docx,.txt,.pptx" style={{ display: 'none' }} onChange={async (e) => {
+                const file = e.target.files[0]
+                if (!file) return
+                const fd = new FormData()
+                fd.append('archivo', file)
+                const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+                const r = await fetch(`${API}/evaluaciones/${evalSinMaterial.ev.id}/archivos`, {
+                  method: 'POST',
+                  headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                  body: fd
+                })
+                if (r.ok) {
+                  alert('✅ Material subido correctamente. Ahora puedes generar el quiz.')
+                  onIniciarQuiz(evalSinMaterial.ramo, { ...evalSinMaterial.ev, archivos: [{ nombre: file.name }] })
+                  setEvalSinMaterial(null)
+                } else {
+                  alert('❌ Error al subir el archivo. Intenta de nuevo.')
+                }
+              }} />
+            </label>
+            <button onClick={() => setEvalSinMaterial(null)} style={{ width: '100%', padding: '10px', borderRadius: 10, border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text)', fontSize: 13, cursor: 'pointer' }}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Historial */}
+      <div>
+        <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text)', margin: '0 0 12px' }}>📋 Historial de quizzes</h3>
+        {historial.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '24px 20px', background: 'var(--bg-card)', borderRadius: 16, border: '1px solid var(--color-border)' }}>
+            <p style={{ color: 'var(--color-text-secondary)', fontSize: 13, margin: 0 }}>Aún no has hecho ningún quiz</p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {historial.map(h => {
+              const color = h.porcentaje >= 70 ? '#4ade80' : h.porcentaje >= 50 ? '#fbbf24' : '#f87171'
+              const emoji = h.porcentaje >= 70 ? '🎉' : h.porcentaje >= 50 ? '😅' : '📚'
+              const fecha = new Date(h.created_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })
+              return (
+                <div key={h.id} style={{ background: 'var(--bg-card)', borderRadius: 14, padding: '12px 16px', border: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>{emoji} {h.ramo_nombre}</p>
+                    <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--color-text-secondary)' }}>{fecha} · {h.puntaje}/{h.total} correctas</p>
+                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color }}>{h.porcentaje}%</div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// PERFIL TAB
+// ============================================================
+function PerfilTab({ usuario, onLogout, onUniversidad, esFundador, numeroRegistro }) {
+  const uni = usuario?.universidad || ''
+  const uniLabel = uni === 'ufro' ? 'UFRO' : uni === 'uchile' ? 'U. Chile' : uni === 'puc' ? 'PUC' : uni === 'usach' ? 'USACH' : uni ? uni.toUpperCase() : 'Sin universidad'
+  const inicial = (usuario?.nombre || usuario?.name || 'U')[0].toUpperCase()
+
+  return (
+    <div style={{ padding: '140px 16px 100px', background: 'var(--bg-primary)', minHeight: '100vh' }}>
+      {/* Avatar */}
+      <div style={{ textAlign: 'center', marginBottom: 24 }}>
+        <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 800, color: 'white', margin: '0 auto 12px' }}>{inicial}</div>
+        <p style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--color-text)' }}>{usuario?.nombre || usuario?.name || 'Estudiante'}</p>
+        <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--color-text-secondary)' }}>{usuario?.email}</p>
+        {esFundador && (
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 20, padding: '4px 12px', fontSize: 12, color: '#C9A84C', fontWeight: 700, marginTop: 8 }}>
+            🏅 Fundador #{numeroRegistro}
+          </div>
+        )}
+      </div>
+
+      {/* Info */}
+      <div style={{ background: 'var(--bg-card)', borderRadius: 16, overflow: 'hidden', border: '1px solid var(--color-border)', marginBottom: 16 }}>
+        {[
+          { label: 'Universidad', value: uniLabel, icon: '🎓' },
+          { label: 'Miembro desde', value: usuario?.created_at ? new Date(usuario.created_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' }) : '—', icon: '📅' },
+        ].map((item, i, arr) => (
+          <div key={i} style={{ padding: '14px 16px', borderBottom: i < arr.length - 1 ? '1px solid var(--color-border)' : 'none', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 18 }}>{item.icon}</span>
+            <div>
+              <p style={{ margin: 0, fontSize: 11, color: 'var(--color-text-secondary)' }}>{item.label}</p>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--color-text)' }}>{item.value}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Cambiar universidad */}
+      <button onClick={() => onUniversidad('cambiar')} style={{ width: '100%', background: 'var(--bg-card)', border: '1px solid var(--color-border)', borderRadius: 16, padding: '14px 16px', color: 'var(--color-primary)', fontSize: 14, fontWeight: 600, cursor: 'pointer', marginBottom: 10, textAlign: 'left' }}>
+        🏫 Cambiar universidad
+      </button>
+
+      {/* Logout */}
+      <button onClick={onLogout} style={{ width: '100%', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.25)', borderRadius: 16, padding: '14px 16px', color: '#f87171', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+        🚪 Cerrar sesión
+      </button>
+    </div>
+  )
+}
+
+// ============================================================
+// BOTTOM NAV
+// ============================================================
+function BottomNav({ tab, setTab, setPantalla }) {
+  const tabs = [
+    { id: 'home', icon: '🏠', label: 'Inicio' },
+    { id: 'ramos', icon: '📚', label: 'Ramos' },
+    { id: 'plan', icon: '🧠', label: 'Plan IA' },
+    { id: 'quiz', icon: '⚡', label: 'Quiz' },
+    { id: 'horario', icon: '🗓', label: 'Horario' },
+    { id: 'perfil', icon: '👤', label: 'Perfil' },
+  ]
+  return (
+    <div style={{
+      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1000,
+      background: 'var(--bg-card)',
+      borderTop: '1px solid var(--color-border)',
+      display: 'flex', justifyContent: 'space-around', alignItems: 'center',
+      padding: '8px 0 16px',
+      boxShadow: '0 -4px 20px rgba(0,0,0,0.08)'
+    }}>
+      {tabs.map(t => (
+        <button key={t.id} onClick={() => { setTab(t.id); setPantalla && setPantalla('ramos') }} style={{
+          background: 'none', border: 'none', cursor: 'pointer',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+          padding: '4px 8px',
+          opacity: 1,
+          transition: 'all 0.2s',
+          minWidth: 56
+        }}>
+          <div style={{
+            background: tab === t.id ? 'var(--color-primary)' : 'transparent',
+            borderRadius: 12,
+            padding: tab === t.id ? '4px 16px' : '4px 16px',
+            transition: 'all 0.2s',
+            display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}>
+            <span style={{ fontSize: 22 }}>{t.icon}</span>
+          </div>
+          <span style={{
+            fontSize: 10, fontWeight: tab === t.id ? 700 : 500,
+            color: tab === t.id ? 'var(--color-primary)' : 'var(--color-text)',
+          }}>{t.label}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// ============================================================
+// APP HEADER
+// ============================================================
+function AppHeader({ usuario, esFundador, numeroRegistro, evalProximas3dias, onNotif, onPerfil, onAdmin, onLogout }) {
+  const uni = usuario?.universidad || ''
+  const uniLabel = uni === 'ufro' ? 'UFRO' : uni === 'uchile' ? 'U. Chile' : uni === 'puc' ? 'PUC' : uni === 'usach' ? 'USACH' : uni ? uni.toUpperCase() : null
+  const inicial = (usuario?.nombre || usuario?.name || 'U')[0].toUpperCase()
+
+  return (
+    <div style={{
+      position: 'fixed', top: 0, left: 0, right: 0, zIndex: 999,
+      background: 'var(--bg-header)',
+      padding: '48px 20px 16px',
+      boxShadow: '0 2px 12px rgba(0,48,135,0.15)',
+      overflow: 'hidden'
+    }}>
+      {/* Logo universidad watermark */}
+      <img src="/logos/ufro.png" style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', bottom: -120, height: 320, opacity: 0.13, pointerEvents: 'none', filter: 'brightness(0) invert(1)' }} alt="" />
+      <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 20, fontWeight: 800, color: 'white', letterSpacing: -0.5 }}>APPrueba</span>
+            {uniLabel && (
+              <span style={{ fontSize: 10, fontWeight: 700, background: 'rgba(255,255,255,0.2)', color: 'white', padding: '2px 8px', borderRadius: 20 }}>{uniLabel}</span>
+            )}
+          </div>
+          <p style={{ margin: '2px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>
+            Hola, {usuario?.nombre?.split(' ')[0] || usuario?.name?.split(' ')[0] || 'estudiante'} 👋
+          </p>
+          {esFundador && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(201,168,76,0.25)', border: '1px solid rgba(201,168,76,0.5)', borderRadius: 20, padding: '2px 10px', fontSize: 11, color: '#C9A84C', fontWeight: 700, marginTop: 4 }}>
+              🏅 Fundador #{numeroRegistro}
+            </div>
+          )}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {usuario?.email === 'abelespinozav@gmail.com' && (
+            <button onClick={onAdmin} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: 38, height: 38, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>⚙️</button>
+          )}
+          <button onClick={onNotif} style={{ position: 'relative', background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: 38, height: 38, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            🔔
+            {evalProximas3dias > 0 && (
+              <span style={{ position: 'absolute', top: -2, right: -2, background: '#f87171', color: 'white', borderRadius: '50%', width: 16, height: 16, fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{evalProximas3dias}</span>
+            )}
+          </button>
+          <div onClick={onPerfil} style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, color: 'white', cursor: 'pointer' }}>
+            {inicial}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
 
 function calcular(evaluaciones, min, ramo) {
+  // Si ya tiene nota de examen guardada, usar estado_final directamente
+  if (ramo?.nota_examen && ramo?.nota_final) {
+    const aprobado = ramo.estado_final === 'aprobado' || parseFloat(ramo.nota_final) >= parseFloat(ramo.min_aprobacion || 4.0)
+    return { promedio: parseFloat(ramo.nota_final), necesaria: null, necesariaExamen: null, estado: aprobado ? 'aprobado' : 'reprobado_sin_examen', pendientesCount: 0, pesoCompleto: true, pesoTotal: 100, eximido: false }
+  }
   const evs = evaluaciones.map(e => ({ ...e, ponderacion: parseFloat(e.ponderacion) || 0, nota: (e.nota !== null && e.nota !== undefined && e.nota !== '') ? parseFloat(e.nota) : null }))
   const pendientes = evs.filter(e => e.nota === null)
   const completadas = evs.filter(e => e.nota !== null)
@@ -225,7 +798,7 @@ function LoginScreen({ onLogin }) {
       <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', animation: 'slideUp 0.6s ease' }}>
         <img src="/icon-512.png" alt="APPrueba" style={{ width: 80, height: 80, borderRadius: 20, marginBottom: 16, display: 'block', margin: '0 auto 16px', animation: 'float 1.2s cubic-bezier(0.36,0.07,0.19,0.97) infinite' }} />
         <h1 style={{ fontSize: 36, fontWeight: 800, color: 'white', margin: '0 0 8px', background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>APPrueba</h1>
-        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 15, margin: '0 0 48px' }}>Tu compañero académico inteligente</p>
+        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 15, margin: '0 0 48px' }}>Estudia Inteligente</p>
         {errorParam === 'lista_espera' && (
         <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 12, padding: '12px 16px', marginBottom: 16, textAlign: 'center' }}>
           <p style={{ color: '#fca5a5', fontSize: 14, fontWeight: 600, margin: '0 0 4px' }}>😔 Los 50 cupos fundadores están ocupados</p>
@@ -403,10 +976,9 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
   const getTipoColor = (tipo) => TIPOS.find(t => t.value === tipo)?.color || '#6c63ff'
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', padding: '20px 16px' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', padding: '140px 16px 100px' }}>
       <div style={{ maxWidth: 700, margin: '0 auto' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-          <button onClick={onBack} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 12, padding: '8px 14px', color: 'rgba(255,255,255,0.6)', fontSize: 13, cursor: 'pointer' }}>← Volver</button>
+        <div style={{ marginBottom: 20 }}>
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>📅 Mi Horario</h2>
         </div>
 
@@ -513,13 +1085,15 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
             ) : (
               <div style={{ overflowX: 'auto' }}>
                 {(() => {
-                  const HORA_INICIO = 8 * 60  // 08:00 en minutos
-                  const HORA_FIN = 21 * 60 + 30 // 21:30
+                  const toMinCalc = h => { if (!h) return 0; const [hh,mm] = h.split(':').map(Number); return hh*60+(mm||0) }
+                  const minutosOcupados = horario.flatMap(h => [toMinCalc(h.hora_inicio), toMinCalc(h.hora_fin)]).filter(Boolean)
+                  const HORA_INICIO = minutosOcupados.length ? Math.max(0, Math.floor((Math.min(...minutosOcupados) - 30) / 30) * 30) : 8 * 60
+                  const HORA_FIN = minutosOcupados.length ? Math.min(24*60, Math.ceil((Math.max(...minutosOcupados) + 30) / 30) * 30) : 21 * 60 + 30
                   const TOTAL_MIN = HORA_FIN - HORA_INICIO
-                  const PX_POR_MIN = 1.2
+                  const PX_POR_MIN = 1.0
                   const ALTURA = TOTAL_MIN * PX_POR_MIN
                   const COL_HORA = 52
-                  const toMin = h => { if (!h) return 0; const [hh,mm] = h.split(':').map(Number); return hh*60+(mm||0) }
+                  const toMin = toMinCalc
                   const horas = []
                   for (let m = HORA_INICIO; m <= HORA_FIN; m += 30) {
                     const hh = String(Math.floor(m/60)).padStart(2,'0')
@@ -605,8 +1179,8 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
               <input placeholder="Nombre del ramo *" value={formBloque.ramo_nombre} onChange={e => setFormBloque({...formBloque, ramo_nombre: e.target.value})}
                 style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 12px', color: 'white', fontSize: 14, outline: 'none' }} />
               <select value={formBloque.dia} onChange={e => setFormBloque({...formBloque, dia: e.target.value})}
-                style={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 12px', color: 'white', fontSize: 14, outline: 'none' }}>
-                {['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'].map(d => <option key={d} value={d} style={{ background: '#1a1a2e' }}>{d}</option>)}
+                style={{ background: 'var(--bg-card)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 12px', color: 'white', fontSize: 14, outline: 'none' }}>
+                {['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'].map(d => <option key={d} value={d} style={{ background: 'var(--bg-card)' }}>{d}</option>)}
               </select>
               <div style={{ display: 'flex', gap: 8 }}>
                 <input placeholder="Inicio (08:30)" value={formBloque.hora_inicio} onChange={e => setFormBloque({...formBloque, hora_inicio: e.target.value})}
@@ -649,14 +1223,13 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
   )
 }
 
-function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usuario, onUniversidad, horario, esFundador, numeroRegistro, onBorrarRamos }) {
+function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usuario, onUniversidad, horario, esFundador, numeroRegistro, onBorrarRamos, onIrAEval }) {
   const [nuevo, setNuevo] = useState('')
   const [min, setMin] = useState('4.0')
   const [exim, setExim] = useState('')
   const [condExim, setCondExim] = useState('')
   const [mostrarExim, setMostrarExim] = useState(false)
   const [mostrando, setMostrando] = useState(false)
-  const [mostrarNotif, setMostrarNotif] = useState(false)
 
   const agregar = () => {
     if (!nuevo.trim()) return
@@ -708,30 +1281,12 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
 
   return (
     <>
-    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', padding: '0 0 120px' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', padding: '0 0 100px' }}>
       <BackgroundOrbs />
           <BannerInstalar />
       <div style={{ position: 'relative', zIndex: 1 }}>
-        <div style={{ padding: '56px 20px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', margin: '0 0 4px' }}>Hola, {usuario?.nombre?.split(' ')[0] || 'estudiante'} 👋</p>
-            <h1 style={{ fontSize: 28, fontWeight: 800, color: 'white', margin: 0 }}>Mis Ramos</h1>
-            {badgeFundador}
-          </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button onClick={onHorario} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '8px 14px', color: 'rgba(255,255,255,0.6)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>📅 Horario</button>
-            <button onClick={() => setMostrarNotif(true)} style={{ position: 'relative', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '8px 12px', color: 'rgba(255,255,255,0.6)', fontSize: 16, cursor: 'pointer' }}>
-              🔔
-              {evalProximas3dias > 0 && (
-                <span style={{ position: 'absolute', top: -4, right: -4, background: '#f87171', color: 'white', borderRadius: '50%', width: 16, height: 16, fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{evalProximas3dias}</span>
-              )}
-            </button>
-            {usuario?.email === 'abelespinozav@gmail.com' && (
-              <button onClick={onAdmin} style={{ background: 'var(--shadow-color)', border: '1px solid var(--shadow-color)', borderRadius: 12, padding: '8px 14px', color: 'var(--color-secondary)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>🛡️ Admin</button>
-            )}
-            <button onClick={onLogout} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '8px 14px', color: 'rgba(255,255,255,0.5)', fontSize: 12, cursor: 'pointer' }}>Salir</button>
-          </div>
-
+        <div style={{ padding: '140px 20px 8px' }}>
+          <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--color-text)', margin: '0 0 4px' }}>📚 Mis Ramos</h2>
         </div>
         <div style={{ padding: '0 16px' }}>
           <TipInteligente ramos={ramos} />
@@ -749,57 +1304,19 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
                   transition={{ delay: i * 0.08, duration: 0.3, ease: 'backOut' }}
                   style={{ background: s.bg, border: `1px solid ${s.color}30`, borderRadius: 16, padding: '12px 10px', textAlign: 'center' }}>
                   <p style={{ fontSize: 24, fontWeight: 800, color: s.color, margin: 0 }}>{s.value}</p>
-                  <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', margin: 0 }}>{s.label}</p>
+                  <p style={{ fontSize: 10, color: 'var(--color-text-secondary)', margin: 0 }}>{s.label}</p>
                 </motion.div>
               ))}
             </div>
           )}
 
-          {/* Clases de hoy */}
-          {clasesHoy.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, ease: 'easeOut' }}
-              style={{ marginBottom: 20, background: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: '14px 16px', border: '1px solid rgba(255,255,255,0.07)' }}>
-              <p style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: 1, margin: '0 0 10px', textTransform: 'uppercase' }}>🗓️ Hoy · {diaHoy}</p>
-              {claseActual && (
-                <div style={{ background: 'rgba(108,99,255,0.15)', border: '1px solid rgba(108,99,255,0.3)', borderRadius: 12, padding: '10px 14px', marginBottom: 8 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#a78bfa' }}>{claseActual.ramo_nombre}</p>
-                      <p style={{ margin: '2px 0 0', fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>{claseActual.hora_inicio}–{claseActual.hora_fin} {claseActual.sala ? '· ' + claseActual.sala : ''}</p>
-                    </div>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: '#a78bfa', background: 'rgba(108,99,255,0.2)', padding: '3px 8px', borderRadius: 6 }}>EN CURSO</span>
-                  </div>
-                </div>
-              )}
-              {proximaClase && (
-                <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: '10px 14px', marginBottom: 6 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <p style={{ margin: 0, fontSize: 12, fontWeight: 700 }}>{proximaClase.ramo_nombre}</p>
-                      <p style={{ margin: '2px 0 0', fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>{proximaClase.hora_inicio}–{proximaClase.hora_fin} {proximaClase.sala ? '· ' + proximaClase.sala : ''}</p>
-                    </div>
-                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>próxima</span>
-                  </div>
-                </div>
-              )}
-              {!claseActual && !proximaClase && (
-                <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>No quedan más clases por hoy 🎉</p>
-              )}
-              <button onClick={onHorario} style={{ marginTop: 8, background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', fontSize: 11, cursor: 'pointer', padding: 0 }}>Ver horario completo →</button>
-            </motion.div>
-          )}
-
-          {/* Próximas evaluaciones */}
           {proximas.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.15, ease: 'easeOut' }}
               style={{ marginBottom: 20 }}>
-              <p style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: 1, margin: '0 0 10px', textTransform: 'uppercase' }}>📅 Próximas evaluaciones</p>
+              <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-secondary)', letterSpacing: 1, margin: '0 0 10px', textTransform: 'uppercase' }}>📅 Próximas evaluaciones</p>
               <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
                 {proximas.map((ev, i) => {
                   const dias = diasRestantes(ev.fecha)
@@ -808,14 +1325,14 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
                   const borderColor = urgente ? '#f87171' : pronto ? '#fbbf24' : 'rgba(255,255,255,0.08)'
                   const diasColor = urgente ? '#f87171' : pronto ? '#fbbf24' : 'rgba(255,255,255,0.4)'
                   return (
-                    <div key={i} style={{ background: 'var(--bg-secondary)', borderRadius: 14, padding: '12px 14px', border: `1px solid ${borderColor}`, flexShrink: 0, minWidth: 140, maxWidth: 160 }}>
-                      <p style={{ fontSize: 12, fontWeight: 700, color: 'white', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.nombre}</p>
-                      <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)', background: 'rgba(255,255,255,0.1)', padding: '2px 7px', borderRadius: 20, display: 'inline-block', marginBottom: 8, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.ramoNombre}</span>
+                    <div key={i} onClick={() => onIrAEval && onIrAEval(ev.ramoId, ev.id)} style={{ background: 'var(--bg-card)', borderRadius: 14, padding: '12px 14px', border: `1px solid ${borderColor}`, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', flexShrink: 0, minWidth: 140, maxWidth: 160, cursor: 'pointer' }}>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text)', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.nombre}</p>
+                      <span style={{ fontSize: 10, color: 'var(--color-text-secondary)', background: 'var(--bg-secondary)', padding: '2px 7px', borderRadius: 20, display: 'inline-block', marginBottom: 8, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.ramoNombre}</span>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <p style={{ fontSize: 12, fontWeight: 700, color: diasColor, margin: 0 }}>
                           {dias === 0 ? '¡Hoy!' : dias === 1 ? 'Mañana' : dias < 0 ? 'Vencida' : `${dias}d`}
                         </p>
-                        <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', margin: 0, fontWeight: 600 }}>{ev.ponderacion}%</p>
+                        <p style={{ fontSize: 10, color: 'var(--color-text-secondary)', margin: 0, fontWeight: 600 }}>{ev.ponderacion}%</p>
                       </div>
                     </div>
                   )
@@ -828,12 +1345,12 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
           {ramos.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px 20px', animation: 'fadeIn 0.5s ease' }}>
               <div style={{ fontSize: 48, marginBottom: 12 }}>🎓</div>
-              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>Aún no tienes ramos.<br/>¡Agrega tu primer ramo!</p>
+              <p style={{ color: 'var(--color-text-secondary)', fontSize: 14 }}>Aún no tienes ramos.<br/>¡Agrega tu primer ramo!</p>
             </div>
           ) : (
             <div>
-              <p style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: 1, margin: '0 0 10px', textTransform: 'uppercase' }}>📚 Ramos</p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+              <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-secondary)', letterSpacing: 1, margin: '0 0 10px', textTransform: 'uppercase' }}>📚 Ramos</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
                 {ramos.map((r, i) => {
                   const evs = (r.evaluaciones || []).map(e => ({ ...e, ponderacion: parseFloat(e.ponderacion) || 0 }))
                   const calc = evs.length > 0 ? calcular(evs, r.min_aprobacion, r) : null
@@ -844,11 +1361,11 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
                   const estadoLabel = !calc ? null : calc.estado === 'eximido' ? '🎓 Eximido' : calc.estado === 'aprobado' ? '✓ Aprobado' : calc.estado === 'con_examen' ? '📝 Examen' : calc.estado === 'reprobado_sin_examen' ? '🚫 Sin examen' : calc.estado === 'reprobado_imposible' || calc.estado === 'imposible' ? '✗ Reprobado' : null
                   return (
                     <div key={r.id} onClick={() => onSelect(r)}
-                      style={{ background: 'var(--bg-secondary)', borderRadius: 20, padding: '16px', cursor: 'pointer', border: `1px solid ${estadoColor}25`, animation: `slideUp 0.4s ${i * 0.07}s ease both`, transition: 'transform 0.15s, box-shadow 0.15s', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 140 }}
+                      style={{ background: 'var(--bg-card)', borderRadius: 20, padding: '16px', cursor: 'pointer', border: `1px solid ${estadoColor}25`, boxShadow: '0 2px 10px rgba(0,0,0,0.07)', animation: `slideUp 0.4s ${i * 0.07}s ease both`, transition: 'transform 0.15s, box-shadow 0.15s', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 140 }}
                       onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = `0 8px 24px ${estadoColor}20` }}
                       onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
-                        <p style={{ fontSize: 14, fontWeight: 700, color: 'white', margin: 0, lineHeight: 1.3 }}>{r.nombre}</p>
+                        <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text)', margin: 0, lineHeight: 1.3 }}>{r.nombre}</p>
                         {estadoLabel && (
                           <span style={{ fontSize: 10, fontWeight: 700, color: estadoColor, background: `${estadoColor}18`, padding: '3px 7px', borderRadius: 20, whiteSpace: 'nowrap', flexShrink: 0 }}>{estadoLabel}</span>
                         )}
@@ -856,20 +1373,20 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
                       <div style={{ flex: 1 }}>
                         {calc?.promedio !== null && calc?.promedio !== undefined ? (
                           <div>
-                            <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', margin: '0 0 2px' }}>Promedio</p>
+                            <p style={{ fontSize: 10, color: 'var(--color-text-secondary)', margin: '0 0 2px' }}>Promedio</p>
                             <p style={{ fontSize: 28, fontWeight: 800, color: notaColor(calc.promedio), margin: 0, lineHeight: 1 }}>{calc.promedio.toFixed(1)}</p>
                           </div>
                         ) : calc?.necesaria !== null && calc?.necesaria !== undefined ? (
                           <div>
-                            <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', margin: '0 0 2px' }}>Necesitas</p>
+                            <p style={{ fontSize: 10, color: 'var(--color-text-secondary)', margin: '0 0 2px' }}>Necesitas</p>
                             <p style={{ fontSize: 28, fontWeight: 800, color: calc.necesaria > 6 ? '#f87171' : calc.necesaria > 5 ? '#fbbf24' : '#4ade80', margin: 0, lineHeight: 1 }}>{calc.necesaria > 7 ? '✗' : calc.necesaria.toFixed(1)}</p>
                           </div>
                         ) : (
-                          <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)', margin: 0 }}>Sin notas aún</p>
+                          <p style={{ fontSize: 12, color: 'var(--color-text-muted)', margin: 0 }}>Sin notas aún</p>
                         )}
                       </div>
                       <div>
-                        <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', margin: '0 0 5px' }}>{completadas}/{total} evaluaciones</p>
+                        <p style={{ fontSize: 10, color: 'var(--color-text-muted)', margin: '0 0 5px' }}>{completadas}/{total} evaluaciones</p>
                         {total > 0 && (
                           <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 99, height: 3, overflow: 'hidden' }}>
                             <div style={{ height: '100%', width: `${progreso}%`, background: `linear-gradient(90deg, ${estadoColor}, ${estadoColor}aa)`, borderRadius: 99, transition: 'width 0.5s ease' }} />
@@ -928,12 +1445,11 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
         </div>
       </div>
     </div>
-    {mostrarNotif && <PanelNotificaciones onClose={() => setMostrarNotif(false)} proximas={proximas} />}
     </>
   )
 }
 
-function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
+function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan, evalDestacada, onClearEval }) {
   const [notas, setNotas] = useState({})
   const [editando, setEditando] = useState({})
   const [nuevaEv, setNuevaEv] = useState({ nombre: '', ponderacion: '', fecha: '' })
@@ -947,6 +1463,19 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
   const [editPondExamen, setEditPondExamen] = useState(ramo.ponderacion_examen || 25)
   const [notaExamen, setNotaExamen] = useState(ramo.nota_examen || '')
   const [editSinRojos, setEditSinRojos] = useState(ramo.sin_rojos || false)
+
+  useEffect(() => {
+    if (!evalDestacada) return
+    setTimeout(() => {
+      const el = document.getElementById('eval-' + evalDestacada)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        el.style.transition = 'box-shadow 0.3s'
+        el.style.boxShadow = '0 0 0 2px #C9A84C'
+        setTimeout(() => { el.style.boxShadow = ''; onClearEval && onClearEval() }, 2500)
+      }
+    }, 350)
+  }, [evalDestacada])
 
   const evs = (ramo.evaluaciones || []).map(e => ({ ...e, ponderacion: parseFloat(e.ponderacion) || 0 }))
   const { promedio, necesaria, necesariaExamen, estado, pendientesCount, pesoCompleto, pesoTotal, eximido, tieneRojos } = calcular(evs, ramo.min_aprobacion, ramo)
@@ -1064,7 +1593,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
       )}
       <BackgroundOrbs />
       <div style={{ position: 'relative', zIndex: 1 }}>
-        <div style={{ background: 'linear-gradient(180deg, #1a1a2e 0%, #0a0a1a 100%)', padding: '56px 20px 24px' }}>
+        <div style={{ background: 'linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%)', padding: '56px 20px 24px' }}>
           <button onClick={onBack} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 12, padding: '8px 14px', color: 'rgba(255,255,255,0.6)', fontSize: 13, cursor: 'pointer', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 6 }}>← Volver</button>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
             <div>
@@ -1191,7 +1720,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan }) {
               const notaVal = tieneNota ? parseFloat(ev.nota) : null
               const estaEditando = editando[ev.id]
               return (
-                <div key={ev.id} style={{ background: 'var(--bg-secondary)', borderRadius: 16, padding: '14px 16px', border: tieneNota && !estaEditando ? '1px solid var(--shadow-color)' : '1.5px dashed rgba(108,99,255,0.3)', animation: `slideUp 0.3s ${idx * 0.05}s ease both` }}>
+                <div key={ev.id} id={'eval-' + ev.id} style={{ background: 'var(--bg-secondary)', borderRadius: 16, padding: '14px 16px', border: tieneNota && !estaEditando ? '1px solid var(--shadow-color)' : '1.5px dashed rgba(108,99,255,0.3)', animation: `slideUp 0.3s ${idx * 0.05}s ease both` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{ width: 48, height: 48, background: tieneNota && !estaEditando ? `${notaColor(notaVal)}22` : 'var(--shadow-color)', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: tieneNota && !estaEditando ? 15 : 18, fontWeight: 800, color: tieneNota && !estaEditando ? notaColor(notaVal) : 'var(--color-primary)', flexShrink: 0, border: tieneNota && !estaEditando ? `1.5px solid ${notaColor(notaVal)}44` : '1.5px solid var(--shadow-color)' }}>
                       {tieneNota && !estaEditando ? notaVal.toFixed(1) : '?'}
@@ -1405,7 +1934,7 @@ function AdminScreen({ usuario, onBack }) {
 
         {stats && (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
               {[
                 { label: 'Total usuarios', value: stats.stats.total_usuarios, icon: '👥' },
                 { label: 'Nuevos (7 días)', value: stats.stats.nuevos_7d, icon: '🆕' },
@@ -1501,7 +2030,7 @@ function AdminScreen({ usuario, onBack }) {
       {/* MODAL DETALLE USUARIO */}
       {detalleUsuario && (
         <div onClick={() => setDetalleUsuario(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '20px 16px', overflowY: 'auto' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#1a1a2e', borderRadius: 20, padding: 24, width: '100%', maxWidth: 680, border: '1px solid rgba(255,255,255,0.1)', marginTop: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-card)', borderRadius: 20, padding: 24, width: '100%', maxWidth: 680, border: '1px solid rgba(255,255,255,0.1)', marginTop: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#fff' }}>{detalleUsuario.nombre}</h3>
@@ -1592,12 +2121,30 @@ function AdminScreen({ usuario, onBack }) {
 export default function App() {
   const [pantalla, setPantalla] = useState('login')
   const [usuario, setUsuario] = useState(null)
+  const [tab, setTab] = useState('home')
 
   useTheme(usuario?.universidad)
   const [ramos, setRamos] = useState([])
   const [ramoActivo, setRamoActivo] = useState(null)
   const [planEv, setPlanEv] = useState(null)
   const [horarioGlobal, setHorarioGlobal] = useState([])
+  const [mostrarNotif, setMostrarNotif] = useState(false)
+  const [evalDestacada, setEvalDestacada] = useState(null)
+
+  const irAPlanEval = (ramoId, evalId) => {
+    const ramo = ramos.find(r => r.id === ramoId)
+    if (!ramo) return
+    const ev = (ramo.evaluaciones || []).find(e => e.id === evalId)
+    if (!ev) return
+    setRamoActivo(ramo)
+    setPlanEv(ev)
+    setPantalla('plan')
+  }
+
+  const irAEvaluacion = (ramoId, evalId) => {
+    const ramo = ramos.find(r => r.id === ramoId)
+    if (ramo) { setRamoActivo(ramo); setEvalDestacada(evalId); setPantalla('ramo') }
+  }
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -1676,6 +2223,10 @@ export default function App() {
   }, [])
 
   const handleUniversidad = async (universidad) => {
+    if (universidad === 'cambiar') {
+      setPantalla('onboarding')
+      return
+    }
     try {
       const res = await fetch(`${API}/usuarios/universidad`, {
         method: 'PATCH',
@@ -1723,13 +2274,116 @@ export default function App() {
   if (pantalla === 'admin' && usuario?.email === 'abelespinozav@gmail.com') return <AdminScreen usuario={usuario} onBack={() => setPantalla('ramos')} />
   if (pantalla === 'login') return <LoginScreen onLogin={handleLogin} />
   if (pantalla === 'onboarding') return <OnboardingScreen user={usuario} API={API} onComplete={(u) => { setUsuario({ ...usuario, ...u, name: u.nombre }); const token = localStorage.getItem('token'); cargarRamos(token); setPantalla('ramos') }} />
-  if (pantalla === 'ramos') return <RamosScreen ramos={ramos} onSelect={r => { setRamoActivo(r); setPantalla('ramo') }} onAdd={handleAddRamo} onLogout={handleLogout} onAdmin={() => setPantalla('admin')} onHorario={() => setPantalla('horario')} usuario={usuario} onUniversidad={handleUniversidad} horario={horarioGlobal} esFundador={usuario?.es_fundador} numeroRegistro={usuario?.numero_registro} onBorrarRamos={borrarTodosRamos} />
-  if (pantalla === 'ramo' && ramoActivo) return <RamoScreen ramo={ramoActivo} onBack={() => setPantalla('ramos')} onUpdate={handleUpdateRamo} onDelete={handleDeleteRamo} onPlan={(ev) => { if (!ev || !ev.id) { alert('Error: evaluación inválida'); return; } setPlanEv(ev); setPantalla('plan') }} />
-  if (pantalla === 'horario') return <HorarioScreen usuario={usuario} onBack={() => { cargarHorarioGlobal(); setPantalla('ramos') }} API={API} authHeaders={authHeaders} />
-  if (pantalla === 'plan' && planEv && ramoActivo) return <PlanEstudio evaluacion={planEv} ramo={ramoActivo} onBack={async () => {
+  if (pantalla === 'ramos') {
+    const proximas3dias = ramos.flatMap(r =>
+      (r.evaluaciones || []).filter(e => e.fecha && (e.nota === null || e.nota === undefined || e.nota === ''))
+        .map(e => ({ ...e }))
+    ).filter(e => {
+      const dias = Math.ceil((new Date(e.fecha) - new Date()) / 86400000)
+      return dias >= 0 && dias <= 3
+    }).length
+
+    return (
+      <>
+        <AppHeader
+          usuario={usuario}
+          esFundador={usuario?.es_fundador}
+          numeroRegistro={usuario?.numero_registro}
+          evalProximas3dias={proximas3dias}
+          onNotif={() => setMostrarNotif(true)}
+          onPerfil={() => setTab('perfil')}
+          onAdmin={() => setPantalla('admin')}
+          onLogout={handleLogout}
+        />
+        {tab === 'home' && (
+          <HomeScreen
+            ramos={ramos}
+            usuario={usuario}
+            esFundador={usuario?.es_fundador}
+            numeroRegistro={usuario?.numero_registro}
+            horario={horarioGlobal}
+            onVerRamo={(ev) => irAPlanEval(ev.ramoId, ev.id)}
+            onHorario={() => setPantalla('horario')}
+            onVerHorario={() => setTab('horario')}
+          />
+        )}
+        {tab === 'ramos' && (
+          <RamosScreen
+            ramos={ramos}
+            onSelect={r => { setRamoActivo(r); setPantalla('ramo') }}
+            onAdd={handleAddRamo}
+            onLogout={handleLogout}
+            onAdmin={() => setPantalla('admin')}
+            onHorario={() => setPantalla('horario')}
+            usuario={usuario}
+            onUniversidad={handleUniversidad}
+            horario={horarioGlobal}
+            esFundador={usuario?.es_fundador}
+            numeroRegistro={usuario?.numero_registro}
+            onBorrarRamos={borrarTodosRamos}
+            onIrAEval={irAPlanEval}
+            tab={tab}
+            setTab={setTab}
+          />
+        )}
+        {tab === 'plan' && (
+          <div key="plan" style={{ animation: 'slideUp 0.35s ease both' }}>
+            <PlanTab ramos={ramos} onIniciarPlan={(r, ev) => { setRamoActivo(r); setPlanEv(ev); setPantalla('plan_rapido') }} />
+          </div>
+        )}
+        {tab === 'quiz' && (
+          <div key="quiz" style={{ animation: 'slideUp 0.35s ease both' }}>
+            <QuizTab ramos={ramos} onIniciarQuiz={(r, ev) => { setRamoActivo(r); setEvalDestacada(ev); setPantalla('quiz_rapido') }} />
+          </div>
+        )}
+        {tab === 'horario' && (
+          <div key="horario" style={{ animation: 'slideUp 0.35s ease both' }}>
+            <HorarioScreen usuario={usuario} onBack={() => setTab('home')} API={API} authHeaders={authHeaders} />
+          </div>
+        )}
+        {tab === 'perfil' && (
+          <div key="perfil" style={{ animation: 'slideUp 0.35s ease both' }}>
+            <PerfilTab
+              usuario={usuario}
+              onLogout={handleLogout}
+              onUniversidad={handleUniversidad}
+              esFundador={usuario?.es_fundador}
+              numeroRegistro={usuario?.numero_registro}
+            />
+          </div>
+        )}
+        <BottomNav tab={tab} setTab={setTab} setPantalla={setPantalla} />
+        {mostrarNotif && <PanelNotificaciones onClose={() => setMostrarNotif(false)} proximas={ramos.flatMap(r => (r.evaluaciones||[]).filter(e => e.fecha && !e.nota).map(e => ({...e, ramoNombre: r.nombre})))} />}
+      </>
+    )
+  }
+  if (pantalla === 'plan_rapido' && ramoActivo && planEv) return (
+    <><PlanEstudio evaluacion={planEv} ramo={ramoActivo} onBack={() => { setRamoActivo(null); setPlanEv(null); setPantalla('ramos'); setTab('plan') }} />
+    <BottomNav tab={tab} setTab={setTab} setPantalla={setPantalla} /></>
+  )
+  if (pantalla === 'quiz_rapido' && ramoActivo && evalDestacada) return (
+    <><Quiz evaluacion={evalDestacada} ramo={ramoActivo} onBack={() => { setRamoActivo(null); setEvalDestacada(null); setPantalla('ramos'); setTab('quiz') }} />
+    <BottomNav tab={tab} setTab={setTab} setPantalla={setPantalla} /></>
+  )
+  if (pantalla === 'ramo' && ramoActivo) return (
+    <><RamoScreen ramo={ramoActivo} onBack={() => setPantalla('ramos')} onUpdate={handleUpdateRamo} onDelete={handleDeleteRamo} evalDestacada={evalDestacada} onClearEval={() => setEvalDestacada(null)} onPlan={(ev) => { if (!ev || !ev.id) { alert('Error: evaluación inválida'); return; } setPlanEv(ev); setPantalla('plan') }} />
+    <BottomNav tab={tab} setTab={setTab} setPantalla={setPantalla} /></>
+  )
+  if (pantalla === 'horario') return (
+    <><HorarioScreen usuario={usuario} onBack={() => { cargarHorarioGlobal(); setPantalla('ramos') }} API={API} authHeaders={authHeaders} />
+    <BottomNav tab={tab} setTab={setTab} setPantalla={setPantalla} /></>
+  )
+  if (pantalla === 'plan' && planEv && ramoActivo) return (
+    <><PlanEstudio evaluacion={planEv} ramo={ramoActivo} onBack={async () => {
     const token = localStorage.getItem('token')
     await cargarRamos(token, true)
     setPantalla('ramo')
   }} />
-  return null
+    <BottomNav tab={tab} setTab={setTab} setPantalla={setPantalla} /></>
+  )
+  return (
+    <>
+      {mostrarNotif && <PanelNotificaciones onClose={() => setMostrarNotif(false)} proximas={proximas3dias > 0 ? ramos.flatMap(r => (r.evaluaciones||[]).filter(e => e.fecha && !e.nota).map(e => ({...e, ramoNombre: r.nombre}))) : []} />}
+    </>
+  )
 }

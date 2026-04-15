@@ -16,6 +16,12 @@ function aplicarTema(universidad) {
   root.style.setProperty('--shadow-color', tema.shadowColor)
   root.style.setProperty('--text-primary', tema.darkText ? '#1a1a1a' : '#ffffff')
   root.style.setProperty('--text-secondary', tema.darkText ? '#444444' : 'rgba(255,255,255,0.6)')
+  // Aliases usados en componentes
+  root.style.setProperty('--color-text', tema.darkText ? '#1a1a1a' : '#ffffff')
+  root.style.setProperty('--color-text-secondary', tema.darkText ? '#555555' : 'rgba(255,255,255,0.6)')
+  root.style.setProperty('--color-text-muted', tema.darkText ? '#888888' : 'rgba(255,255,255,0.35)')
+  root.style.setProperty('--color-border', tema.darkText ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)')
+  root.style.setProperty('--bg-header', tema.darkText ? tema.colorPrimary : 'linear-gradient(135deg, ' + tema.gradientFrom + ', ' + tema.gradientTo + ')')
 }
 
 export { aplicarTema }

@@ -175,7 +175,7 @@ export default function OnboardingScreen({ user, onComplete, API }) {
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
       background: `radial-gradient(ellipse at 20% 50%, ${colorPrincipal}22 0%, transparent 60%),
                    radial-gradient(ellipse at 80% 20%, ${colorPrincipal}15 0%, transparent 50%),
-                   linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%)`,
+                   linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%)`,
       transition: 'background 0.8s ease', padding: '20px', fontFamily: 'system-ui, sans-serif'
     }}>
       <div style={{ position: 'fixed', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0 }}>
@@ -336,7 +336,7 @@ export default function OnboardingScreen({ user, onComplete, API }) {
                     <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={confirmarHorario} disabled={guardandoHorario}
                       style={{ width: '100%', padding: '13px', borderRadius: 12, border: 'none',
                         background: guardandoHorario ? 'rgba(255,255,255,0.2)' : '#4ade80',
-                        color: guardandoHorario ? 'rgba(255,255,255,0.5)' : '#0a0a1a',
+                        color: guardandoHorario ? 'rgba(255,255,255,0.5)' : 'var(--bg-primary)',
                         fontSize: 15, fontWeight: 700, cursor: guardandoHorario ? 'not-allowed' : 'pointer' }}>
                       {guardandoHorario ? '⏳ Guardando...' : '✅ Confirmar y guardar horario'}
                     </motion.button>

@@ -82,7 +82,7 @@ export default function PanelNotificaciones({ onClose, proximas = [] }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'flex-end' }} onClick={onClose}>
-      <div style={{ width: '100%', background: '#1a1a2e', borderRadius: '24px 24px 0 0', padding: 24, maxHeight: '85vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+      <div style={{ width: '100%', background: '#1a2744', borderRadius: '24px 24px 0 0', padding: 24, maxHeight: '85vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
         
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
@@ -94,7 +94,7 @@ export default function PanelNotificaciones({ onClose, proximas = [] }) {
         {permiso === 'default' && (
           <div style={{ background: 'rgba(108,99,255,0.15)', border: '1px solid rgba(108,99,255,0.3)', borderRadius: 16, padding: 16, marginBottom: 20 }}>
             <p style={{ color: 'white', margin: '0 0 12px', fontSize: 14 }}>Activa las notificaciones para recibir recordatorios de tus evaluaciones 📚</p>
-            <button onClick={activar} disabled={cargando} style={{ background: 'linear-gradient(135deg, #6c63ff, #a78bfa)', border: 'none', borderRadius: 12, padding: '10px 20px', color: 'white', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
+            <button onClick={activar} disabled={cargando} style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', border: 'none', borderRadius: 12, padding: '10px 20px', color: 'white', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
               {cargando ? 'Activando...' : '🔔 Activar notificaciones'}
             </button>
           </div>
@@ -109,47 +109,47 @@ export default function PanelNotificaciones({ onClose, proximas = [] }) {
         {permiso === 'granted' && (
           <>
             {/* Toggle activo */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: '14px 16px', marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.07)', borderRadius: 16, padding: '14px 16px', marginBottom: 16 }}>
               <div>
                 <p style={{ color: 'white', margin: 0, fontWeight: 700, fontSize: 14 }}>Recordatorios activos</p>
                 <p style={{ color: 'rgba(255,255,255,0.4)', margin: '2px 0 0', fontSize: 12 }}>Recibir alertas antes de evaluaciones</p>
               </div>
-              <div onClick={toggleActivo} style={{ width: 48, height: 26, background: config.activo ? '#6c63ff' : 'rgba(255,255,255,0.1)', borderRadius: 99, cursor: 'pointer', position: 'relative', transition: 'background 0.2s' }}>
+              <div onClick={toggleActivo} style={{ width: 48, height: 26, background: config.activo ? 'var(--color-primary)' : 'rgba(255,255,255,0.15)', borderRadius: 99, cursor: 'pointer', position: 'relative', transition: 'background 0.2s' }}>
                 <div style={{ position: 'absolute', top: 3, left: config.activo ? 24 : 3, width: 20, height: 20, background: 'white', borderRadius: '50%', transition: 'left 0.2s' }} />
               </div>
             </div>
 
             {/* Toggle clases próximas */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: '14px 16px', marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.07)', borderRadius: 16, padding: '14px 16px', marginBottom: 16 }}>
               <div>
                 <p style={{ color: 'white', margin: 0, fontWeight: 700, fontSize: 14 }}>🏫 Clases próximas</p>
                 <p style={{ color: 'rgba(255,255,255,0.4)', margin: '2px 0 0', fontSize: 12 }}>Aviso 15 min antes de cada clase</p>
               </div>
-              <div onClick={() => guardarConfig({ ...config, notif_clases: !config.notif_clases })} style={{ width: 48, height: 26, background: config.notif_clases ? '#6c63ff' : 'rgba(255,255,255,0.1)', borderRadius: 99, cursor: 'pointer', position: 'relative', transition: 'background 0.2s' }}>
+              <div onClick={() => guardarConfig({ ...config, notif_clases: !config.notif_clases })} style={{ width: 48, height: 26, background: config.notif_clases ? 'var(--color-primary)' : 'rgba(255,255,255,0.15)', borderRadius: 99, cursor: 'pointer', position: 'relative', transition: 'background 0.2s' }}>
                 <div style={{ position: 'absolute', top: 3, left: config.notif_clases ? 24 : 3, width: 20, height: 20, background: 'white', borderRadius: '50%', transition: 'left 0.2s' }} />
               </div>
             </div>
 
             {/* Toggle ventanas de estudio */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: '14px 16px', marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.07)', borderRadius: 16, padding: '14px 16px', marginBottom: 16 }}>
               <div>
                 <p style={{ color: 'white', margin: 0, fontWeight: 700, fontSize: 14 }}>📖 Ventanas de estudio</p>
                 <p style={{ color: 'rgba(255,255,255,0.4)', margin: '2px 0 0', fontSize: 12 }}>Aviso diario cuando tienes tiempo libre</p>
               </div>
-              <div onClick={() => guardarConfig({ ...config, notif_ventanas: !config.notif_ventanas })} style={{ width: 48, height: 26, background: config.notif_ventanas ? '#6c63ff' : 'rgba(255,255,255,0.1)', borderRadius: 99, cursor: 'pointer', position: 'relative', transition: 'background 0.2s' }}>
+              <div onClick={() => guardarConfig({ ...config, notif_ventanas: !config.notif_ventanas })} style={{ width: 48, height: 26, background: config.notif_ventanas ? 'var(--color-primary)' : 'rgba(255,255,255,0.15)', borderRadius: 99, cursor: 'pointer', position: 'relative', transition: 'background 0.2s' }}>
                 <div style={{ position: 'absolute', top: 3, left: config.notif_ventanas ? 24 : 3, width: 20, height: 20, background: 'white', borderRadius: '50%', transition: 'left 0.2s' }} />
               </div>
             </div>
 
             {/* Días de anticipación */}
-            <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: '14px 16px', marginBottom: 16 }}>
+            <div style={{ background: 'rgba(255,255,255,0.07)', borderRadius: 16, padding: '14px 16px', marginBottom: 16 }}>
               <p style={{ color: 'white', margin: '0 0 12px', fontWeight: 700, fontSize: 14 }}>⏰ Avisar con anticipación</p>
               <p style={{ color: 'rgba(255,255,255,0.4)', margin: '0 0 12px', fontSize: 12 }}>Selecciona hasta 3 opciones</p>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {DIAS_OPCIONES.map(d => {
                   const sel = (config.dias_antes || []).includes(d)
                   return (
-                    <button key={d} onClick={() => toggleDia(d)} style={{ background: sel ? 'rgba(108,99,255,0.3)' : 'rgba(255,255,255,0.05)', border: `1px solid ${sel ? '#6c63ff' : 'rgba(255,255,255,0.1)'}`, borderRadius: 10, padding: '8px 14px', color: sel ? '#a78bfa' : 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                    <button key={d} onClick={() => toggleDia(d)} style={{ background: sel ? 'rgba(46,125,209,0.3)' : 'rgba(255,255,255,0.05)', border: `1px solid ${sel ? 'var(--color-primary)' : 'rgba(255,255,255,0.1)'}`, borderRadius: 10, padding: '8px 14px', color: sel ? 'var(--color-secondary)' : 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                       {d === 1 ? '1 día antes' : `${d} días antes`}
                     </button>
                   )
@@ -161,7 +161,7 @@ export default function PanelNotificaciones({ onClose, proximas = [] }) {
 
         {/* Próximas evaluaciones */}
         {proximas.length > 0 && (
-          <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: '14px 16px' }}>
+          <div style={{ background: 'rgba(255,255,255,0.07)', borderRadius: 16, padding: '14px 16px' }}>
             <p style={{ color: 'white', margin: '0 0 12px', fontWeight: 700, fontSize: 14 }}>📅 Próximas evaluaciones</p>
             {proximas.map((ev, i) => {
               const dias = Math.ceil((new Date(ev.fecha) - new Date()) / 86400000)

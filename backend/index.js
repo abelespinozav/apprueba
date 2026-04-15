@@ -86,7 +86,7 @@ app.get('/auth/google/callback',
   passport.authenticate('google', { session: false, failureRedirect: `${process.env.FRONTEND_URL}?error=auth` }),
   (req, res) => {
     const token = jwt.sign({ id: req.user.id, email: req.user.email }, process.env.JWT_SECRET, { expiresIn: '30d' })
-    const user = encodeURIComponent(JSON.stringify({ nombre: req.user.nombre, email: req.user.email, foto: req.user.foto }))
+    const user = encodeURIComponent(JSON.stringify({ id: req.user.id, nombre: req.user.nombre, email: req.user.email, foto: req.user.foto, created_at: req.user.created_at }))
     res.redirect(`${process.env.FRONTEND_URL}?token=${token}&user=${user}`)
   }
 )
@@ -122,7 +122,7 @@ app.post('/ramos', authMiddleware, async (req, res) => {
 
 app.put('/ramos/:id', authMiddleware, async (req, res) => {
   try {
-    const { nombre, min_aprobacion, nota_eximicion, condiciones_eximicion, ponderacion_examen, sin_rojos, evaluaciones } = req.body
+    const { nombre, min_aprobacion, nota_eximicion, condiciones_eximicion, ponderacion_examen, sin_rojos, evaluaciones, nota_examen, nota_final, estado_final } = req.body
     const ramoId = req.params.id
 
     const { rows: check } = await pool.query(
@@ -132,8 +132,8 @@ app.put('/ramos/:id', authMiddleware, async (req, res) => {
     if (check.length === 0) return res.status(403).json({ error: 'No autorizado' })
 
     await pool.query(
-      'UPDATE ramos SET nombre = $1, min_aprobacion = $2, nota_eximicion = $3, condiciones_eximicion = $4, ponderacion_examen = $5, sin_rojos = $6 WHERE id = $7',
-      [nombre, min_aprobacion, nota_eximicion || null, condiciones_eximicion || null, ponderacion_examen || 25, sin_rojos || false, ramoId]
+      'UPDATE ramos SET nombre = $1, min_aprobacion = $2, nota_eximicion = $3, condiciones_eximicion = $4, ponderacion_examen = $5, sin_rojos = $6, nota_examen = $7, nota_final = $8, estado_final = $9 WHERE id = $10',
+      [nombre, min_aprobacion, nota_eximicion || null, condiciones_eximicion || null, ponderacion_examen || 25, sin_rojos || false, nota_examen || null, nota_final || null, estado_final || null, ramoId]
     )
 
     if (evaluaciones) {
