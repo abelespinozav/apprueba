@@ -1,0 +1,793 @@
+import React, { useState, useEffect, useRef } from 'react';
+
+// ============================================================
+// HELPERS ORIGINALES
+// ============================================================
+const calcular = (notas, eximido, notaExamen) => {
+  if (!notas || notas.length === 0) return { promedioParcial: null, promedioFinal: null, puedeEximirse: false, notaMinExamen: null };
+  const validas = notas.filter(n => n.nota !== '' && n.nota !== null && !isNaN(parseFloat(n.nota)));
+  if (validas.length === 0) return { promedioParcial: null, promedioFinal: null, puedeEximirse: false, notaMinExamen: null };
+  const suma = validas.reduce((acc, n) => acc + parseFloat(n.nota), 0);
+  const promedioParcial = suma / validas.length;
+  const puedeEximirse = promedioParcial >= 5.0;
+  let promedioFinal = null;
+  let notaMinExamen = null;
+  if (eximido) {
+    promedioFinal = promedioParcial;
+  } else if (notaExamen !== '' && notaExamen !== null && !isNaN(parseFloat(notaExamen))) {
+    promedioFinal = promedioParcial * 0.6 + parseFloat(notaExamen) * 0.4;
+  } else {
+    notaMinExamen = ((4.0 - promedioParcial * 0.6) / 0.4);
+    if (notaMinExamen < 1) notaMinExamen = 1;
+    if (notaMinExamen > 7) notaMinExamen = null;
+  }
+  return { promedioParcial, promedioFinal, puedeEximirse, notaMinExamen };
+};
+
+const notaColor = (nota) => {
+  if (nota === null || nota === undefined) return '#888';
+  if (nota >= 5.0) return '#4CAF50';
+  if (nota >= 4.0) return '#FF9800';
+  return '#F44336';
+};
+
+const iconoRamo = (nombre) => {
+  const n = nombre?.toLowerCase() || '';
+  if (n.includes('mat') || n.includes('calc') || n.includes('álgebra') || n.includes('algebra')) return '📐';
+  if (n.includes('fís') || n.includes('fis')) return '⚛️';
+  if (n.includes('quím') || n.includes('quim')) return '🧪';
+  if (n.includes('bio')) return '🧬';
+  if (n.includes('prog') || n.includes('comp') || n.includes('info') || n.includes('software')) return '💻';
+  if (n.includes('ing') || n.includes('estruc')) return '⚙️';
+  if (n.includes('econ') || n.includes('admin') || n.includes('gest')) return '📊';
+  if (n.includes('hist') || n.includes('soc')) return '📚';
+  if (n.includes('ing') || n.includes('inglés') || n.includes('ingles')) return '🌐';
+  if (n.includes('arte') || n.includes('diseño') || n.includes('diseno')) return '🎨';
+  return '📖';
+};
+
+const calcularXP = (ramos) => {
+  let xp = 0;
+  ramos.forEach(r => {
+    const { promedioParcial } = calcular(r.notas, r.eximido, r.notaExamen);
+    if (promedioParcial) {
+      xp += Math.floor(promedioParcial * 20);
+      if (promedioParcial >= 6.5) xp += 50;
+      else if (promedioParcial >= 6.0) xp += 30;
+      else if (promedioParcial >= 5.0) xp += 10;
+    }
+    xp += (r.notas?.length || 0) * 5;
+  });
+  return xp;
+};
+
+const calcularNivel = (xp) => {
+  const niveles = [0, 100, 250, 500, 900, 1400, 2000, 2700, 3500, 4500, 6000];
+  let nivel = 1;
+  for (let i = 0; i < niveles.length; i++) {
+    if (xp >= niveles[i]) nivel = i + 1;
+    else break;
+  }
+  const xpActual = xp - (niveles[nivel - 1] || 0);
+  const xpSiguiente = (niveles[nivel] || niveles[niveles.length - 1]) - (niveles[nivel - 1] || 0);
+  return { nivel, xpActual, xpSiguiente };
+};
+
+const calcularLogros = (ramos) => {
+  const logros = [];
+  const totalRamos = ramos.length;
+  const aprobados = ramos.filter(r => {
+    const { promedioFinal, promedioParcial } = calcular(r.notas, r.eximido, r.notaExamen);
+    return (promedioFinal || promedioParcial || 0) >= 4.0;
+  }).length;
+  const eximidos = ramos.filter(r => r.eximido).length;
+  const conNotas = ramos.filter(r => r.notas?.length > 0).length;
+  const promedios = ramos.map(r => calcular(r.notas, r.eximido, r.notaExamen).promedioParcial).filter(Boolean);
+  const promedioGlobal = promedios.length > 0 ? promedios.reduce((a, b) => a + b, 0) / promedios.length : 0;
+
+  if (totalRamos >= 1) logros.push({ id: 'primer_ramo', emoji: '📚', nombre: 'Primer Ramo', desc: 'Agregaste tu primer ramo', obtenido: true });
+  if (totalRamos >= 5) logros.push({ id: 'cinco_ramos', emoji: '🎒', nombre: 'Cargado', desc: '5 ramos registrados', obtenido: true });
+  if (conNotas >= 1) logros.push({ id: 'primera_nota', emoji: '✏️', nombre: 'Primera Nota', desc: 'Registraste tu primera nota', obtenido: true });
+  if (aprobados >= 3) logros.push({ id: 'tres_aprobados', emoji: '✅', nombre: 'En Camino', desc: '3 ramos aprobados', obtenido: true });
+  if (eximidos >= 1) logros.push({ id: 'primer_eximido', emoji: '🌟', nombre: 'Eximido', desc: 'Te eximiste de un ramo', obtenido: true });
+  if (promedioGlobal >= 6.0) logros.push({ id: 'promedio_6', emoji: '🏆', nombre: 'Excelencia', desc: 'Promedio global ≥ 6.0', obtenido: true });
+  if (promedioGlobal >= 5.0) logros.push({ id: 'promedio_5', emoji: '⭐', nombre: 'Buen Rendimiento', desc: 'Promedio global ≥ 5.0', obtenido: true });
+
+  const bloqueados = [
+    { id: 'diez_ramos', emoji: '🎓', nombre: 'Veterano', desc: '10 ramos registrados', obtenido: totalRamos >= 10 },
+    { id: 'todo_aprobado', emoji: '🥇', nombre: 'Perfecto', desc: 'Todos los ramos aprobados', obtenido: totalRamos > 0 && aprobados === totalRamos },
+    { id: 'racha_7', emoji: '🔥', nombre: 'En Llamas', desc: '7 días de racha', obtenido: false },
+  ];
+  return [...logros, ...bloqueados.filter(b => !logros.find(l => l.id === b.id))];
+};
+
+// ============================================================
+// BOTTOM NAV
+// ============================================================
+const BottomNav = ({ tab, setTab }) => {
+  const tabs = [
+    { id: 'inicio', emoji: '🏠', label: 'Inicio' },
+    { id: 'ramos', emoji: '📚', label: 'Ramos' },
+    { id: 'logros', emoji: '🏆', label: 'Logros' },
+    { id: 'perfil', emoji: '👤', label: 'Perfil' },
+  ];
+  return (
+    <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#1a1a2e', borderTop: '1px solid #003087', display: 'flex', zIndex: 100 }}>
+      {tabs.map(t => (
+        <button key={t.id} onClick={() => setTab(t.id)} style={{ flex: 1, padding: '10px 0', background: 'none', border: 'none', color: tab === t.id ? '#4fc3f7' : '#888', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+          <span style={{ fontSize: 22 }}>{t.emoji}</span>
+          <span style={{ fontSize: 11, fontWeight: tab === t.id ? 700 : 400 }}>{t.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+};
+
+// ============================================================
+// TAB INICIO
+// ============================================================
+const TabInicio = ({ ramos, onVerRamo, streak = 3 }) => {
+  const xp = calcularXP(ramos);
+  const { nivel, xpActual, xpSiguiente } = calcularNivel(xp);
+  const logros = calcularLogros(ramos);
+  const logrosObtenidos = logros.filter(l => l.obtenido).slice(0, 3);
+  const promedios = ramos.map(r => calcular(r.notas, r.eximido, r.notaExamen).promedioParcial).filter(Boolean);
+  const promedioGlobal = promedios.length > 0 ? (promedios.reduce((a, b) => a + b, 0) / promedios.length).toFixed(1) : '—';
+
+  const hoy = new Date();
+  const diasSemana = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  const diaHoy = diasSemana[hoy.getDay()];
+
+  const proximaEval = ramos
+    .flatMap(r => (r.evaluaciones || []).map(e => ({ ...e, ramo: r.nombre })))
+    .filter(e => e.fecha && new Date(e.fecha) >= hoy)
+    .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))[0];
+
+  return (
+    <div style={{ padding: '16px 16px 80px', background: '#0f0f1a', minHeight: '100vh', fontFamily: 'sans-serif' }}>
+      {/* HEADER */}
+      <div style={{ background: 'linear-gradient(135deg, #003087, #0057b8)', borderRadius: 16, padding: '20px 16px 16px', marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <div style={{ color: '#a0c4ff', fontSize: 13 }}>Bienvenido de vuelta 👋</div>
+            <div style={{ color: '#fff', fontSize: 22, fontWeight: 700, marginTop: 2 }}>APPrueba</div>
+          </div>
+          <div style={{ textAlign: 'center', background: 'rgba(255,255,255,0.15)', borderRadius: 12, padding: '8px 14px' }}>
+            <div style={{ fontSize: 20 }}>🔥</div>
+            <div style={{ color: '#fff', fontSize: 16, fontWeight: 700 }}>{streak}</div>
+            <div style={{ color: '#a0c4ff', fontSize: 10 }}>racha</div>
+          </div>
+        </div>
+        {/* XP BAR */}
+        <div style={{ marginTop: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+            <span style={{ color: '#a0c4ff', fontSize: 12 }}>Nivel {nivel}</span>
+            <span style={{ color: '#a0c4ff', fontSize: 12 }}>{xpActual} / {xpSiguiente} XP</span>
+          </div>
+          <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 99, height: 8 }}>
+            <div style={{ background: 'linear-gradient(90deg, #4fc3f7, #00e5ff)', borderRadius: 99, height: 8, width: `${Math.min(100, (xpActual / xpSiguiente) * 100)}%`, transition: 'width 0.5s' }} />
+          </div>
+        </div>
+      </div>
+
+      {/* MINI STATS */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 16 }}>
+        {[
+          { label: 'Promedio', value: promedioGlobal, emoji: '📊' },
+          { label: 'Ramos', value: ramos.length, emoji: '📚' },
+          { label: 'Logros', value: logrosObtenidos.length, emoji: '🏆' },
+        ].map(s => (
+          <div key={s.label} style={{ background: '#1a1a2e', borderRadius: 12, padding: '12px 8px', textAlign: 'center', border: '1px solid #003087' }}>
+            <div style={{ fontSize: 20 }}>{s.emoji}</div>
+            <div style={{ color: '#fff', fontSize: 18, fontWeight: 700 }}>{s.value}</div>
+            <div style={{ color: '#888', fontSize: 11 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* PRÓXIMA EVALUACIÓN */}
+      {proximaEval && (
+        <div style={{ background: '#1a1a2e', borderRadius: 12, padding: 14, marginBottom: 16, border: '1px solid #FF9800' }}>
+          <div style={{ color: '#FF9800', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>⚠️ PRÓXIMA EVALUACIÓN</div>
+          <div style={{ color: '#fff', fontSize: 15, fontWeight: 600 }}>{proximaEval.nombre || proximaEval.tipo}</div>
+          <div style={{ color: '#888', fontSize: 12, marginTop: 2 }}>{proximaEval.ramo} · {new Date(proximaEval.fecha).toLocaleDateString('es-CL')}</div>
+        </div>
+      )}
+
+      {/* GRID RAMOS */}
+      <div style={{ color: '#a0c4ff', fontSize: 13, fontWeight: 700, marginBottom: 10 }}>📖 MIS RAMOS</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 16 }}>
+        {ramos.map(r => {
+          const { promedioParcial, promedioFinal } = calcular(r.notas, r.eximido, r.notaExamen);
+          const nota = promedioFinal || promedioParcial;
+          return (
+            <div key={r.id} onClick={() => onVerRamo(r)} style={{ background: '#1a1a2e', borderRadius: 12, padding: '12px 8px', textAlign: 'center', border: `1px solid ${notaColor(nota)}33`, cursor: 'pointer', transition: 'transform 0.1s' }}>
+              <div style={{ fontSize: 24 }}>{iconoRamo(r.nombre)}</div>
+              <div style={{ color: '#fff', fontSize: 11, fontWeight: 600, marginTop: 4, lineHeight: 1.2 }}>{r.nombre?.length > 12 ? r.nombre.slice(0, 12) + '…' : r.nombre}</div>
+              <div style={{ color: notaColor(nota), fontSize: 16, fontWeight: 700, marginTop: 4 }}>{nota ? nota.toFixed(1) : '—'}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* LOGROS RECIENTES */}
+      {logrosObtenidos.length > 0 && (
+        <>
+          <div style={{ color: '#a0c4ff', fontSize: 13, fontWeight: 700, marginBottom: 10 }}>🏆 LOGROS RECIENTES</div>
+          <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 8 }}>
+            {logrosObtenidos.map(l => (
+              <div key={l.id} style={{ background: '#1a1a2e', borderRadius: 12, padding: '12px 14px', border: '1px solid #FFD700', minWidth: 120, textAlign: 'center', flexShrink: 0 }}>
+                <div style={{ fontSize: 28 }}>{l.emoji}</div>
+                <div style={{ color: '#FFD700', fontSize: 12, fontWeight: 700, marginTop: 4 }}>{l.nombre}</div>
+                <div style={{ color: '#888', fontSize: 10, marginTop: 2 }}>{l.desc}</div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+// ============================================================
+// TAB RAMOS
+// ============================================================
+const TabRamos = ({ ramos, onVerRamo, onAgregarRamo }) => {
+  const [ramoSeleccionado, setRamoSeleccionado] = useState(null);
+
+  const verDetalle = (r) => setRamoSeleccionado(r);
+  const cerrarDetalle = () => setRamoSeleccionado(null);
+
+  if (ramoSeleccionado) {
+    const { promedioParcial, promedioFinal, puedeEximirse, notaMinExamen } = calcular(
+      ramoSeleccionado.notas, ramoSeleccionado.eximido, ramoSeleccionado.notaExamen
+    );
+    const nota = promedioFinal || promedioParcial;
+    return (
+      <div style={{ padding: '16px 16px 80px', background: '#0f0f1a', minHeight: '100vh', fontFamily: 'sans-serif' }}>
+        <button onClick={cerrarDetalle} style={{ background: 'none', border: 'none', color: '#4fc3f7', fontSize: 15, cursor: 'pointer', marginBottom: 12, padding: 0 }}>← Volver</button>
+        <div style={{ background: '#1a1a2e', borderRadius: 16, padding: 20, border: `2px solid ${notaColor(nota)}44` }}>
+          <div style={{ fontSize: 40, textAlign: 'center' }}>{iconoRamo(ramoSeleccionado.nombre)}</div>
+          <div style={{ color: '#fff', fontSize: 20, fontWeight: 700, textAlign: 'center', marginTop: 8 }}>{ramoSeleccionado.nombre}</div>
+          <div style={{ color: notaColor(nota), fontSize: 36, fontWeight: 700, textAlign: 'center', marginTop: 8 }}>{nota ? nota.toFixed(1) : '—'}</div>
+          <div style={{ color: '#888', fontSize: 13, textAlign: 'center' }}>Promedio {promedioFinal ? 'Final' : 'Parcial'}</div>
+
+          {puedeEximirse && !ramoSeleccionado.eximido && (
+            <div style={{ background: '#1b5e20', borderRadius: 10, padding: '8px 12px', marginTop: 12, textAlign: 'center' }}>
+              <span style={{ color: '#69f0ae', fontSize: 13 }}>✅ Puedes eximirte</span>
+            </div>
+          )}
+          {notaMinExamen && (
+            <div style={{ background: '#1a237e', borderRadius: 10, padding: '8px 12px', marginTop: 12, textAlign: 'center' }}>
+              <span style={{ color: '#82b1ff', fontSize: 13 }}>📝 Nota mínima examen: {notaMinExamen.toFixed(1)}</span>
+            </div>
+          )}
+
+          <div style={{ marginTop: 16 }}>
+            <div style={{ color: '#a0c4ff', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>NOTAS</div>
+            {ramoSeleccionado.notas?.length > 0 ? ramoSeleccionado.notas.map((n, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #ffffff11' }}>
+                <span style={{ color: '#ccc', fontSize: 14 }}>{n.nombre || `Nota ${i + 1}`}</span>
+                <span style={{ color: notaColor(parseFloat(n.nota)), fontSize: 14, fontWeight: 700 }}>{n.nota}</span>
+              </div>
+            )) : (
+              <div style={{ color: '#555', fontSize: 13, textAlign: 'center', padding: '12px 0' }}>Sin notas registradas</div>
+            )}
+          </div>
+        </div>
+        <button onClick={() => { cerrarDetalle(); onVerRamo(ramoSeleccionado); }} style={{ width: '100%', marginTop: 16, padding: '14px', background: 'linear-gradient(135deg, #003087, #0057b8)', border: 'none', borderRadius: 12, color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+          ✏️ Editar Ramo
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: '16px 16px 80px', background: '#0f0f1a', minHeight: '100vh', fontFamily: 'sans-serif' }}>
+      <div style={{ color: '#fff', fontSize: 20, fontWeight: 700, marginBottom: 16 }}>📚 Mis Ramos</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 20 }}>
+        {ramos.map(r => {
+          const { promedioParcial, promedioFinal } = calcular(r.notas, r.eximido, r.notaExamen);
+          const nota = promedioFinal || promedioParcial;
+          return (
+            <div key={r.id} onClick={() => verDetalle(r)} style={{ background: '#1a1a2e', borderRadius: 14, padding: '14px 8px', textAlign: 'center', border: `1px solid ${notaColor(nota)}44`, cursor: 'pointer' }}>
+              <div style={{ fontSize: 28 }}>{iconoRamo(r.nombre)}</div>
+              <div style={{ color: '#fff', fontSize: 11, fontWeight: 600, marginTop: 6, lineHeight: 1.3 }}>{r.nombre?.length > 14 ? r.nombre.slice(0, 14) + '…' : r.nombre}</div>
+              <div style={{ color: notaColor(nota), fontSize: 18, fontWeight: 700, marginTop: 6 }}>{nota ? nota.toFixed(1) : '—'}</div>
+              <div style={{ color: '#555', fontSize: 10, marginTop: 2 }}>{r.notas?.length || 0} notas</div>
+            </div>
+          );
+        })}
+        <div onClick={onAgregarRamo} style={{ background: '#1a1a2e', borderRadius: 14, padding: '14px 8px', textAlign: 'center', border: '2px dashed #003087', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 100 }}>
+          <div style={{ fontSize: 28, color: '#4fc3f7' }}>+</div>
+          <div style={{ color: '#4fc3f7', fontSize: 11, fontWeight: 600, marginTop: 4 }}>Agregar</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
+// TAB LOGROS
+// ============================================================
+const TabLogros = ({ ramos }) => {
+  const logros = calcularLogros(ramos);
+  const obtenidos = logros.filter(l => l.obtenido);
+  const bloqueados = logros.filter(l => !l.obtenido);
+  const xp = calcularXP(ramos);
+  const { nivel, xpActual, xpSiguiente } = calcularNivel(xp);
+
+  return (
+    <div style={{ padding: '16px 16px 80px', background: '#0f0f1a', minHeight: '100vh', fontFamily: 'sans-serif' }}>
+      <div style={{ color: '#fff', fontSize: 20, fontWeight: 700, marginBottom: 4 }}>🏆 Logros</div>
+      <div style={{ color: '#888', fontSize: 13, marginBottom: 16 }}>{obtenidos.length} de {logros.length} desbloqueados</div>
+
+      {/* Barra XP */}
+      <div style={{ background: '#1a1a2e', borderRadius: 12, padding: 14, marginBottom: 20, border: '1px solid #003087' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+          <span style={{ color: '#4fc3f7', fontSize: 14, fontWeight: 700 }}>Nivel {nivel}</span>
+          <span style={{ color: '#888', fontSize: 12 }}>{xp} XP total</span>
+        </div>
+        <div style={{ background: '#0f0f1a', borderRadius: 99, height: 10 }}>
+          <div style={{ background: 'linear-gradient(90deg, #4fc3f7, #00e5ff)', borderRadius: 99, height: 10, width: `${Math.min(100, (xpActual / xpSiguiente) * 100)}%` }} />
+        </div>
+        <div style={{ color: '#555', fontSize: 11, marginTop: 4, textAlign: 'right' }}>{xpActual} / {xpSiguiente} XP para nivel {nivel + 1}</div>
+      </div>
+
+      {obtenidos.length > 0 && (
+        <>
+          <div style={{ color: '#FFD700', fontSize: 13, fontWeight: 700, marginBottom: 10 }}>✅ OBTENIDOS</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
+            {obtenidos.map(l => (
+              <div key={l.id} style={{ background: '#1a1a2e', borderRadius: 12, padding: 14, border: '1px solid #FFD70066', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ fontSize: 32 }}>{l.emoji}</div>
+                <div>
+                  <div style={{ color: '#FFD700', fontSize: 13, fontWeight: 700 }}>{l.nombre}</div>
+                  <div style={{ color: '#888', fontSize: 11, marginTop: 2 }}>{l.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {bloqueados.length > 0 && (
+        <>
+          <div style={{ color: '#555', fontSize: 13, fontWeight: 700, marginBottom: 10 }}>🔒 BLOQUEADOS</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            {bloqueados.map(l => (
+              <div key={l.id} style={{ background: '#111', borderRadius: 12, padding: 14, border: '1px solid #333', display: 'flex', alignItems: 'center', gap: 10, opacity: 0.6 }}>
+                <div style={{ fontSize: 32, filter: 'grayscale(1)' }}>{l.emoji}</div>
+                <div>
+                  <div style={{ color: '#555', fontSize: 13, fontWeight: 700 }}>{l.nombre}</div>
+                  <div style={{ color: '#444', fontSize: 11, marginTop: 2 }}>{l.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+// ============================================================
+// TAB PERFIL
+// ============================================================
+const TabPerfil = ({ ramos, onLogout }) => {
+  const xp = calcularXP(ramos);
+  const { nivel, xpActual, xpSiguiente } = calcularNivel(xp);
+  const logros = calcularLogros(ramos);
+  const obtenidos = logros.filter(l => l.obtenido);
+  const promedios = ramos.map(r => calcular(r.notas, r.eximido, r.notaExamen).promedioParcial).filter(Boolean);
+  const promedioGlobal = promedios.length > 0 ? (promedios.reduce((a, b) => a + b, 0) / promedios.length).toFixed(1) : '—';
+  const aprobados = ramos.filter(r => {
+    const { promedioFinal, promedioParcial } = calcular(r.notas, r.eximido, r.notaExamen);
+    return (promedioFinal || promedioParcial || 0) >= 4.0;
+  }).length;
+  const eximidos = ramos.filter(r => r.eximido).length;
+  const totalNotas = ramos.reduce((acc, r) => acc + (r.notas?.length || 0), 0);
+
+  const nivelNombre = ['Novato', 'Estudiante', 'Aplicado', 'Dedicado', 'Brillante', 'Experto', 'Maestro', 'Leyenda', 'Élite', 'Supremo'][Math.min(nivel - 1, 9)];
+
+  return (
+    <div style={{ padding: '16px 16px 80px', background: '#0f0f1a', minHeight: '100vh', fontFamily: 'sans-serif' }}>
+      {/* Avatar y nivel */}
+      <div style={{ background: 'linear-gradient(135deg, #003087, #0057b8)', borderRadius: 16, padding: '24px 16px', textAlign: 'center', marginBottom: 16 }}>
+        <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, margin: '0 auto 10px' }}>🎓</div>
+        <div style={{ color: '#fff', fontSize: 20, fontWeight: 700 }}>Estudiante UFRO</div>
+        <div style={{ color: '#a0c4ff', fontSize: 14, marginTop: 2 }}>Nivel {nivel} · {nivelNombre}</div>
+        <div style={{ marginTop: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+            <span style={{ color: '#a0c4ff', fontSize: 11 }}>{xpActual} XP</span>
+            <span style={{ color: '#a0c4ff', fontSize: 11 }}>{xpSiguiente} XP</span>
+          </div>
+          <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 99, height: 8 }}>
+            <div style={{ background: 'linear-gradient(90deg, #4fc3f7, #00e5ff)', borderRadius: 99, height: 8, width: `${Math.min(100, (xpActual / xpSiguiente) * 100)}%` }} />
+          </div>
+        </div>
+      </div>
+
+      {/* Stats grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+        {[
+          { emoji: '📊', label: 'Promedio Global', value: promedioGlobal },
+          { emoji: '📚', label: 'Ramos', value: ramos.length },
+          { emoji: '✅', label: 'Aprobados', value: aprobados },
+          { emoji: '🌟', label: 'Eximidos', value: eximidos },
+          { emoji: '✏️', label: 'Notas Registradas', value: totalNotas },
+          { emoji: '🏆', label: 'Logros', value: `${obtenidos.length}/${logros.length}` },
+        ].map(s => (
+          <div key={s.label} style={{ background: '#1a1a2e', borderRadius: 12, padding: '14px 12px', border: '1px solid #003087', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 24 }}>{s.emoji}</span>
+            <div>
+              <div style={{ color: '#fff', fontSize: 18, fontWeight: 700 }}>{s.value}</div>
+              <div style={{ color: '#888', fontSize: 11 }}>{s.label}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Logros obtenidos */}
+      {obtenidos.length > 0 && (
+        <>
+          <div style={{ color: '#FFD700', fontSize: 13, fontWeight: 700, marginBottom: 10 }}>🏅 MIS LOGROS</div>
+          <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 8, marginBottom: 16 }}>
+            {obtenidos.map(l => (
+              <div key={l.id} style={{ background: '#1a1a2e', borderRadius: 12, padding: '10px 12px', border: '1px solid #FFD70066', minWidth: 90, textAlign: 'center', flexShrink: 0 }}>
+                <div style={{ fontSize: 26 }}>{l.emoji}</div>
+                <div style={{ color: '#FFD700', fontSize: 10, fontWeight: 700, marginTop: 4 }}>{l.nombre}</div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Botón logout */}
+      <button onClick={onLogout} style={{ width: '100%', padding: '14px', background: '#1a1a2e', border: '1px solid #F44336', borderRadius: 12, color: '#F44336', fontSize: 15, fontWeight: 700, cursor: 'pointer', marginTop: 8 }}>
+        🚪 Cerrar Sesión
+      </button>
+    </div>
+  );
+};
+
+// ============================================================
+// RAMOS SCREEN PRINCIPAL (con tabs)
+// ============================================================
+const RamosScreen = ({ usuario, onLogout, onVerRamo, onIrAdmin }) => {
+  const [tab, setTab] = useState('inicio');
+  const [ramos, setRamos] = useState([]);
+  const [mostrarFormNuevo, setMostrarFormNuevo] = useState(false);
+  const [nuevoNombre, setNuevoNombre] = useState('');
+  const [cargando, setCargando] = useState(true);
+  const [notif, setNotif] = useState(null);
+  const [ramoParaVer, setRamoParaVer] = useState(null);
+
+  const mostrarNotif = (msg, tipo = 'success') => {
+    setNotif({ msg, tipo });
+    setTimeout(() => setNotif(null), 3000);
+  };
+
+  useEffect(() => {
+    cargarRamos();
+  }, []);
+
+  const cargarRamos = async () => {
+    try {
+      setCargando(true);
+      const res = await fetch(`/api/ramos?usuario=${usuario}`);
+      const data = await res.json();
+      setRamos(data);
+    } catch (e) {
+      mostrarNotif('Error al cargar ramos', 'error');
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  const agregarRamo = async () => {
+    if (!nuevoNombre.trim()) return;
+    try {
+      const res = await fetch('/api/ramos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre: nuevoNombre.trim(), usuario }),
+      });
+      const nuevo = await res.json();
+      setRamos(prev => [...prev, nuevo]);
+      setNuevoNombre('');
+      setMostrarFormNuevo(false);
+      mostrarNotif('✅ Ramo agregado');
+    } catch (e) {
+      mostrarNotif('Error al agregar ramo', 'error');
+    }
+  };
+
+  const handleVerRamo = (r) => {
+    setRamoParaVer(r);
+    onVerRamo(r);
+  };
+
+  if (ramoParaVer) {
+    return (
+      <RamoScreen
+        ramo={ramoParaVer}
+        usuario={usuario}
+        onVolver={() => setRamoParaVer(null)}
+        onUpdate={(ramoActualizado) => {
+          setRamos(prev => prev.map(r => r.id === ramoActualizado.id ? ramoActualizado : r));
+          setRamoParaVer(null);
+        }}
+      />
+    );
+  }
+
+  return (
+    <div style={{ background: '#0f0f1a', minHeight: '100vh' }}>
+      {/* NOTIFICACIÓN */}
+      {notif && (
+        <div style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', background: notif.tipo === 'error' ? '#c62828' : '#1b5e20', color: '#fff', padding: '10px 20px', borderRadius: 10, zIndex: 999, fontSize: 14, fontWeight: 600, boxShadow: '0 4px 12px rgba(0,0,0,0.4)' }}>
+          {notif.msg}
+        </div>
+      )}
+
+      {/* MODAL AGREGAR RAMO */}
+      {mostrarFormNuevo && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: '#1a1a2e', borderRadius: 16, padding: 24, width: '100%', maxWidth: 340, border: '1px solid #003087' }}>
+            <div style={{ color: '#fff', fontSize: 18, fontWeight: 700, marginBottom: 16 }}>➕ Nuevo Ramo</div>
+            <input
+              value={nuevoNombre}
+              onChange={e => setNuevoNombre(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && agregarRamo()}
+              placeholder="Nombre del ramo..."
+              style={{ width: '100%', padding: '12px', background: '#0f0f1a', border: '1px solid #003087', borderRadius: 10, color: '#fff', fontSize: 15, marginBottom: 14, boxSizing: 'border-box' }}
+              autoFocus
+            />
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setMostrarFormNuevo(false)} style={{ flex: 1, padding: '12px', background: 'none', border: '1px solid #555', borderRadius: 10, color: '#888', fontSize: 14, cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={agregarRamo} style={{ flex: 1, padding: '12px', background: 'linear-gradient(135deg, #003087, #0057b8)', border: 'none', borderRadius: 10, color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Agregar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {cargando ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#4fc3f7', fontSize: 16 }}>Cargando...</div>
+      ) : (
+        <>
+          {tab === 'inicio' && <TabInicio ramos={ramos} onVerRamo={handleVerRamo} />}
+          {tab === 'ramos' && <TabRamos ramos={ramos} onVerRamo={handleVerRamo} onAgregarRamo={() => setMostrarFormNuevo(true)} />}
+          {tab === 'logros' && <TabLogros ramos={ramos} />}
+          {tab === 'perfil' && <TabPerfil ramos={ramos} onLogout={onLogout} />}
+        </>
+      )}
+
+      <BottomNav tab={tab} setTab={setTab} />
+    </div>
+  );
+};
+
+// ============================================================
+// RAMO SCREEN (detalle/edición de un ramo)
+// ============================================================
+const RamoScreen = ({ ramo, usuario, onVolver, onUpdate }) => {
+  const [notas, setNotas] = useState(ramo.notas || []);
+  const [eximido, setEximido] = useState(ramo.eximido || false);
+  const [notaExamen, setNotaExamen] = useState(ramo.notaExamen || '');
+  const [evaluaciones, setEvaluaciones] = useState(ramo.evaluaciones || []);
+  const [guardando, setGuardando] = useState(false);
+  const [notif, setNotif] = useState(null);
+  const [nuevaNota, setNuevaNota] = useState({ nombre: '', nota: '' });
+
+  const mostrarNotif = (msg, tipo = 'success') => {
+    setNotif({ msg, tipo });
+    setTimeout(() => setNotif(null), 3000);
+  };
+
+  const { promedioParcial, promedioFinal, puedeEximirse, notaMinExamen } = calcular(notas, eximido, notaExamen);
+  const nota = promedioFinal || promedioParcial;
+
+  const guardar = async () => {
+    try {
+      setGuardando(true);
+      const res = await fetch(`/api/ramos/${ramo.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notas, eximido, notaExamen, evaluaciones, usuario }),
+      });
+      const actualizado = await res.json();
+      mostrarNotif('✅ Guardado');
+      onUpdate(actualizado);
+    } catch (e) {
+      mostrarNotif('Error al guardar', 'error');
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const agregarNota = () => {
+    if (!nuevaNota.nota) return;
+    setNotas(prev => [...prev, { nombre: nuevaNota.nombre || `Nota ${prev.length + 1}`, nota: nuevaNota.nota }]);
+    setNuevaNota({ nombre: '', nota: '' });
+  };
+
+  const eliminarNota = (i) => setNotas(prev => prev.filter((_, idx) => idx !== i));
+
+  return (
+    <div style={{ padding: '16px 16px 80px', background: '#0f0f1a', minHeight: '100vh', fontFamily: 'sans-serif' }}>
+      {notif && (
+        <div style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', background: notif.tipo === 'error' ? '#c62828' : '#1b5e20', color: '#fff', padding: '10px 20px', borderRadius: 10, zIndex: 999, fontSize: 14, fontWeight: 600 }}>
+          {notif.msg}
+        </div>
+      )}
+
+      <button onClick={onVolver} style={{ background: 'none', border: 'none', color: '#4fc3f7', fontSize: 15, cursor: 'pointer', marginBottom: 12, padding: 0 }}>← Volver</button>
+
+      <div style={{ textAlign: 'center', marginBottom: 20 }}>
+        <div style={{ fontSize: 48 }}>{iconoRamo(ramo.nombre)}</div>
+        <div style={{ color: '#fff', fontSize: 22, fontWeight: 700, marginTop: 8 }}>{ramo.nombre}</div>
+        <div style={{ color: notaColor(nota), fontSize: 40, fontWeight: 700, marginTop: 4 }}>{nota ? nota.toFixed(1) : '—'}</div>
+        <div style={{ color: '#888', fontSize: 13 }}>Promedio {promedioFinal ? 'Final' : 'Parcial'}</div>
+      </div>
+
+      {puedeEximirse && !eximido && (
+        <div style={{ background: '#1b5e20', borderRadius: 10, padding: '10px 14px', marginBottom: 12, textAlign: 'center' }}>
+          <span style={{ color: '#69f0ae', fontSize: 14 }}>✅ Puedes eximirte de este ramo</span>
+        </div>
+      )}
+      {notaMinExamen && (
+        <div style={{ background: '#1a237e', borderRadius: 10, padding: '10px 14px', marginBottom: 12, textAlign: 'center' }}>
+          <span style={{ color: '#82b1ff', fontSize: 14 }}>📝 Nota mínima para aprobar en examen: {notaMinExamen.toFixed(1)}</span>
+        </div>
+      )}
+
+      {/* Toggle eximido */}
+      <div style={{ background: '#1a1a2e', borderRadius: 12, padding: '12px 16px', marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #003087' }}>
+        <span style={{ color: '#ccc', fontSize: 14 }}>🌟 Eximido</span>
+        <button onClick={() => setEximido(!eximido)} style={{ background: eximido ? '#003087' : '#333', border: 'none', borderRadius: 20, padding: '6px 16px', color: eximido ? '#4fc3f7' : '#888', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
+          {eximido ? 'Sí' : 'No'}
+        </button>
+      </div>
+
+      {/* Nota examen */}
+      {!eximido && (
+        <div style={{ background: '#1a1a2e', borderRadius: 12, padding: '12px 16px', marginBottom: 12, border: '1px solid #003087' }}>
+          <div style={{ color: '#a0c4ff', fontSize: 13, marginBottom: 8 }}>📝 Nota Examen</div>
+          <input
+            type="number" min="1" max="7" step="0.1"
+            value={notaExamen}
+            onChange={e => setNotaExamen(e.target.value)}
+            placeholder="Ej: 5.5"
+            style={{ width: '100%', padding: '10px', background: '#0f0f1a', border: '1px solid #003087', borderRadius: 8, color: '#fff', fontSize: 15, boxSizing: 'border-box' }}
+          />
+        </div>
+      )}
+
+      {/* Notas */}
+      <div style={{ background: '#1a1a2e', borderRadius: 12, padding: '14px 16px', marginBottom: 12, border: '1px solid #003087' }}>
+        <div style={{ color: '#a0c4ff', fontSize: 13, fontWeight: 700, marginBottom: 10 }}>NOTAS</div>
+        {notas.map((n, i) => (
+          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #ffffff11' }}>
+            <span style={{ color: '#ccc', fontSize: 14 }}>{n.nombre}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ color: notaColor(parseFloat(n.nota)), fontSize: 16, fontWeight: 700 }}>{n.nota}</span>
+              <button onClick={() => eliminarNota(i)} style={{ background: 'none', border: 'none', color: '#F44336', cursor: 'pointer', fontSize: 16 }}>✕</button>
+            </div>
+          </div>
+        ))}
+        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <input value={nuevaNota.nombre} onChange={e => setNuevaNota(p => ({ ...p, nombre: e.target.value }))} placeholder="Nombre" style={{ flex: 2, padding: '8px', background: '#0f0f1a', border: '1px solid #003087', borderRadius: 8, color: '#fff', fontSize: 13 }} />
+          <input type="number" min="1" max="7" step="0.1" value={nuevaNota.nota} onChange={e => setNuevaNota(p => ({ ...p, nota: e.target.value }))} placeholder="Nota" style={{ flex: 1, padding: '8px', background: '#0f0f1a', border: '1px solid #003087', borderRadius: 8, color: '#fff', fontSize: 13 }} />
+          <button onClick={agregarNota} style={{ padding: '8px 12px', background: '#003087', border: 'none', borderRadius: 8, color: '#fff', fontSize: 18, cursor: 'pointer' }}>+</button>
+        </div>
+      </div>
+
+      <button onClick={guardar} disabled={guardando} style={{ width: '100%', padding: '14px', background: 'linear-gradient(135deg, #003087, #0057b8)', border: 'none', borderRadius: 12, color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', marginTop: 4 }}>
+        {guardando ? 'Guardando...' : '💾 Guardar Cambios'}
+      </button>
+    </div>
+  );
+};
+
+// ============================================================
+// LOGIN SCREEN
+// ============================================================
+const LoginScreen = ({ onLogin }) => {
+  const [usuario, setUsuario] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [cargando, setCargando] = useState(false);
+
+  const handleLogin = async () => {
+    if (!usuario.trim() || !password.trim()) { setError('Completa todos los campos'); return; }
+    try {
+      setCargando(true);
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usuario, password }),
+      });
+      const data = await res.json();
+      if (data.ok) onLogin(data.usuario);
+      else setError(data.mensaje || 'Credenciales incorrectas');
+    } catch (e) {
+      setError('Error de conexión');
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  return (
+    <div style={{ background: '#0f0f1a', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, fontFamily: 'sans-serif' }}>
+      <div style={{ width: '100%', maxWidth: 340 }}>
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <div style={{ fontSize: 56 }}>🎓</div>
+          <div style={{ color: '#fff', fontSize: 28, fontWeight: 700, marginTop: 8 }}>APPrueba</div>
+          <div style={{ color: '#a0c4ff', fontSize: 14, marginTop: 4 }}>Universidad de La Frontera</div>
+        </div>
+        <div style={{ background: '#1a1a2e', borderRadius: 16, padding: 24, border: '1px solid #003087' }}>
+          <input value={usuario} onChange={e => setUsuario(e.target.value)} placeholder="Usuario" style={{ width: '100%', padding: '12px', background: '#0f0f1a', border: '1px solid #003087', borderRadius: 10, color: '#fff', fontSize: 15, marginBottom: 12, boxSizing: 'border-box' }} />
+          <input type="password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} placeholder="Contraseña" style={{ width: '100%', padding: '12px', background: '#0f0f1a', border: '1px solid #003087', borderRadius: 10, color: '#fff', fontSize: 15, marginBottom: 16, boxSizing: 'border-box' }} />
+          {error && <div style={{ color: '#F44336', fontSize: 13, marginBottom: 12, textAlign: 'center' }}>{error}</div>}
+          <button onClick={handleLogin} disabled={cargando} style={{ width: '100%', padding: '14px', background: 'linear-gradient(135deg, #003087, #0057b8)', border: 'none', borderRadius: 10, color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>
+            {cargando ? 'Ingresando...' : 'Ingresar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
+// ADMIN SCREEN
+// ============================================================
+const AdminScreen = ({ onVolver }) => {
+  return (
+    <div style={{ padding: '16px', background: '#0f0f1a', minHeight: '100vh', fontFamily: 'sans-serif' }}>
+      <button onClick={onVolver} style={{ background: 'none', border: 'none', color: '#4fc3f7', fontSize: 15, cursor: 'pointer', marginBottom: 16, padding: 0 }}>← Volver</button>
+      <div style={{ color: '#fff', fontSize: 20, fontWeight: 700 }}>⚙️ Admin</div>
+      <div style={{ color: '#888', fontSize: 14, marginTop: 8 }}>Panel de administración</div>
+    </div>
+  );
+};
+
+// ============================================================
+// APP PRINCIPAL
+// ============================================================
+const App = () => {
+  const [usuario, setUsuario] = useState(() => localStorage.getItem('apprueba_usuario') || null);
+  const [pantalla, setPantalla] = useState('ramos');
+  const [ramoActivo, setRamoActivo] = useState(null);
+
+  const handleLogin = (u) => {
+    localStorage.setItem('apprueba_usuario', u);
+    setUsuario(u);
+    setPantalla('ramos');
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('apprueba_usuario');
+    setUsuario(null);
+    setPantalla('ramos');
+  };
+
+  const handleVerRamo = (r) => {
+    setRamoActivo(r);
+    setPantalla('ramo');
+  };
+
+  if (!usuario) return <LoginScreen onLogin={handleLogin} />;
+  if (pantalla === 'admin') return <AdminScreen onVolver={() => setPantalla('ramos')} />;
+
+  return (
+    <RamosScreen
+      usuario={usuario}
+      onLogout={handleLogout}
+      onVerRamo={handleVerRamo}
+      onIrAdmin={() => setPantalla('admin')}
+    />
+  );
+};
+
+export default App;

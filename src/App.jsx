@@ -169,7 +169,7 @@ const diasRestantes = (fecha) => {
   return Math.round((f - hoy) / (1000 * 60 * 60 * 24))
 }
 
-function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVerRamo, onHorario, onVerHorario }) {
+function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVerRamo, onHorario, onVerHorario, onNotif, onPerfil, onAdmin, evalProximas3dias }) {
   const hoy = new Date()
   const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado']
   const diaHoy = dias[hoy.getDay()]
@@ -225,7 +225,23 @@ function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVer
   ]
 
   return (
-    <div style={{ background: 'var(--bg-primary)', paddingBottom: 20, paddingTop: 130 }}>
+    <div style={{ background: 'transparent', paddingBottom: 20, paddingTop: 0 }}>
+      {/* Header integrado */}
+      <div style={{ padding: '52px 16px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 20, fontWeight: 800, color: 'white', letterSpacing: -0.5 }}>APPrueba</span>
+            {usuario?.universidad && <span style={{ fontSize: 10, fontWeight: 700, background: 'rgba(255,255,255,0.15)', color: 'white', padding: '2px 8px', borderRadius: 20 }}>{usuario.universidad.toUpperCase()}</span>}
+          </div>
+          <p style={{ margin: '2px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>Hola, {usuario?.nombre?.split(' ')[0] || usuario?.name?.split(' ')[0] || 'estudiante'} 👋</p>
+          {esFundador && <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(201,168,76,0.25)', border: '1px solid rgba(201,168,76,0.5)', borderRadius: 20, padding: '2px 10px', fontSize: 11, color: '#C9A84C', fontWeight: 700, marginTop: 4 }}>🏅 Fundador #{numeroRegistro}</div>}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {usuario?.email === 'abelespinozav@gmail.com' && <button onClick={onAdmin} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: 38, height: 38, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>⚙️</button>}
+          <button onClick={onNotif} style={{ position: 'relative', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: 38, height: 38, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>🔔{evalProximas3dias > 0 && <span style={{ position: 'absolute', top: -2, right: -2, background: '#f87171', color: 'white', borderRadius: '50%', width: 16, height: 16, fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{evalProximas3dias}</span>}</button>
+          <div onClick={onPerfil} style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, color: 'white', cursor: 'pointer' }}>{(usuario?.nombre || usuario?.name || 'U')[0].toUpperCase()}</div>
+        </div>
+      </div>
       <div style={{ padding: '16px' }}>
         {/* XP Bar */}
         <div style={{ background: 'var(--bg-card)', borderRadius: 16, padding: '14px 16px', marginBottom: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: '1px solid var(--color-border)' }}>
@@ -342,7 +358,9 @@ function PlanTab({ ramos, onIniciarPlan }) {
   const [evalSinMaterial, setEvalSinMaterial] = useState(null)
 
   return (
-    <div style={{ padding: '140px 16px 100px', background: 'var(--bg-primary)', minHeight: '100vh' }}>
+    <div style={{ padding: '52px 16px 100px', background: 'var(--bg-primary)', minHeight: '100vh', position: 'relative' }}>
+      <BackgroundOrbs />
+      <div style={{ position: 'relative', zIndex: 1 }}>
       <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--color-text)', margin: '0 0 4px' }}>🧠 Plan IA</h2>
       <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', margin: '0 0 20px' }}>Elige un ramo y una evaluación para generar tu plan de estudio</p>
 
@@ -431,6 +449,7 @@ function PlanTab({ ramos, onIniciarPlan }) {
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }
@@ -450,7 +469,9 @@ function QuizTab({ ramos, onIniciarQuiz }) {
   }, [])
 
   return (
-    <div style={{ padding: '140px 16px 100px', background: 'var(--bg-primary)', minHeight: '100vh' }}>
+    <div style={{ padding: '52px 16px 100px', background: 'var(--bg-primary)', minHeight: '100vh', position: 'relative' }}>
+      <BackgroundOrbs />
+      <div style={{ position: 'relative', zIndex: 1 }}>
       <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--color-text)', margin: '0 0 4px' }}>⚡ Quiz Rápido</h2>
       <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', margin: '0 0 20px' }}>Elige un ramo y una evaluación para practicar</p>
 
@@ -565,6 +586,7 @@ function QuizTab({ ramos, onIniciarQuiz }) {
           </div>
         )}
       </div>
+      </div>
     </div>
   )
 }
@@ -578,7 +600,7 @@ function PerfilTab({ usuario, onLogout, onUniversidad, esFundador, numeroRegistr
   const inicial = (usuario?.nombre || usuario?.name || 'U')[0].toUpperCase()
 
   return (
-    <div style={{ padding: '140px 16px 100px', background: 'var(--bg-primary)', minHeight: '100vh' }}>
+    <div style={{ padding: '52px 16px 100px', background: 'var(--bg-primary)', minHeight: '100vh' }}>
       {/* Avatar */}
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
         <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 800, color: 'white', margin: '0 auto 12px' }}>{inicial}</div>
@@ -679,14 +701,12 @@ function AppHeader({ usuario, esFundador, numeroRegistro, evalProximas3dias, onN
 
   return (
     <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0, zIndex: 999,
+      
       background: 'var(--bg-header)',
       padding: '48px 20px 16px',
       boxShadow: '0 2px 12px rgba(0,48,135,0.15)',
       overflow: 'hidden'
     }}>
-      {/* Logo universidad watermark */}
-      <img src="/logos/ufro.png" style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', bottom: -120, height: 320, opacity: 0.13, pointerEvents: 'none', filter: 'brightness(0) invert(1)' }} alt="" />
       <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -976,7 +996,7 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
   const getTipoColor = (tipo) => TIPOS.find(t => t.value === tipo)?.color || '#6c63ff'
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', padding: '140px 16px 100px' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', padding: '52px 16px 100px' }}>
       <div style={{ maxWidth: 700, margin: '0 auto' }}>
         <div style={{ marginBottom: 20 }}>
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>📅 Mi Horario</h2>
@@ -1281,11 +1301,11 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
 
   return (
     <>
-    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', padding: '0 0 100px' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', padding: '52px 0 100px' }}>
       <BackgroundOrbs />
           <BannerInstalar />
       <div style={{ position: 'relative', zIndex: 1 }}>
-        <div style={{ padding: '140px 20px 8px' }}>
+        <div style={{ padding: '16px 20px 8px' }}>
           <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--color-text)', margin: '0 0 4px' }}>📚 Mis Ramos</h2>
         </div>
         <div style={{ padding: '0 16px' }}>
@@ -1563,7 +1583,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan, evalDestacada, o
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', paddingBottom: 100 }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', paddingBottom: 100, paddingTop: 52 }}>
       <Confetti active={confetti} />
       {editandoRamo && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setEditandoRamo(false)}>
@@ -2285,16 +2305,6 @@ export default function App() {
 
     return (
       <>
-        <AppHeader
-          usuario={usuario}
-          esFundador={usuario?.es_fundador}
-          numeroRegistro={usuario?.numero_registro}
-          evalProximas3dias={proximas3dias}
-          onNotif={() => setMostrarNotif(true)}
-          onPerfil={() => setTab('perfil')}
-          onAdmin={() => setPantalla('admin')}
-          onLogout={handleLogout}
-        />
         {tab === 'home' && (
           <HomeScreen
             ramos={ramos}
@@ -2305,6 +2315,10 @@ export default function App() {
             onVerRamo={(ev) => irAPlanEval(ev.ramoId, ev.id)}
             onHorario={() => setPantalla('horario')}
             onVerHorario={() => setTab('horario')}
+            onNotif={() => setMostrarNotif(true)}
+            onPerfil={() => setTab('perfil')}
+            onAdmin={() => setPantalla('admin')}
+            evalProximas3dias={proximas3dias}
           />
         )}
         {tab === 'ramos' && (

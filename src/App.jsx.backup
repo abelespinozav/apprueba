@@ -1,0 +1,840 @@
+import React, { useState, useEffect, useRef } from 'react';
+
+// ============================================================
+// HELPERS
+// ============================================================
+const calcular = (notas, eximido, notaExamen) => {
+  if (!notas || notas.length === 0) return { promedioParcial: null, promedioFinal: null, puedeEximirse: false, notaMinExamen: null };
+  const validas = notas.filter(n => n.nota !== '' && n.nota !== null && !isNaN(parseFloat(n.nota)));
+  if (validas.length === 0) return { promedioParcial: null, promedioFinal: null, puedeEximirse: false, notaMinExamen: null };
+  const suma = validas.reduce((acc, n) => acc + parseFloat(n.nota), 0);
+  const promedioParcial = suma / validas.length;
+  const puedeEximirse = promedioParcial >= 5.0;
+  let promedioFinal = null;
+  let notaMinExamen = null;
+  if (eximido) {
+    promedioFinal = promedioParcial;
+  } else if (notaExamen !== '' && notaExamen !== null && !isNaN(parseFloat(notaExamen))) {
+    promedioFinal = promedioParcial * 0.6 + parseFloat(notaExamen) * 0.4;
+  } else {
+    notaMinExamen = ((4.0 - promedioParcial * 0.6) / 0.4);
+    if (notaMinExamen < 1) notaMinExamen = 1;
+    if (notaMinExamen > 7) notaMinExamen = null;
+  }
+  return { promedioParcial, promedioFinal, puedeEximirse, notaMinExamen };
+};
+
+const notaColor = (nota) => {
+  if (nota === null || nota === undefined) return 'rgba(255,255,255,0.3)';
+  if (nota >= 5.0) return '#34d399';
+  if (nota >= 4.0) return '#f5c400';
+  return '#f87171';
+};
+
+const notaBg = (nota) => {
+  if (nota === null || nota === undefined) return 'rgba(255,255,255,0.05)';
+  if (nota >= 5.0) return 'rgba(52,211,153,0.2)';
+  if (nota >= 4.0) return 'rgba(245,196,0,0.2)';
+  return 'rgba(239,68,68,0.2)';
+};
+
+const notaBorder = (nota) => {
+  if (nota === null || nota === undefined) return 'rgba(255,255,255,0.1)';
+  if (nota >= 5.0) return 'rgba(52,211,153,0.3)';
+  if (nota >= 4.0) return 'rgba(245,196,0,0.3)';
+  return 'rgba(255,100,100,0.2)';
+};
+
+const iconoRamo = (nombre) => {
+  const n = nombre?.toLowerCase() || '';
+  if (n.includes('mat') || n.includes('calc') || n.includes('álgebra') || n.includes('algebra')) return '📐';
+  if (n.includes('fís') || n.includes('fis')) return '⚛️';
+  if (n.includes('quím') || n.includes('quim')) return '🧪';
+  if (n.includes('bio')) return '🧬';
+  if (n.includes('prog') || n.includes('comp') || n.includes('info') || n.includes('software')) return '💻';
+  if (n.includes('ing') || n.includes('estruc')) return '⚙️';
+  if (n.includes('econ') || n.includes('admin') || n.includes('gest')) return '📊';
+  if (n.includes('hist') || n.includes('soc')) return '📚';
+  if (n.includes('estadí') || n.includes('estadi') || n.includes('prob')) return '📊';
+  if (n.includes('arte') || n.includes('diseño') || n.includes('diseno')) return '🎨';
+  return '📖';
+};
+
+// ============================================================
+// HOOK XP
+// ============================================================
+const useXP = (token) => {
+  const [xpData, setXpData] = useState(null);
+  const [logrosNuevos, setLogrosNuevos] = useState([]);
+  const prevLogrosRef = useRef(null);
+
+  const cargarXP = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch('/xp', { headers: { Authorization: 'Bearer ' + token } });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (prevLogrosRef.current !== null) {
+        const prevIds = new Set(prevLogrosRef.current.filter(l => l.desbloqueado).map(l => l.id));
+        const nuevos = data.logros.filter(l => l.desbloqueado && !prevIds.has(l.id));
+        if (nuevos.length > 0) setLogrosNuevos(prev => [...prev, ...nuevos]);
+      }
+      prevLogrosRef.current = data.logros;
+      setXpData(data);
+    } catch(e) {}
+  };
+
+  useEffect(() => { cargarXP(); }, [token]);
+  return { xpData, logrosNuevos, setLogrosNuevos, recargarXP: cargarXP };
+};
+
+// ============================================================
+// POPUP LOGRO
+// ============================================================
+const PopupLogro = ({ logro, onClose }) => {
+  useEffect(() => {
+    const t = setTimeout(onClose, 4000);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ background: '#0a0e1a', border: '2px solid #f5c400', borderRadius: 20, padding: '24px 20px', textAlign: 'center', maxWidth: 300, width: '100%' }}>
+        <div style={{ fontSize: 48, marginBottom: 8 }}>{logro.emoji || '🏆'}</div>
+        <p style={{ fontSize: 10, fontWeight: 700, color: '#f5c400', letterSpacing: 1, marginBottom: 4 }}>¡NUEVO LOGRO!</p>
+        <p style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginBottom: 6 }}>{logro.nombre}</p>
+        <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 16 }}>{logro.descripcion}</p>
+        {logro.xp_recompensa > 0 && (
+          <div style={{ background: 'rgba(245,196,0,0.1)', border: '1px solid rgba(245,196,0,0.3)', borderRadius: 10, padding: 10, marginBottom: 16 }}>
+            <p style={{ fontSize: 11, color: '#f5c400', fontWeight: 700 }}>+{logro.xp_recompensa} XP ganados ⚡</p>
+          </div>
+        )}
+        <button onClick={onClose} style={{ background: '#003087', border: 'none', borderRadius: 10, padding: '8px 24px', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>¡Genial!</button>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
+// BOTTOM NAV
+// ============================================================
+const BottomNav = ({ tab, setTab }) => {
+  const tabs = [
+    { id: 'inicio', emoji: '🏠', label: 'Inicio' },
+    { id: 'horario', emoji: '📅', label: 'Horario' },
+    { id: 'notas', emoji: '📊', label: 'Notas' },
+    { id: 'logros', emoji: '🏆', label: 'Logros' },
+    { id: 'perfil', emoji: '👤', label: 'Perfil' },
+  ];
+  return (
+    <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#0a0e1a', borderTop: '1px solid rgba(255,255,255,0.07)', display: 'flex', zIndex: 100, paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      {tabs.map(t => (
+        <button key={t.id} onClick={() => setTab(t.id)} style={{ flex: 1, padding: '8px 0', background: 'none', border: 'none', color: tab === t.id ? '#f5c400' : 'rgba(255,255,255,0.3)', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+          <span style={{ fontSize: 20 }}>{t.emoji}</span>
+          <span style={{ fontSize: 10, fontWeight: tab === t.id ? 700 : 400 }}>{t.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+};
+
+// ============================================================
+// TAB INICIO
+// ============================================================
+const TabInicio = ({ ramos, user, xpData, onAgregarRamo, onVerRamo, token }) => {
+  const [proximaClase, setProximaClase] = useState(null);
+  const [proximaEval, setProximaEval] = useState(null);
+
+  useEffect(() => {
+    const cargar = async () => {
+      if (!token) return;
+      try {
+        const res = await fetch('/horario/proxima-clase', { headers: { Authorization: 'Bearer ' + token } });
+        if (res.ok) { const d = await res.json(); setProximaClase(d); }
+      } catch(e) {}
+      try {
+        const res2 = await fetch('/evaluaciones/proxima', { headers: { Authorization: 'Bearer ' + token } });
+        if (res2.ok) { const d2 = await res2.json(); setProximaEval(d2); }
+      } catch(e) {}
+    };
+    cargar();
+  }, [token]);
+
+  const nivel = xpData ? xpData.nivel : 1;
+  const xpActual = xpData ? xpData.xp_total : 0;
+  const xpSiguiente = xpData ? xpData.xp_siguiente_nivel : 1000;
+  const racha = xpData ? xpData.racha_dias : 0;
+  const pct = xpSiguiente > 0 ? Math.min(100, (xpActual / xpSiguiente) * 100) : 0;
+  const nombreNivel = xpData?.nombre_nivel || 'Estudiante';
+  const nombre = user?.nombre || user?.name || 'Estudiante';
+
+  return (
+    <div style={{ paddingBottom: 80 }}>
+      {/* HEADER */}
+      <div style={{ background: '#003087', padding: '20px 16px 14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 36, height: 36, background: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: '#003087', flexShrink: 0 }}>UFRO</div>
+            <div>
+              <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.55)' }}>Universidad de La Frontera</p>
+              <p style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>Hola, {nombre.split(' ')[0]} 👋</p>
+            </div>
+          </div>
+          {racha > 0 && (
+            <div style={{ textAlign: 'right' }}>
+              <p style={{ fontSize: 12, color: '#f5c400' }}>🔥 {racha} días</p>
+              <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)' }}>racha</p>
+            </div>
+          )}
+        </div>
+        <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 10, padding: '8px 10px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ fontSize: 14 }}>⚡</span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: '#f5c400' }}>Nivel {nivel} — {nombreNivel}</span>
+            </div>
+            <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)' }}>{xpActual} / {xpSiguiente} XP</span>
+          </div>
+          <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 4, height: 6 }}>
+            <div style={{ background: '#f5c400', width: pct + '%', height: '100%', borderRadius: 4, transition: 'width 0.5s' }}></div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ padding: '10px 12px 0' }}>
+        {/* PRÓXIMA CLASE */}
+        {proximaClase && (
+          <>
+            <p style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.5, marginBottom: 6 }}>PRÓXIMA CLASE</p>
+            <div style={{ background: 'rgba(0,48,135,0.5)', border: '1px solid #003087', borderRadius: 12, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+              <div style={{ background: '#003087', borderRadius: 8, padding: '6px 8px', textAlign: 'center', minWidth: 36 }}>
+                <p style={{ fontSize: 18 }}>{iconoRamo(proximaClase.ramo)}</p>
+              </div>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#fff' }}>{proximaClase.ramo}</p>
+                <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)' }}>{proximaClase.hora} · {proximaClase.sala} · {proximaClase.profesor}</p>
+              </div>
+              {proximaClase.enMinutos && (
+                <div style={{ background: '#f5c400', borderRadius: 6, padding: '2px 6px' }}>
+                  <p style={{ fontSize: 9, fontWeight: 700, color: '#001a4d' }}>En {proximaClase.enMinutos}m</p>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* MIS RAMOS */}
+        <p style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.5, marginBottom: 6 }}>MIS RAMOS</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 6, marginBottom: 10 }}>
+          {ramos.slice(0, 5).map((r, i) => {
+            const { promedioParcial, promedioFinal } = calcular(r.notas, r.eximido, r.notaExamen);
+            const nota = promedioFinal ?? promedioParcial;
+            const notaStr = nota !== null ? nota.toFixed(1) : '—';
+            const isFirst = i === 0;
+            return (
+              <div key={r.id} onClick={() => onVerRamo(r)} style={{ background: isFirst ? 'rgba(0,48,135,0.4)' : 'rgba(255,255,255,0.05)', border: '1px solid ' + (isFirst ? '#003087' : notaBorder(nota)), borderRadius: 10, padding: '8px 6px', textAlign: 'center', cursor: 'pointer' }}>
+                <div style={{ fontSize: 18, marginBottom: 3 }}>{iconoRamo(r.nombre)}</div>
+                <p style={{ fontSize: 8, fontWeight: 600, color: '#fff', lineHeight: 1.2, marginBottom: 3 }}>{r.nombre.length > 8 ? r.nombre.substring(0,8) + '.' : r.nombre}</p>
+                <p style={{ fontSize: 10, fontWeight: 700, color: notaColor(nota) }}>{notaStr}</p>
+              </div>
+            );
+          })}
+          <div onClick={onAgregarRamo} style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.15)', borderRadius: 10, padding: '8px 6px', textAlign: 'center', cursor: 'pointer' }}>
+            <div style={{ fontSize: 18, marginBottom: 3, opacity: 0.4 }}>➕</div>
+            <p style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)' }}>Agregar</p>
+          </div>
+        </div>
+
+        {/* PRÓXIMA EVALUACIÓN */}
+        {proximaEval && (
+          <>
+            <p style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.5, marginBottom: 6 }}>PRÓXIMA EVALUACIÓN</p>
+            <div style={{ background: 'rgba(245,196,0,0.08)', border: '1px solid rgba(245,196,0,0.3)', borderRadius: 12, padding: '10px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#fff' }}>{proximaEval.ramo} — {proximaEval.nombre}</p>
+                <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>{proximaEval.fecha} · {proximaEval.sala}</p>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ fontSize: 22, fontWeight: 700, color: '#f5c400' }}>{proximaEval.diasRestantes}</p>
+                <p style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)' }}>días</p>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* LOGROS RECIENTES */}
+        {xpData?.logros?.filter(l => l.desbloqueado).length > 0 && (
+          <>
+            <p style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.5, marginBottom: 6 }}>LOGROS RECIENTES</p>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {xpData.logros.filter(l => l.desbloqueado).slice(0,3).map(l => (
+                <div key={l.id} style={{ background: 'rgba(245,196,0,0.15)', border: '1px solid rgba(245,196,0,0.4)', borderRadius: 8, padding: '5px 8px', textAlign: 'center' }}>
+                  <p style={{ fontSize: 14 }}>{l.emoji || '🏆'}</p>
+                  <p style={{ fontSize: 7, color: '#f5c400' }}>{l.nombre?.substring(0,8)}</p>
+                </div>
+              ))}
+              <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '5px 8px', textAlign: 'center', opacity: 0.4 }}>
+                <p style={{ fontSize: 14 }}>🏆</p>
+                <p style={{ fontSize: 7, color: 'rgba(255,255,255,0.4)' }}>???</p>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
+// TAB NOTAS (Ramos Grid)
+// ============================================================
+const TabNotas = ({ ramos, onVerRamo, onAgregarRamo }) => {
+  const [ramoSeleccionado, setRamoSeleccionado] = useState(null);
+
+  const handleClick = (r) => {
+    setRamoSeleccionado(ramoSeleccionado?.id === r.id ? null : r);
+  };
+
+  return (
+    <div style={{ paddingBottom: 80 }}>
+      <div style={{ background: '#003087', padding: '20px 16px 14px' }}>
+        <p style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginBottom: 2 }}>Mis Ramos</p>
+        <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)' }}>Ing. Civil Informática · UFRO</p>
+      </div>
+      <div style={{ padding: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 8 }}>
+          {ramos.map((r, i) => {
+            const { promedioParcial, promedioFinal } = calcular(r.notas, r.eximido, r.notaExamen);
+            const nota = promedioFinal ?? promedioParcial;
+            const notaStr = nota !== null ? nota.toFixed(1) : '—';
+            const isSelected = ramoSeleccionado?.id === r.id;
+            const isFirst = i === 0;
+            return (
+              <div key={r.id} onClick={() => handleClick(r)} style={{ background: isFirst ? 'rgba(0,48,135,0.5)' : 'rgba(255,255,255,0.05)', border: '1px solid ' + (isFirst ? '#003087' : notaBorder(nota)), borderRadius: 12, padding: '10px 6px', textAlign: 'center', cursor: 'pointer', outline: isSelected ? '2px solid #f5c400' : 'none' }}>
+                <div style={{ fontSize: 22, marginBottom: 4 }}>{iconoRamo(r.nombre)}</div>
+                <p style={{ fontSize: 8, fontWeight: 600, color: '#fff', lineHeight: 1.3, marginBottom: 4 }}>{r.nombre.length > 9 ? r.nombre.substring(0,9) + '.' : r.nombre}</p>
+                <div style={{ background: notaBg(nota), borderRadius: 6, padding: '2px 0' }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: notaColor(nota) }}>{notaStr}</p>
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 3, height: 3, marginTop: 5 }}>
+                  <div style={{ background: notaColor(nota), width: (nota ? Math.min(100, (nota/7)*100) : 0) + '%', height: '100%', borderRadius: 3 }}></div>
+                </div>
+              </div>
+            );
+          })}
+          <div onClick={onAgregarRamo} style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.12)', borderRadius: 12, padding: '10px 6px', textAlign: 'center', cursor: 'pointer' }}>
+            <div style={{ fontSize: 22, marginBottom: 4, opacity: 0.4 }}>➕</div>
+            <p style={{ fontSize: 8, color: 'rgba(255,255,255,0.25)' }}>Nuevo ramo</p>
+          </div>
+        </div>
+
+        {ramoSeleccionado && (
+          <div style={{ marginTop: 12, background: 'rgba(0,48,135,0.3)', border: '1px solid #003087', borderRadius: 12, padding: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{iconoRamo(ramoSeleccionado.nombre)} {ramoSeleccionado.nombre}</p>
+                <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>Toca para ver detalles completos</p>
+              </div>
+              <button onClick={() => onVerRamo(ramoSeleccionado)} style={{ background: '#003087', border: 'none', borderRadius: 8, padding: '5px 10px', color: '#fff', fontSize: 10, cursor: 'pointer', fontWeight: 600 }}>Ver →</button>
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <div style={{ flex: 1, background: 'rgba(0,48,135,0.5)', borderRadius: 8, padding: 6, textAlign: 'center' }}>
+                <p style={{ fontSize: 9, color: '#fff' }}>🧠 Plan</p>
+              </div>
+              <div style={{ flex: 1, background: 'rgba(0,48,135,0.5)', borderRadius: 8, padding: 6, textAlign: 'center' }}>
+                <p style={{ fontSize: 9, color: '#fff' }}>✅ Quiz</p>
+              </div>
+              <div style={{ flex: 1, background: 'rgba(0,48,135,0.5)', borderRadius: 8, padding: 6, textAlign: 'center' }}>
+                <p style={{ fontSize: 9, color: '#fff' }}>🎙️ Pod.</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
+// TAB LOGROS
+// ============================================================
+const TabLogros = ({ xpData }) => {
+  const [logroActivo, setLogroActivo] = useState(null);
+
+  const logrosEjemplo = [
+    { id: 'streak', emoji: '🔥', nombre: 'Racha de 7 días', descripcion: '¡7 días seguidos usando APPrueba!', xp_recompensa: 100, desbloqueado: true },
+    { id: 'planes', emoji: '🧠', nombre: '5 planes generados', descripcion: 'Generaste 5 planes de estudio con IA.', xp_recompensa: 75, desbloqueado: true },
+    { id: 'nota7', emoji: '⭐', nombre: 'Primera nota 7.0', descripcion: 'Obtuviste un 7.0. ¡Eres un crack!', xp_recompensa: 150, desbloqueado: true },
+    { id: 'top10', emoji: '🏆', nombre: 'Top 10 UFRO', descripcion: '???', xp_recompensa: 500, desbloqueado: false },
+  ];
+
+  const logros = xpData?.logros?.length > 0 ? xpData.logros : logrosEjemplo;
+  const activo = logroActivo || logros.find(l => l.desbloqueado) || logros[0];
+
+  const logroBg = (l) => {
+    if (!l.desbloqueado) return 'rgba(255,255,255,0.03)';
+    if (l.emoji === '🔥') return 'rgba(245,196,0,0.1)';
+    if (l.emoji === '🧠') return 'rgba(167,139,250,0.1)';
+    if (l.emoji === '⭐') return 'rgba(52,211,153,0.1)';
+    return 'rgba(245,196,0,0.1)';
+  };
+  const logroBorder = (l) => {
+    if (!l.desbloqueado) return 'rgba(255,255,255,0.08)';
+    if (l.emoji === '🔥') return 'rgba(245,196,0,0.3)';
+    if (l.emoji === '🧠') return 'rgba(167,139,250,0.3)';
+    if (l.emoji === '⭐') return 'rgba(52,211,153,0.3)';
+    return 'rgba(245,196,0,0.3)';
+  };
+
+  return (
+    <div style={{ paddingBottom: 80, minHeight: '100vh', background: '#0a0e1a' }}>
+      {/* Panel principal logro activo */}
+      <div style={{ background: '#0a0e1a', padding: '40px 20px 20px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+        <div style={{ background: '#0a0e1a', border: '2px solid #f5c400', borderRadius: 20, margin: '0 auto', padding: '24px 20px', maxWidth: 320 }}>
+          <div style={{ fontSize: 48, marginBottom: 8 }}>{activo?.emoji || '🏆'}</div>
+          <p style={{ fontSize: 10, fontWeight: 700, color: '#f5c400', letterSpacing: 1, marginBottom: 4 }}>
+            {activo?.desbloqueado ? '¡LOGRO DESBLOQUEADO!' : 'LOGRO BLOQUEADO'}
+          </p>
+          <p style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginBottom: 6 }}>{activo?.nombre}</p>
+          <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 16 }}>{activo?.descripcion}</p>
+          {activo?.desbloqueado && activo?.xp_recompensa > 0 && (
+            <div style={{ background: 'rgba(245,196,0,0.1)', border: '1px solid rgba(245,196,0,0.3)', borderRadius: 10, padding: 10 }}>
+              <p style={{ fontSize: 11, color: '#f5c400', fontWeight: 700 }}>+{activo.xp_recompensa} XP ganados ⚡</p>
+            </div>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 12, flexWrap: 'wrap' }}>
+          {logros.filter(l => l.desbloqueado).map(l => (
+            <button key={l.id} onClick={() => setLogroActivo(l)} style={{ background: logroActivo?.id === l.id ? 'rgba(245,196,0,0.2)' : 'rgba(255,255,255,0.08)', border: logroActivo?.id === l.id ? '1px solid #f5c400' : 'none', borderRadius: 8, padding: '6px 10px', color: '#fff', fontSize: 10, cursor: 'pointer' }}>
+              {l.emoji} {l.nombre.substring(0, 10)}
+            </button>
+          ))}
+        </div>
+        <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', marginTop: 8 }}>← Toca los botones para ver distintos logros</p>
+      </div>
+
+      {/* Lista todos los logros */}
+      <div style={{ padding: 12 }}>
+        <p style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.5, marginBottom: 8 }}>TODOS LOS LOGROS</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {logros.map(l => (
+            <div key={l.id} onClick={() => setLogroActivo(l)} style={{ background: logroBg(l), border: '1px solid ' + logroBorder(l), borderRadius: 10, padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', opacity: l.desbloqueado ? 1 : 0.4 }}>
+              <span style={{ fontSize: 18 }}>{l.emoji}</span>
+              <div>
+                <p style={{ fontSize: 10, fontWeight: 600, color: '#fff' }}>{l.nombre}</p>
+                <p style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)' }}>{l.desbloqueado ? '+' + l.xp_recompensa + ' XP' : '???'}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
+// TAB PERFIL
+// ============================================================
+const TabPerfil = ({ user, xpData, onLogout }) => {
+  const nivel = xpData ? xpData.nivel : 1;
+  const xpTotal = xpData ? xpData.xp_total : 0;
+  const racha = xpData ? xpData.racha_dias : 0;
+  const nombreNivel = xpData?.nombre_nivel || 'Estudiante';
+  const nombre = user?.nombre || user?.name || 'Estudiante';
+  const inicial = nombre.charAt(0).toUpperCase();
+  const logros = xpData?.logros || [];
+  const logrosDesbloqueados = logros.filter(l => l.desbloqueado);
+
+  const logroBg = (l) => {
+    if (l.emoji === '🔥') return 'rgba(245,196,0,0.1)';
+    if (l.emoji === '🧠') return 'rgba(167,139,250,0.1)';
+    if (l.emoji === '⭐') return 'rgba(52,211,153,0.1)';
+    return 'rgba(245,196,0,0.1)';
+  };
+  const logroBorder = (l) => {
+    if (l.emoji === '🔥') return 'rgba(245,196,0,0.3)';
+    if (l.emoji === '🧠') return 'rgba(167,139,250,0.3)';
+    if (l.emoji === '⭐') return 'rgba(52,211,153,0.3)';
+    return 'rgba(245,196,0,0.3)';
+  };
+
+  return (
+    <div style={{ paddingBottom: 80 }}>
+      <div style={{ background: '#003087', padding: '24px 16px 20px', textAlign: 'center' }}>
+        <div style={{ width: 56, height: 56, background: '#f5c400', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700, color: '#001a4d', margin: '0 auto 8px' }}>{inicial}</div>
+        <p style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{nombre}</p>
+        <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)' }}>Ing. Civil Informática · UFRO</p>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(245,196,0,0.15)', border: '1px solid rgba(245,196,0,0.4)', borderRadius: 20, padding: '4px 12px', marginTop: 8 }}>
+          <span style={{ fontSize: 12 }}>⚡</span>
+          <span style={{ fontSize: 10, fontWeight: 700, color: '#f5c400' }}>Nivel {nivel} — {nombreNivel}</span>
+        </div>
+      </div>
+      <div style={{ padding: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 6, marginBottom: 12 }}>
+          <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: 8, textAlign: 'center' }}>
+            <p style={{ fontSize: 16, fontWeight: 700, color: '#f5c400' }}>{xpTotal}</p>
+            <p style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)' }}>XP total</p>
+          </div>
+          <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: 8, textAlign: 'center' }}>
+            <p style={{ fontSize: 16, fontWeight: 700, color: '#f5c400' }}>🔥{racha}</p>
+            <p style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)' }}>días racha</p>
+          </div>
+          <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: 8, textAlign: 'center' }}>
+            <p style={{ fontSize: 16, fontWeight: 700, color: '#f5c400' }}>{logrosDesbloqueados.length}</p>
+            <p style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)' }}>logros</p>
+          </div>
+        </div>
+        <p style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.5, marginBottom: 8 }}>TODOS LOS LOGROS</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
+          {logrosDesbloqueados.map(l => (
+            <div key={l.id} style={{ background: logroBg(l), border: '1px solid ' + logroBorder(l), borderRadius: 10, padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 18 }}>{l.emoji}</span>
+              <div>
+                <p style={{ fontSize: 10, fontWeight: 600, color: '#fff' }}>{l.nombre}</p>
+                <p style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)' }}>+{l.xp_recompensa} XP</p>
+              </div>
+            </div>
+          ))}
+          {logros.filter(l => !l.desbloqueado).map(l => (
+            <div key={l.id} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 8, opacity: 0.4 }}>
+              <span style={{ fontSize: 18 }}>{l.emoji}</span>
+              <div>
+                <p style={{ fontSize: 10, fontWeight: 600, color: '#fff' }}>{l.nombre}</p>
+                <p style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)' }}>???</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <button onClick={onLogout} style={{ width: '100%', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, padding: '10px', color: '#f87171', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+          Cerrar sesión
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
+// TAB HORARIO
+// ============================================================
+const TabHorario = ({ token }) => {
+  const [horario, setHorario] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const dias = ['Lunes','Martes','Miércoles','Jueves','Viernes'];
+  const hoy = new Date().getDay(); // 1=Lun ... 5=Vie
+
+  useEffect(() => {
+    const cargar = async () => {
+      if (!token) { setLoading(false); return; }
+      try {
+        const res = await fetch('/horario', { headers: { Authorization: 'Bearer ' + token } });
+        if (res.ok) { const d = await res.json(); setHorario(d); }
+      } catch(e) {}
+      setLoading(false);
+    };
+    cargar();
+  }, [token]);
+
+  return (
+    <div style={{ paddingBottom: 80 }}>
+      <div style={{ background: '#003087', padding: '20px 16px 14px' }}>
+        <p style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginBottom: 2 }}>Mi Horario</p>
+        <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)' }}>Semana actual</p>
+      </div>
+      <div style={{ padding: 12 }}>
+        {loading ? (
+          <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, textAlign: 'center', marginTop: 40 }}>Cargando horario...</p>
+        ) : horario.length === 0 ? (
+          <div style={{ textAlign: 'center', marginTop: 40 }}>
+            <p style={{ fontSize: 32, marginBottom: 8 }}>📅</p>
+            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>No hay horario cargado</p>
+            <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10, marginTop: 4 }}>Sube tu horario desde el panel admin</p>
+          </div>
+        ) : (
+          dias.map((dia, idx) => {
+            const clasesDia = horario.filter(h => h.dia === dia || h.dia === idx + 1);
+            const esHoy = hoy === idx + 1;
+            return (
+              <div key={dia} style={{ marginBottom: 10 }}>
+                <p style={{ fontSize: 10, fontWeight: 700, color: esHoy ? '#f5c400' : 'rgba(255,255,255,0.4)', letterSpacing: 0.5, marginBottom: 5 }}>
+                  {dia.toUpperCase()} {esHoy ? '← HOY' : ''}
+                </p>
+                {clasesDia.length === 0 ? (
+                  <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.2)', paddingLeft: 8 }}>Sin clases</p>
+                ) : (
+                  clasesDia.map((c, i) => (
+                    <div key={i} style={{ background: esHoy ? 'rgba(0,48,135,0.4)' : 'rgba(255,255,255,0.04)', border: '1px solid ' + (esHoy ? '#003087' : 'rgba(255,255,255,0.08)'), borderRadius: 10, padding: '8px 12px', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ fontSize: 20 }}>{iconoRamo(c.ramo || c.nombre)}</div>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: 11, fontWeight: 600, color: '#fff' }}>{c.ramo || c.nombre}</p>
+                        <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>{c.hora_inicio} - {c.hora_fin} · {c.sala}</p>
+                      </div>
+                      {esHoy && <div style={{ background: '#f5c400', borderRadius: 5, padding: '2px 6px' }}><p style={{ fontSize: 8, fontWeight: 700, color: '#001a4d' }}>HOY</p></div>}
+                    </div>
+                  ))
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
+// MAIN RAMOS SCREEN (nuevo UX/UI)
+// ============================================================
+const RamosScreen = ({ token, user, onLogout, onVerRamo, onAdminClick }) => {
+  const [tab, setTab] = useState('inicio');
+  const [ramos, setRamos] = useState([]);
+  const [showAddRamo, setShowAddRamo] = useState(false);
+  const [nuevoNombre, setNuevoNombre] = useState('');
+  const [guardando, setGuardando] = useState(false);
+  const { xpData, logrosNuevos, setLogrosNuevos, recargarXP } = useXP(token);
+
+  const cargarRamos = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch('/ramos', { headers: { Authorization: 'Bearer ' + token } });
+      if (res.ok) { const d = await res.json(); setRamos(d); }
+    } catch(e) {}
+  };
+
+  useEffect(() => { cargarRamos(); }, [token]);
+
+  const handleAgregarRamo = async () => {
+    if (!nuevoNombre.trim()) return;
+    setGuardando(true);
+    try {
+      const res = await fetch('/ramos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ nombre: nuevoNombre.trim() })
+      });
+      if (res.ok) {
+        await cargarRamos();
+        await recargarXP();
+        setNuevoNombre('');
+        setShowAddRamo(false);
+        setTab('notas');
+      }
+    } catch(e) {}
+    setGuardando(false);
+  };
+
+  const handleVerRamo = (r) => {
+    if (onVerRamo) onVerRamo(r);
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#0a0e1a', color: '#fff', fontFamily: 'system-ui, sans-serif' }}>
+      {/* Popup logros nuevos */}
+      {logrosNuevos.length > 0 && (
+        <PopupLogro logro={logrosNuevos[0]} onClose={() => setLogrosNuevos(prev => prev.slice(1))} />
+      )}
+
+      {/* Modal agregar ramo */}
+      {showAddRamo && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: '#0a0e1a', border: '1px solid #003087', borderRadius: 16, padding: 20, width: '100%', maxWidth: 320 }}>
+            <p style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 12 }}>➕ Nuevo Ramo</p>
+            <input
+              value={nuevoNombre}
+              onChange={e => setNuevoNombre(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAgregarRamo()}
+              placeholder="Ej: Cálculo II"
+              style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '10px 12px', color: '#fff', fontSize: 13, marginBottom: 12, outline: 'none', boxSizing: 'border-box' }}
+              autoFocus
+            />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => { setShowAddRamo(false); setNuevoNombre(''); }} style={{ flex: 1, background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 8, padding: 10, color: '#fff', fontSize: 12, cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={handleAgregarRamo} disabled={guardando || !nuevoNombre.trim()} style={{ flex: 1, background: '#003087', border: 'none', borderRadius: 8, padding: 10, color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: guardando ? 0.6 : 1 }}>
+                {guardando ? 'Guardando...' : 'Agregar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Contenido por tab */}
+      {tab === 'inicio' && <TabInicio ramos={ramos} user={user} xpData={xpData} onAgregarRamo={() => setShowAddRamo(true)} onVerRamo={handleVerRamo} token={token} />}
+      {tab === 'horario' && <TabHorario token={token} />}
+      {tab === 'notas' && <TabNotas ramos={ramos} onVerRamo={handleVerRamo} onAgregarRamo={() => setShowAddRamo(true)} />}
+      {tab === 'logros' && <TabLogros xpData={xpData} />}
+      {tab === 'perfil' && <TabPerfil user={user} xpData={xpData} onLogout={onLogout} />}
+
+      <BottomNav tab={tab} setTab={setTab} />
+    </div>
+  );
+};
+
+// ============================================================
+// RAMO SCREEN
+// ============================================================
+const RamoScreen = ({ ramo, token, onBack, onUpdate }) => {
+  const [notas, setNotas] = useState(ramo.notas || []);
+  const [eximido, setEximido] = useState(ramo.eximido || false);
+  const [notaExamen, setNotaExamen] = useState(ramo.notaExamen || '');
+  const [guardando, setGuardando] = useState(false);
+  const [nuevaNota, setNuevaNota] = useState('');
+  const [nuevoPorcentaje, setNuevoPorcentaje] = useState('');
+
+  const { promedioParcial, promedioFinal, puedeEximirse, notaMinExamen } = calcular(notas, eximido, notaExamen);
+  const nota = promedioFinal ?? promedioParcial;
+
+  const agregarNota = () => {
+    const n = parseFloat(nuevaNota);
+    if (isNaN(n) || n < 1 || n > 7) return;
+    setNotas(prev => [...prev, { nota: n, porcentaje: nuevoPorcentaje || null, id: Date.now() }]);
+    setNuevaNota(''); setNuevoPorcentaje('');
+  };
+
+  const eliminarNota = (id) => setNotas(prev => prev.filter(n => n.id !== id));
+
+  const guardar = async () => {
+    setGuardando(true);
+    try {
+      const res = await fetch('/ramos/' + ramo.id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ notas, eximido, notaExamen })
+      });
+      if (res.ok) { const d = await res.json(); if (onUpdate) onUpdate(d); onBack(); }
+    } catch(e) {}
+    setGuardando(false);
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#0a0e1a', color: '#fff', fontFamily: 'system-ui, sans-serif', paddingBottom: 40 }}>
+      <div style={{ background: '#003087', padding: '20px 16px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <button onClick={onBack} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 8, padding: '6px 10px', color: '#fff', fontSize: 14, cursor: 'pointer' }}>←</button>
+        <div>
+          <p style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{iconoRamo(ramo.nombre)} {ramo.nombre}</p>
+          <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)' }}>Detalle del ramo</p>
+        </div>
+      </div>
+      <div style={{ padding: 16 }}>
+        <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 16, marginBottom: 16, textAlign: 'center' }}>
+          <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>Promedio actual</p>
+          <p style={{ fontSize: 48, fontWeight: 700, color: notaColor(nota) }}>{nota !== null ? nota.toFixed(1) : '—'}</p>
+          {notaMinExamen && <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>Necesitas {notaMinExamen.toFixed(1)} en examen para aprobar</p>}
+          {puedeEximirse && !eximido && <p style={{ fontSize: 10, color: '#34d399' }}>✅ Puedes eximirte</p>}
+        </div>
+        <p style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.5, marginBottom: 8 }}>NOTAS</p>
+        {notas.map((n, i) => (
+          <div key={n.id || i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: '8px 12px', display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 13, color: notaColor(parseFloat(n.nota)), fontWeight: 700 }}>{parseFloat(n.nota).toFixed(1)}</span>
+              {n.porcentaje && <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{n.porcentaje}%</span>}
+            </div>
+            <button onClick={() => eliminarNota(n.id || i)} style={{ background: 'rgba(239,68,68,0.15)', border: 'none', borderRadius: 8, padding: '8px 10px', color: '#f87171', cursor: 'pointer', fontSize: 12 }}>✕</button>
+          </div>
+        ))}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 16, marginTop: 8 }}>
+          <input value={nuevaNota} onChange={e => setNuevaNota(e.target.value)} placeholder="Nota (1-7)" type="number" min="1" max="7" step="0.1"
+            style={{ flex: 2, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '8px 10px', color: '#fff', fontSize: 12, outline: 'none' }} />
+          <input value={nuevoPorcentaje} onChange={e => setNuevoPorcentaje(e.target.value)} placeholder="%" type="number" min="1" max="100"
+            style={{ flex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '8px 10px', color: '#fff', fontSize: 12, outline: 'none' }} />
+          <button onClick={agregarNota} style={{ background: '#003087', border: 'none', borderRadius: 8, padding: '8px 12px', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>+</button>
+        </div>
+        {puedeEximirse && (
+          <div style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', borderRadius: 12, padding: 12, marginBottom: 16 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <input type="checkbox" checked={eximido} onChange={e => setEximido(e.target.checked)} style={{ width: 16, height: 16 }} />
+              <span style={{ fontSize: 12, color: '#34d399', fontWeight: 600 }}>Me eximo del examen</span>
+            </label>
+          </div>
+        )}
+        {!eximido && (
+          <div style={{ marginBottom: 16 }}>
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>NOTA EXAMEN (opcional)</p>
+            <input value={notaExamen} onChange={e => setNotaExamen(e.target.value)} placeholder="Ej: 5.5" type="number" min="1" max="7" step="0.1"
+              style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '10px 12px', color: '#fff', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+          </div>
+        )}
+        <button onClick={guardar} disabled={guardando} style={{ width: '100%', background: '#003087', border: 'none', borderRadius: 10, padding: 14, color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: guardando ? 0.6 : 1 }}>
+          {guardando ? 'Guardando...' : '💾 Guardar cambios'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
+// LOGIN SCREEN
+// ============================================================
+const LoginScreen = () => {
+  const handleGoogle = () => { window.location.href = '/auth/google'; };
+  return (
+    <div style={{ minHeight: '100vh', background: '#0a0e1a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif', padding: 20 }}>
+      <div style={{ width: '100%', maxWidth: 340, textAlign: 'center' }}>
+        <div style={{ width: 64, height: 64, background: '#003087', borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 13, fontWeight: 700, color: '#fff' }}>UFRO</div>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: '#fff', marginBottom: 6 }}>APPrueba</h1>
+        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', marginBottom: 32 }}>Tu asistente académico UFRO</p>
+        <button onClick={handleGoogle} style={{ width: '100%', background: '#fff', border: 'none', borderRadius: 12, padding: '14px 20px', fontSize: 14, fontWeight: 600, color: '#1a1a2e', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+          <span style={{ fontSize: 18 }}>🔑</span> Continuar con Google
+        </button>
+        <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', marginTop: 20 }}>Solo para estudiantes UFRO</p>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
+// ADMIN SCREEN
+// ============================================================
+const AdminScreen = ({ token, onBack }) => (
+  <div style={{ minHeight: '100vh', background: '#0a0e1a', color: '#fff', fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ background: '#003087', padding: '20px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+      <button onClick={onBack} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 8, padding: '6px 10px', color: '#fff', fontSize: 14, cursor: 'pointer' }}>←</button>
+      <p style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>⚙️ Admin</p>
+    </div>
+    <div style={{ padding: 16 }}>
+      <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>Panel de administración</p>
+    </div>
+  </div>
+);
+
+// ============================================================
+// APP ROOT
+// ============================================================
+const App = () => {
+  const [token, setToken] = useState(() => localStorage.getItem('token'));
+  const [user, setUser] = useState(() => { try { return JSON.parse(localStorage.getItem('user')); } catch(e) { return null; } });
+  const [screen, setScreen] = useState('ramos');
+  const [ramoActivo, setRamoActivo] = useState(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const t = params.get('token');
+    const u = params.get('user');
+    if (t) {
+      localStorage.setItem('token', t);
+      setToken(t);
+      if (u) { try { const parsed = JSON.parse(decodeURIComponent(u)); localStorage.setItem('user', JSON.stringify(parsed)); setUser(parsed); } catch(e) {} }
+      window.history.replaceState({}, '', '/');
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setToken(null); setUser(null);
+    setScreen('ramos'); setRamoActivo(null);
+  };
+
+  if (!token) return <LoginScreen />;
+  if (screen === 'ramo' && ramoActivo) return <RamoScreen ramo={ramoActivo} token={token} onBack={() => { setRamoActivo(null); setScreen('ramos'); }} onUpdate={() => {}} />;
+  if (screen === 'admin') return <AdminScreen token={token} onBack={() => setScreen('ramos')} />;
+
+  return (
+    <RamosScreen
+      token={token}
+      user={user}
+      onLogout={handleLogout}
+      onVerRamo={(r) => { setRamoActivo(r); setScreen('ramo'); }}
+      onAdminClick={() => setScreen('admin')}
+    />
+  );
+};
+
+export default App;
