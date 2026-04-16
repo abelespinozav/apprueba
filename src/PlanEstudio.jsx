@@ -48,7 +48,10 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
   const eliminarArchivo = async (id) => {
     try {
       await fetch(`${API}/archivos/${id}`, { method: 'DELETE', headers: authHeaders() })
-      setArchivosGuardados(prev => prev.filter(a => a.id !== id))
+      const nuevosArchivos = archivosGuardados.filter(a => a.id !== id)
+      setArchivosGuardados(nuevosArchivos)
+      setPlan(null)
+      setCompletadas(new Set())
     } catch (e) { console.error(e) }
   }
 
