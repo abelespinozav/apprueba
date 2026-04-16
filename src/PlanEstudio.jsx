@@ -514,7 +514,12 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
                         {t.duracion && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>⏱ {t.duracion} min</span>}
                         {t.fecha && <span style={{ fontSize: 11, color: 'rgba(108,99,255,0.8)', background: 'rgba(var(--color-primary-rgb, 46,125,209), 0.1)', padding: '2px 7px', borderRadius: 6, fontWeight: 600 }}>📅 {t.fecha}</span>}
                       </div>
-                      <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', margin: '0 0 8px', lineHeight: 1.5 }}>{t.descripcion}</p>
+                      <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', margin: '0 0 6px', lineHeight: 1.5 }}>{t.descripcion}</p>
+                      {t.fuente && <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ background: 'rgba(255,255,255,0.07)', borderRadius: 6, padding: '2px 8px', fontWeight: 500 }}>
+                          {t.fuente.toLowerCase().includes('video') || t.fuente.toLowerCase().includes('min') ? '🎬' : '📄'} {t.fuente}
+                        </span>
+                      </p>}
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <button onClick={() => verGuia(t, i)} style={{ background: 'rgba(var(--color-primary-rgb, 46,125,209), 0.15)', border: 'none', borderRadius: 8, padding: '6px 12px', color: 'var(--color-secondary)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
   {guiasGeneradas[i] ? '📖 Ver guía' : '✨ Generar guía'}
