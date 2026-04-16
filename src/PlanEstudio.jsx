@@ -546,7 +546,7 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
                 🧠 Hacer Quiz
               </button>
 
-              <input type="file" ref={fileRef} multiple accept=".pdf,.doc,.docx,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.heic,.mp3,.m4a,.wav,.ogg,.mp4,.mov" style={{ display: 'none' }} onChange={e => setArchivos(Array.from(e.target.files))} />
+              <input type="file" ref={fileRef} multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.xlsx,.xls,.txt,.png,.jpg,.jpeg,.webp,.heic,.mp3,.m4a,.wav,.ogg,.mp4,.mov" style={{ display: 'none' }} onChange={e => setArchivos(Array.from(e.target.files))} />
               {archivosGuardados.length > 0 && (
                 <div style={{ marginBottom: 10 }}>
                   <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Material guardado</p>
@@ -574,7 +574,7 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
             <div style={{ fontSize: 48, marginBottom: 12 }}>🤖</div>
             <p style={{ fontSize: 16, fontWeight: 700, color: 'white', margin: '0 0 8px' }}>Genera tu plan de estudio</p>
             <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', margin: '0 0 20px', lineHeight: 1.5 }}>La IA creará 5 tareas priorizadas para prepararte para esta evaluación</p>
-            <input type="file" ref={fileRef} multiple accept=".pdf,.doc,.docx,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.heic,.mp3,.m4a,.wav,.ogg,.mp4,.mov" style={{ display: 'none' }} onChange={e => setArchivos(Array.from(e.target.files))} />
+            <input type="file" ref={fileRef} multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.xlsx,.xls,.txt,.png,.jpg,.jpeg,.webp,.heic,.mp3,.m4a,.wav,.ogg,.mp4,.mov" style={{ display: 'none' }} onChange={e => setArchivos(Array.from(e.target.files))} />
             {archivosGuardados.length > 0 && (
               <div style={{ marginBottom: 12 }}>
                 <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Material guardado</p>
@@ -606,7 +606,7 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
       </div>
       {/* Mini Player Flotante */}
       {podcast && (
-        <div style={{ position: 'fixed', bottom: 20, left: 16, right: 16, background: 'linear-gradient(135deg, var(--bg-secondary), var(--bg-card))', borderRadius: 20, padding: '14px 16px', border: '1px solid rgba(251,191,36,0.3)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ position: 'fixed', bottom: 90, left: 16, right: 16, background: 'linear-gradient(135deg, var(--bg-secondary), var(--bg-card))', borderRadius: 20, padding: '14px 16px', border: '1px solid rgba(251,191,36,0.3)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', zIndex: 9998, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <audio ref={audioRef} src={podcast} onLoadedMetadata={e => { const d = e.target.duration; if (d && isFinite(d)) setPodcastDuration(d) }} onDurationChange={e => { const d = e.target.duration; if (d && isFinite(d)) setPodcastDuration(d) }} onTimeUpdate={e => { setPodcastProgress(e.target.currentTime); const d = e.target.duration; if (d && isFinite(d)) setPodcastDuration(d) }} onEnded={() => setPodcastPlaying(false)} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 20 }}>🎙️</span>

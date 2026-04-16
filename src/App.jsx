@@ -27,7 +27,7 @@ function BannerInstalar() {
 
   return (
     <div style={{
-      position: 'fixed', bottom: 20, left: 16, right: 16, zIndex: 9999,
+      position: 'fixed', bottom: 90, left: 16, right: 16, zIndex: 9999,
       background: 'linear-gradient(135deg, #1e1b4b, #2d1b69)',
       border: '1px solid var(--shadow-color)',
       borderRadius: 18, padding: '14px 16px',
@@ -423,7 +423,7 @@ function PlanTab({ ramos, onIniciarPlan }) {
             </p>
             <label style={{ display: 'block', textAlign: 'center', background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', color: '#fff', borderRadius: 10, padding: '11px', fontSize: 13, fontWeight: 700, cursor: 'pointer', marginBottom: 10 }}>
               📎 Subir material
-              <input type="file" accept=".pdf,.docx,.txt,.pptx" style={{ display: 'none' }} onChange={async (e) => {
+              <input type="file" accept=".pdf,.docx,.doc,.txt,.pptx,.ppt,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.mp3,.m4a,.wav,.mp4,.mov" style={{ display: 'none' }} onChange={async (e) => {
                 const file = e.target.files[0]
                 if (!file) return
                 const fd = new FormData()
@@ -533,7 +533,7 @@ function QuizTab({ ramos, onIniciarQuiz }) {
             </p>
             <label style={{ display: 'block', textAlign: 'center', background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', color: '#fff', borderRadius: 10, padding: '11px', fontSize: 13, fontWeight: 700, cursor: 'pointer', marginBottom: 10 }}>
               📎 Subir material
-              <input type="file" accept=".pdf,.docx,.txt,.pptx" style={{ display: 'none' }} onChange={async (e) => {
+              <input type="file" accept=".pdf,.docx,.doc,.txt,.pptx,.ppt,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.mp3,.m4a,.wav,.mp4,.mov" style={{ display: 'none' }} onChange={async (e) => {
                 const file = e.target.files[0]
                 if (!file) return
                 const fd = new FormData()

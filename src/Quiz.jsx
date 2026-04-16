@@ -190,7 +190,7 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
               <div style={{ marginTop: 10 }}>
                 <label style={{ display: 'inline-block', background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
                   📎 Subir material ahora
-                  <input type="file" accept=".pdf,.docx,.txt,.pptx" style={{ display: 'none' }} onChange={async (e) => {
+                  <input type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xlsx,.xls,.txt,.png,.jpg,.jpeg,.webp,.heic,.mp3,.m4a,.wav,.ogg,.mp4,.mov" style={{ display: 'none' }} onChange={async (e) => {
                     const file = e.target.files[0]
                     if (!file) return
                     const fd = new FormData()
