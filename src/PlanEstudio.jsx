@@ -103,6 +103,7 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
               setPlan(evento.plan)
               setCompletadas(new Set())
               if (plan) setPlanesUsados(prev => (prev || 0) + 1)
+              cargarArchivos()
             } else if (evento.tipo === 'error') {
               if (evento.error === 'limite_alcanzado') {
                 setPlanesUsados(3)
