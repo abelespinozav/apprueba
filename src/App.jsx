@@ -1171,9 +1171,9 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
                                 return (
                                   <div key={b.id} onClick={e => { e.stopPropagation(); abrirEditar(b) }}
                                     style={{ position: 'absolute', top, left: 2, right: 2, height, borderRadius: 6, background: color + '25', border: '1px solid ' + color + '66', cursor: 'pointer', padding: '3px 5px', overflow: 'hidden', zIndex: 2 }}>
-                                    <div style={{ fontSize: 9, fontWeight: 800, color: color, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.ramo_nombre}</div>
-                                    <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', marginTop: 1 }}>{b.hora_inicio}–{b.hora_fin}</div>
-                                    {b.sala && <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)', marginTop: 1 }}>{b.sala}</div>}
+                                    <div style={{ fontSize: 9, fontWeight: 800, color: '#a3e635', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.ramo_nombre}</div>
+                                    <div style={{ fontSize: 8, color: '#a3e635', opacity: 0.85, marginTop: 1 }}>{b.hora_inicio}–{b.hora_fin}</div>
+                                    {b.sala && <div style={{ fontSize: 8, color: '#a3e635', opacity: 0.65, marginTop: 1 }}>{b.sala}</div>}
                                   </div>
                                 )
                               })}
