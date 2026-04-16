@@ -1583,7 +1583,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan, evalDestacada, o
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', paddingBottom: 100, paddingTop: 52 }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', paddingBottom: 100 }}>
       <Confetti active={confetti} />
       {editandoRamo && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setEditandoRamo(false)}>
@@ -1613,7 +1613,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan, evalDestacada, o
       )}
       <BackgroundOrbs />
       <div style={{ position: 'relative', zIndex: 1 }}>
-        <div style={{ background: 'linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%)', padding: '56px 20px 24px' }}>
+        <div style={{ background: 'linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%)', padding: '20px 20px 24px' }}>
           <button onClick={onBack} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 12, padding: '8px 14px', color: 'rgba(255,255,255,0.6)', fontSize: 13, cursor: 'pointer', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 6 }}>← Volver</button>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
             <div>
