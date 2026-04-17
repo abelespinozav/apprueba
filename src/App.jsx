@@ -169,7 +169,7 @@ const diasRestantes = (fecha) => {
   return Math.round((f - hoy) / (1000 * 60 * 60 * 24))
 }
 
-function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVerRamo, onHorario, onVerHorario, onNotif, onPerfil, onAdmin, evalProximas3dias }) {
+function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVerRamo, onHorario, onVerHorario, onNotif, onPerfil, onAdmin, evalProximas3dias, novedades }) {
   const hoy = new Date()
   const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado']
   const diaHoy = dias[hoy.getDay()]
@@ -260,6 +260,64 @@ function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVer
           </div>
         </div>
 
+        {/* Novedades */}
+        {(() => {
+          const novedadesData = novedades.length > 0 ? { [usuario?.universidad || 'ufro']: novedades } : {
+            ufro: [
+              { tipo: 'Beca', emoji: '🦷', titulo: 'Beca Instrumental Odontología', descripcion: 'Postulaciones abiertas del 13 al 19 de abril', color: '#f5c800' },
+              { tipo: 'Menú', emoji: '🍽️', titulo: 'Menú Casino Hoy', descripcion: 'Cazuela de vacuno · Ensalada mixta · Jugo natural', color: '#4ade80' },
+              { tipo: 'Académico', emoji: '📅', titulo: 'Calendario Académico', descripcion: 'Consulta fechas clave del semestre', color: '#60a5fa' },
+              { tipo: 'Deporte', emoji: '🏃', titulo: 'Muévete por tu Bienestar', descripcion: '16 abril · 11:30 hrs · Campus central', color: '#f97316' },
+              { tipo: 'Cultural', emoji: '🎵', titulo: 'Recital de Música Sacra', descripcion: 'Estudiantil · 18 de abril', color: '#a78bfa' },
+              { tipo: 'TNE', emoji: '🚌', titulo: 'Revalidación TNE', descripcion: 'Cursos superiores · 15 y 16 de abril', color: '#38bdf8' },
+            ],
+            umayor: [
+              { tipo: 'Académico', emoji: '📅', titulo: 'Inicio Semestre 2026', descripcion: 'Revisa el calendario académico oficial', color: '#f5c800' },
+              { tipo: 'Evento', emoji: '🎉', titulo: 'Bienvenida Nuevos Estudiantes', descripcion: 'Actividades de integración campus', color: '#f97316' },
+            ],
+            uautonoma: [
+              { tipo: 'Académico', emoji: '📅', titulo: 'Calendario Académico', descripcion: 'Fechas importantes del semestre', color: '#60a5fa' },
+              { tipo: 'Beca', emoji: '💰', titulo: 'Becas Disponibles', descripcion: 'Consulta las becas vigentes para este semestre', color: '#4ade80' },
+            ],
+            inacap: [
+              { tipo: 'Académico', emoji: '📅', titulo: 'Calendario INACAP 2026', descripcion: 'Revisa fechas de evaluaciones y feriados', color: '#60a5fa' },
+              { tipo: 'Evento', emoji: '🏆', titulo: 'Olimpiadas INACAP', descripcion: 'Inscripciones abiertas hasta el 30 de abril', color: '#f97316' },
+            ],
+            santotomas: [
+              { tipo: 'Académico', emoji: '📅', titulo: 'Calendario Académico UST', descripcion: 'Fechas clave del semestre en curso', color: '#4ade80' },
+              { tipo: 'Beca', emoji: '💰', titulo: 'Fondo Solidario', descripcion: 'Postulaciones abiertas hasta el 25 de abril', color: '#f5c800' },
+            ],
+            uctemuco: [
+              { tipo: 'Académico', emoji: '📅', titulo: 'Calendario UC Temuco', descripcion: 'Consulta las fechas importantes del semestre', color: '#60a5fa' },
+              { tipo: 'Evento', emoji: '🎵', titulo: 'Semana Cultural UCT', descripcion: 'Actividades del 21 al 25 de abril', color: '#a78bfa' },
+            ],
+          }
+          const uni = usuario?.universidad || 'ufro'
+          const novedadesLista = novedadesData[uni] || novedadesData['ufro']
+          const uniLabel = uni === 'ufro' ? 'UFRO' : uni === 'umayor' ? 'U. Mayor' : uni === 'uautonoma' ? 'U. Autónoma' : uni === 'inacap' ? 'INACAP' : uni === 'santotomas' ? 'Santo Tomás' : uni === 'uctemuco' ? 'UC Temuco' : uni.toUpperCase()
+          return (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: 'var(--color-text)' }}>🔔 Novedades {uniLabel}</p>
+                <span style={{ fontSize: 11, color: 'var(--color-primary)', fontWeight: 600, cursor: 'pointer' }}>Ver más →</span>
+              </div>
+              <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 6, scrollbarWidth: 'none' }}>
+                {novedadesLista.map((n, i) => (
+                  <div key={i} style={{ minWidth: 160, maxWidth: 160, background: 'var(--bg-card)', borderRadius: 14, padding: '12px', border: `1px solid ${n.color}55`, borderLeft: `3px solid ${n.color}`, flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                      <span style={{ fontSize: 18 }}>{n.emoji}</span>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: n.color, background: `${n.color}22`, padding: '2px 7px', borderRadius: 20 }}>{n.tipo}</span>
+                    </div>
+                    <p style={{ margin: '0 0 4px', fontSize: 12, fontWeight: 700, color: 'var(--color-text)', lineHeight: 1.3 }}>{n.titulo}</p>
+                    <p style={{ margin: 0, fontSize: 10, color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>{n.descripcion}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        })()}
+
+
         {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
           {[
@@ -332,7 +390,8 @@ function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVer
           </div>
         )}
 
-        {/* Logros */}
+
+                {/* Logros */}
         <div style={{ background: 'var(--bg-card)', borderRadius: 16, padding: '14px 16px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: '1px solid var(--color-border)' }}>
           <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 800, color: 'var(--color-text)' }}>🏆 Logros</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
@@ -2141,6 +2200,7 @@ export default function App() {
 
   useTheme(usuario?.universidad)
   const [ramos, setRamos] = useState([])
+  const [novedades, setNovedades] = useState([])
   const [ramoActivo, setRamoActivo] = useState(null)
   const [planEv, setPlanEv] = useState(null)
   const [horarioGlobal, setHorarioGlobal] = useState([])
@@ -2168,6 +2228,7 @@ export default function App() {
     if (token && user) {
       setUsuario(JSON.parse(user))
       cargarRamos(token)
+      const userData = JSON.parse(user); cargarNovedades(token, userData.universidad || userData.user?.universidad)
       cargarHorarioGlobal()
       setPantalla('ramos')
     }
@@ -2180,6 +2241,14 @@ export default function App() {
     if (!window.confirm('¿Seguro que quieres eliminar todos tus ramos? Esta acción no se puede deshacer.')) return
     await fetch(API + '/ramos/limpiar-todos', { method: 'DELETE', headers: authHeaders() })
     setRamos([])
+  }
+
+  const cargarNovedades = async (token, universidad) => {
+    try {
+      const res = await fetch(`${API}/novedades?universidad=${universidad || 'ufro'}`, { headers: { Authorization: `Bearer ${token}` } })
+      const data = await res.json()
+      if (Array.isArray(data) && data.length > 0) setNovedades(data)
+    } catch(e) { console.log('Sin novedades BD, usando defaults') }
   }
 
   const cargarRamos = async (token, refreshActivo = false) => {
@@ -2315,6 +2384,7 @@ export default function App() {
             onPerfil={() => setTab('perfil')}
             onAdmin={() => setPantalla('admin')}
             evalProximas3dias={proximas3dias}
+            novedades={novedades}
           />
         )}
         {tab === 'ramos' && (
