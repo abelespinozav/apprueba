@@ -1012,7 +1012,7 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
             🗑️ Borrar horario completo
           </button>
         )}
-        <button onClick={() => abrirNuevoBloque('Lunes', '')} style={{ width: '100%', marginBottom: 12, padding: '10px', background: 'rgba(108,99,255,0.1)', border: '1px solid rgba(108,99,255,0.3)', borderRadius: 12, color: '#a5b4fc', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+        <button onClick={() => abrirNuevoBloque('Lunes', '')} style={{ width: '100%', marginBottom: 12, padding: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, color: 'var(--color-primary)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
           ➕ Agregar bloque manualmente
         </button>
         <div onClick={() => inputRef.current.click()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, background: 'rgba(255,255,255,0.04)', border: '1px dashed rgba(255,255,255,0.12)', borderRadius: 12, padding: '10px 14px', cursor: 'pointer', marginBottom: 16, transition: 'all 0.2s' }}>
@@ -1170,10 +1170,10 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
                                 const color = getTipoColor(b.tipo)
                                 return (
                                   <div key={b.id} onClick={e => { e.stopPropagation(); abrirEditar(b) }}
-                                    style={{ position: 'absolute', top, left: 2, right: 2, height, borderRadius: 6, background: color + '25', border: '1px solid ' + color + '66', cursor: 'pointer', padding: '3px 5px', overflow: 'hidden', zIndex: 2 }}>
-                                    <div style={{ fontSize: 9, fontWeight: 800, color: '#a3e635', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.ramo_nombre}</div>
-                                    <div style={{ fontSize: 8, color: '#a3e635', opacity: 0.85, marginTop: 1 }}>{b.hora_inicio}–{b.hora_fin}</div>
-                                    {b.sala && <div style={{ fontSize: 8, color: '#a3e635', opacity: 0.65, marginTop: 1 }}>{b.sala}</div>}
+                                    style={{ position: 'absolute', top, left: 2, right: 2, height, borderRadius: 6, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer', padding: '3px 5px', overflow: 'hidden', zIndex: 2 }}>
+                                    <div style={{ fontSize: 9, fontWeight: 800, color: 'var(--color-primary)', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.ramo_nombre}</div>
+                                    <div style={{ fontSize: 8, color: 'var(--color-primary)', opacity: 0.85, marginTop: 1 }}>{b.hora_inicio}–{b.hora_fin}</div>
+                                    {b.sala && <div style={{ fontSize: 8, color: 'var(--color-primary)', opacity: 0.65, marginTop: 1 }}>{b.sala}</div>}
                                   </div>
                                 )
                               })}
@@ -1454,11 +1454,11 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={() => setMostrando(false)} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px', color: 'rgba(255,255,255,0.5)', fontSize: 14, cursor: 'pointer' }}>Cancelar</button>
-                <button onClick={agregar} style={{ flex: 2, background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', border: 'none', borderRadius: 12, padding: '12px', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Agregar</button>
+                <button onClick={agregar} style={{ flex: 2, background: 'var(--color-primary)', border: 'none', borderRadius: 12, padding: '12px', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Agregar</button>
               </div>
             </div>
           ) : (
-            <button onClick={() => setMostrando(true)} style={{ width: '100%', background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', border: 'none', borderRadius: 16, padding: '16px', color: 'white', fontSize: 15, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 20px rgba(108,99,255,0.35)' }}>
+            <button onClick={() => setMostrando(true)} style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid var(--color-primary)', borderRadius: 16, padding: '16px', color: 'var(--color-primary)', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
               + Agregar ramo
             </button>
           )}
