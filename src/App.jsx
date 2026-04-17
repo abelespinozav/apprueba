@@ -370,16 +370,14 @@ function PlanTab({ ramos, onIniciarPlan }) {
           <p style={{ color: 'var(--color-text-secondary)', fontSize: 14 }}>Agrega ramos primero para generar un plan</p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 32 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 32 }}>
           {ramos.map(r => (
             <div key={r.id}>
               <div onClick={() => setRamoExpandido(ramoExpandido === r.id ? null : r.id)}
-                style={{ background: 'var(--bg-card)', borderRadius: ramoExpandido === r.id ? '16px 16px 0 0' : 16, padding: '16px', cursor: 'pointer', border: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                <div>
-                  <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--color-text)' }}>{r.nombre}</p>
-                  <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--color-text-secondary)' }}>{(r.evaluaciones||[]).length} evaluaciones</p>
-                </div>
-                <span style={{ fontSize: 16, color: 'var(--color-primary)', transition: 'transform 0.2s', display: 'inline-block', transform: ramoExpandido === r.id ? 'rotate(90deg)' : 'none' }}>▶</span>
+                style={{ background: 'var(--bg-card)', borderRadius: 16, padding: '16px 12px', cursor: 'pointer', border: ramoExpandido === r.id ? '1px solid var(--color-primary)' : '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.05)', minHeight: 90 }}>
+                <span style={{ fontSize: 28 }}>📚</span>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--color-text)', lineHeight: 1.3 }}>{r.nombre}</p>
+                <p style={{ margin: 0, fontSize: 11, color: 'var(--color-text-secondary)' }}>{(r.evaluaciones||[]).length} evaluaciones</p>
               </div>
               {ramoExpandido === r.id && (
                 <div style={{ background: 'var(--bg-card)', borderRadius: '0 0 16px 16px', border: '1px solid var(--color-border)', borderTop: 'none', overflow: 'hidden' }}>
@@ -481,16 +479,14 @@ function QuizTab({ ramos, onIniciarQuiz }) {
           <p style={{ color: 'var(--color-text-secondary)', fontSize: 14 }}>Agrega ramos primero para poder hacer quiz</p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 32 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 32 }}>
           {ramos.map(r => (
             <div key={r.id}>
               <div onClick={() => setRamoExpandido(ramoExpandido === r.id ? null : r.id)}
-                style={{ background: 'var(--bg-card)', borderRadius: ramoExpandido === r.id ? '16px 16px 0 0' : 16, padding: '16px', cursor: 'pointer', border: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                <div>
-                  <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--color-text)' }}>{r.nombre}</p>
-                  <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--color-text-secondary)' }}>{(r.evaluaciones||[]).length} evaluaciones</p>
-                </div>
-                <span style={{ fontSize: 16, color: 'var(--color-primary)', transition: 'transform 0.2s', display: 'inline-block', transform: ramoExpandido === r.id ? 'rotate(90deg)' : 'none' }}>▶</span>
+                style={{ background: 'var(--bg-card)', borderRadius: 16, padding: '16px 12px', cursor: 'pointer', border: ramoExpandido === r.id ? '1px solid var(--color-primary)' : '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.05)', minHeight: 90 }}>
+                <span style={{ fontSize: 28 }}>📚</span>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--color-text)', lineHeight: 1.3 }}>{r.nombre}</p>
+                <p style={{ margin: 0, fontSize: 11, color: 'var(--color-text-secondary)' }}>{(r.evaluaciones||[]).length} evaluaciones</p>
               </div>
               {ramoExpandido === r.id && (
                 <div style={{ background: 'var(--bg-card)', borderRadius: '0 0 16px 16px', border: '1px solid var(--color-border)', borderTop: 'none', overflow: 'hidden' }}>
@@ -2293,7 +2289,7 @@ export default function App() {
 
   if (pantalla === 'admin' && usuario?.email === 'abelespinozav@gmail.com') return <AdminScreen usuario={usuario} onBack={() => setPantalla('ramos')} />
   if (pantalla === 'login') return <LoginScreen onLogin={handleLogin} />
-  if (pantalla === 'onboarding') return <OnboardingScreen user={usuario} API={API} onComplete={(u) => { setUsuario({ ...usuario, ...u, name: u.nombre }); const token = localStorage.getItem('token'); cargarRamos(token); setPantalla('ramos') }} />
+  if (pantalla === 'onboarding') return <OnboardingScreen user={usuario} API={API} onComplete={(u) => { if (!u) return; setUsuario({ ...usuario, ...u, name: u.nombre || u.name || '' }); const token = localStorage.getItem('token'); cargarRamos(token); setPantalla('ramos') }} />
   if (pantalla === 'ramos') {
     const proximas3dias = ramos.flatMap(r =>
       (r.evaluaciones || []).filter(e => e.fecha && (e.nota === null || e.nota === undefined || e.nota === ''))
