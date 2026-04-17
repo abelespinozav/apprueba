@@ -248,7 +248,7 @@ export default function OnboardingScreen({ user, onComplete, API }) {
                 {error && <p style={{ color: '#ef4444', fontSize: 13, margin: '8px 0 0' }}>{error}</p>}
                 <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handlePaso1}
                   style={{ width: '100%', marginTop: 20, padding: '14px', borderRadius: 12, border: 'none',
-                    background: 'rgba(255,255,255,0.08)', color: universidad === 'ufro' ? 'white' : colorPrincipal, fontSize: 16, fontWeight: 600, cursor: 'pointer', border: `1px solid ${colorPrincipal}60` }}>
+                    background: 'rgba(255,255,255,0.08)', color: universidad === 'ufro' || universidad === 'uautonoma' ? 'white' : colorPrincipal, fontSize: 16, fontWeight: 600, cursor: 'pointer', border: `1px solid ${colorPrincipal}60` }}>
                   Continuar →
                 </motion.button>
               </motion.div>
@@ -282,7 +282,7 @@ export default function OnboardingScreen({ user, onComplete, API }) {
                       background: 'transparent', color: 'rgba(255,255,255,0.6)', fontSize: 15, cursor: 'pointer' }}>← Volver</motion.button>
                   <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handlePaso2}
                     style={{ flex: 2, padding: '14px', borderRadius: 12, border: 'none',
-                      background: 'rgba(255,255,255,0.08)', color: universidad === 'ufro' ? 'white' : colorPrincipal, fontSize: 15, fontWeight: 600, cursor: 'pointer', border: `1px solid ${colorPrincipal}60` }}>Continuar →</motion.button>
+                      background: 'rgba(255,255,255,0.08)', color: universidad === 'ufro' || universidad === 'uautonoma' ? 'white' : colorPrincipal, fontSize: 15, fontWeight: 600, cursor: 'pointer', border: `1px solid ${colorPrincipal}60` }}>Continuar →</motion.button>
                 </div>
               </motion.div>
             )}
@@ -304,7 +304,7 @@ export default function OnboardingScreen({ user, onComplete, API }) {
                       background: 'transparent', color: 'rgba(255,255,255,0.6)', fontSize: 15, cursor: 'pointer' }}>← Volver</motion.button>
                   <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handlePaso3}
                     style={{ flex: 2, padding: '14px', borderRadius: 12, border: 'none',
-                      background: 'rgba(255,255,255,0.08)', color: universidad === 'ufro' ? 'white' : colorPrincipal, fontSize: 15, fontWeight: 600, cursor: 'pointer', border: `1px solid ${colorPrincipal}60` }}>Continuar →</motion.button>
+                      background: 'rgba(255,255,255,0.08)', color: universidad === 'ufro' || universidad === 'uautonoma' ? 'white' : colorPrincipal, fontSize: 15, fontWeight: 600, cursor: 'pointer', border: `1px solid ${colorPrincipal}60` }}>Continuar →</motion.button>
                 </div>
                 <button onClick={handlePaso3} style={{ width: '100%', marginTop: 10, padding: '10px', background: 'transparent',
                   border: 'none', color: 'rgba(255,255,255,0.35)', fontSize: 13, cursor: 'pointer' }}>Saltar por ahora</button>
@@ -402,7 +402,7 @@ export default function OnboardingScreen({ user, onComplete, API }) {
                   <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setPaso(5)}
                     style={{ flex: 2, padding: '13px', borderRadius: 12, border: 'none',
                       background: 'rgba(255,255,255,0.08)', border: `1px solid ${colorPrincipal}60`,
-                      color: universidad === 'ufro' ? 'white' : colorPrincipal,
+                      color: universidad === 'ufro' || universidad === 'uautonoma' ? 'white' : colorPrincipal,
                       fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
                     {horarioSubido ? 'Continuar →' : 'Saltar por ahora →'}
                   </motion.button>
@@ -447,7 +447,7 @@ export default function OnboardingScreen({ user, onComplete, API }) {
                     onClick={activarNotificaciones} disabled={notifEstado === 'activando'}
                     style={{ width: '100%', padding: '18px', borderRadius: 14, border: 'none',
                       background: 'rgba(255,255,255,0.08)', border: `1px solid ${colorPrincipal}60`,
-                      color: universidad === 'ufro' ? 'white' : colorPrincipal, fontSize: 16, fontWeight: 700, cursor: notifEstado === 'activando' ? 'not-allowed' : 'pointer',
+                      color: universidad === 'ufro' || universidad === 'uautonoma' ? 'white' : colorPrincipal, fontSize: 16, fontWeight: 700, cursor: notifEstado === 'activando' ? 'not-allowed' : 'pointer',
                       marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
                     {notifEstado === 'activando' ? (
                       <><motion.span animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} style={{ display: 'inline-block' }}>⏳</motion.span> Activando...</>
@@ -465,7 +465,7 @@ export default function OnboardingScreen({ user, onComplete, API }) {
                     onClick={handleFinalizar} disabled={loading}
                     style={{ flex: 2, padding: '13px', borderRadius: 12, border: 'none',
                       background: 'rgba(255,255,255,0.08)', border: `1px solid ${colorPrincipal}60`,
-                      color: universidad === 'ufro' ? 'white' : colorPrincipal, fontSize: 15, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer' }}>
+                      color: universidad === 'ufro' || universidad === 'uautonoma' ? 'white' : colorPrincipal, fontSize: 15, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer' }}>
                     {loading ? '⏳ Guardando...' : '¡Empezar! 🚀'}
                   </motion.button>
                 </div>

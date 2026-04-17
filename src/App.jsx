@@ -630,7 +630,7 @@ function PerfilTab({ usuario, onLogout, onUniversidad, esFundador, numeroRegistr
       </div>
 
       {/* Cambiar universidad */}
-      <button onClick={() => onUniversidad('cambiar')} style={{ width: '100%', background: 'var(--bg-card)', border: '1px solid var(--color-border)', borderRadius: 16, padding: '14px 16px', color: 'var(--color-primary)', fontSize: 14, fontWeight: 600, cursor: 'pointer', marginBottom: 10, textAlign: 'left' }}>
+      <button onClick={() => onUniversidad('cambiar')} style={{ width: '100%', background: 'var(--bg-card)', border: '1px solid var(--color-border)', borderRadius: 16, padding: '14px 16px', color: usuario?.universidad === 'uautonoma' ? 'white' : 'var(--color-primary)', fontSize: 14, fontWeight: 600, cursor: 'pointer', marginBottom: 10, textAlign: 'left' }}>
         🏫 Cambiar universidad
       </button>
 
@@ -1012,7 +1012,7 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
             🗑️ Borrar horario completo
           </button>
         )}
-        <button onClick={() => abrirNuevoBloque('Lunes', '')} style={{ width: '100%', marginBottom: 12, padding: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, color: 'var(--color-primary)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+        <button onClick={() => abrirNuevoBloque('Lunes', '')} style={{ width: '100%', marginBottom: 12, padding: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, color: usuario?.universidad === 'uautonoma' ? 'white' : 'var(--color-primary)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
           ➕ Agregar bloque manualmente
         </button>
         <div onClick={() => inputRef.current.click()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, background: 'rgba(255,255,255,0.04)', border: '1px dashed rgba(255,255,255,0.12)', borderRadius: 12, padding: '10px 14px', cursor: 'pointer', marginBottom: 16, transition: 'all 0.2s' }}>
@@ -1171,9 +1171,9 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
                                 return (
                                   <div key={b.id} onClick={e => { e.stopPropagation(); abrirEditar(b) }}
                                     style={{ position: 'absolute', top, left: 2, right: 2, height, borderRadius: 6, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer', padding: '3px 5px', overflow: 'hidden', zIndex: 2 }}>
-                                    <div style={{ fontSize: 9, fontWeight: 800, color: 'var(--color-primary)', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.ramo_nombre}</div>
-                                    <div style={{ fontSize: 8, color: 'var(--color-primary)', opacity: 0.85, marginTop: 1 }}>{b.hora_inicio}–{b.hora_fin}</div>
-                                    {b.sala && <div style={{ fontSize: 8, color: 'var(--color-primary)', opacity: 0.65, marginTop: 1 }}>{b.sala}</div>}
+                                    <div style={{ fontSize: 9, fontWeight: 800, color: usuario?.universidad === 'uautonoma' ? 'white' : 'var(--color-primary)', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.ramo_nombre}</div>
+                                    <div style={{ fontSize: 8, color: usuario?.universidad === 'uautonoma' ? 'white' : 'var(--color-primary)', opacity: 0.85, marginTop: 1 }}>{b.hora_inicio}–{b.hora_fin}</div>
+                                    {b.sala && <div style={{ fontSize: 8, color: usuario?.universidad === 'uautonoma' ? 'white' : 'var(--color-primary)', opacity: 0.65, marginTop: 1 }}>{b.sala}</div>}
                                   </div>
                                 )
                               })}
@@ -1458,7 +1458,7 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
               </div>
             </div>
           ) : (
-            <button onClick={() => setMostrando(true)} style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid var(--color-primary)', borderRadius: 16, padding: '16px', color: 'var(--color-primary)', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+            <button onClick={() => setMostrando(true)} style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid var(--color-primary)', borderRadius: 16, padding: '16px', color: usuario?.universidad === 'uautonoma' ? 'white' : 'var(--color-primary)', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
               + Agregar ramo
             </button>
           )}
