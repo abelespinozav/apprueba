@@ -92,3 +92,17 @@ export function getTema(universidad) {
   }
   return TEMAS[map[universidad]] || TEMAS.default
 }
+
+// Universidades cuyo --color-primary es tan oscuro/saturado que
+// texto en ese color no se lee bien sobre var(--bg-card); forzar blanco.
+const UNIS_FONDO_FUERTE = new Set(['uautonoma', 'inacap', 'santotomas', 'uctemuco'])
+export function colorTextoSobreHeader(universidad, fallback = 'var(--color-primary)') {
+  return UNIS_FONDO_FUERTE.has(universidad) ? 'white' : fallback
+}
+
+// En el onboarding el botón es translúcido con borde; forzar blanco
+// también para UFRO donde colorPrincipal es azul oscuro.
+const UNIS_PRIMARIO_OSCURO = new Set(['ufro', 'uautonoma', 'inacap', 'santotomas', 'uctemuco'])
+export function colorTextoSobrePrimarioOscuro(universidad, fallback) {
+  return UNIS_PRIMARIO_OSCURO.has(universidad) ? 'white' : fallback
+}

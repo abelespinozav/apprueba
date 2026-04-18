@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom'
 import PanelNotificaciones from './Notificaciones'
 import { motion, AnimatePresence } from 'framer-motion'
 import PlanEstudio from './PlanEstudio'
 import Quiz from './Quiz'
 import OnboardingScreen from './OnboardingScreen.jsx'
 import { useTheme } from './useTheme'
+import { colorTextoSobreHeader } from './theme'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const getToken = () => localStorage.getItem('token')
@@ -660,7 +662,7 @@ function PerfilTab({ usuario, onLogout, onUniversidad, esFundador, numeroRegistr
       </div>
 
       {/* Cambiar universidad */}
-      <button onClick={() => onUniversidad('cambiar')} style={{ width: '100%', background: 'var(--bg-card)', border: '1px solid var(--color-border)', borderRadius: 16, padding: '14px 16px', color: usuario?.universidad === 'uautonoma' || usuario?.universidad === 'inacap' || usuario?.universidad === 'santotomas' || usuario?.universidad === 'uctemuco' ? 'white' : 'var(--color-primary)', fontSize: 14, fontWeight: 600, cursor: 'pointer', marginBottom: 10, textAlign: 'left' }}>
+      <button onClick={() => onUniversidad('cambiar')} style={{ width: '100%', background: 'var(--bg-card)', border: '1px solid var(--color-border)', borderRadius: 16, padding: '14px 16px', color: colorTextoSobreHeader(usuario?.universidad), fontSize: 14, fontWeight: 600, cursor: 'pointer', marginBottom: 10, textAlign: 'left' }}>
         🏫 Cambiar universidad
       </button>
 
@@ -675,14 +677,16 @@ function PerfilTab({ usuario, onLogout, onUniversidad, esFundador, numeroRegistr
 // ============================================================
 // BOTTOM NAV
 // ============================================================
-function BottomNav({ tab, setTab, setPantalla }) {
+function BottomNav() {
+  const location = useLocation()
+  const navigate = useNavigate()
   const tabs = [
-    { id: 'home', icon: '🏠', label: 'Inicio' },
-    { id: 'ramos', icon: '📚', label: 'Ramos' },
-    { id: 'plan', icon: '🧠', label: 'Plan IA' },
-    { id: 'quiz', icon: '⚡', label: 'Quiz' },
-    { id: 'horario', icon: '🗓', label: 'Horario' },
-    { id: 'perfil', icon: '👤', label: 'Perfil' },
+    { path: '/home', icon: '🏠', label: 'Inicio' },
+    { path: '/ramos', icon: '📚', label: 'Ramos' },
+    { path: '/plan', icon: '🧠', label: 'Plan IA' },
+    { path: '/quiz', icon: '⚡', label: 'Quiz' },
+    { path: '/horario', icon: '🗓', label: 'Horario' },
+    { path: '/perfil', icon: '👤', label: 'Perfil' },
   ]
   return (
     <div style={{
@@ -693,30 +697,34 @@ function BottomNav({ tab, setTab, setPantalla }) {
       padding: '8px 0 16px',
       boxShadow: '0 -4px 20px rgba(0,0,0,0.08)'
     }}>
-      {tabs.map(t => (
-        <button key={t.id} onClick={() => { setTab(t.id); setPantalla && setPantalla('ramos') }} style={{
-          background: 'none', border: 'none', cursor: 'pointer',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-          padding: '4px 8px',
-          opacity: 1,
-          transition: 'all 0.2s',
-          minWidth: 56
-        }}>
-          <div style={{
-            background: tab === t.id ? 'var(--color-primary)' : 'transparent',
-            borderRadius: 12,
-            padding: tab === t.id ? '4px 16px' : '4px 16px',
+      {tabs.map(t => {
+        const activo = location.pathname === t.path
+                     || (t.path === '/ramos' && location.pathname.startsWith('/ramos/'))
+        return (
+          <button key={t.path} onClick={() => navigate(t.path)} style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+            padding: '4px 8px',
+            opacity: 1,
             transition: 'all 0.2s',
-            display: 'flex', alignItems: 'center', justifyContent: 'center'
+            minWidth: 56
           }}>
-            <span style={{ fontSize: 22 }}>{t.icon}</span>
-          </div>
-          <span style={{
-            fontSize: 10, fontWeight: tab === t.id ? 700 : 500,
-            color: tab === t.id ? 'var(--color-primary)' : 'var(--color-text)',
-          }}>{t.label}</span>
-        </button>
-      ))}
+            <div style={{
+              background: activo ? 'var(--color-primary)' : 'transparent',
+              borderRadius: 12,
+              padding: '4px 16px',
+              transition: 'all 0.2s',
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}>
+              <span style={{ fontSize: 22 }}>{t.icon}</span>
+            </div>
+            <span style={{
+              fontSize: 10, fontWeight: activo ? 700 : 500,
+              color: activo ? 'var(--color-primary)' : 'var(--color-text)',
+            }}>{t.label}</span>
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -1044,7 +1052,7 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
             🗑️ Borrar horario completo
           </button>
         )}
-        <button onClick={() => abrirNuevoBloque('Lunes', '')} style={{ width: '100%', marginBottom: 12, padding: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, color: usuario?.universidad === 'uautonoma' || usuario?.universidad === 'inacap' || usuario?.universidad === 'santotomas' || usuario?.universidad === 'uctemuco' ? 'white' : 'var(--color-primary)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+        <button onClick={() => abrirNuevoBloque('Lunes', '')} style={{ width: '100%', marginBottom: 12, padding: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, color: colorTextoSobreHeader(usuario?.universidad), fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
           ➕ Agregar bloque manualmente
         </button>
         <div onClick={() => inputRef.current.click()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, background: 'rgba(255,255,255,0.04)', border: '1px dashed rgba(255,255,255,0.12)', borderRadius: 12, padding: '10px 14px', cursor: 'pointer', marginBottom: 16, transition: 'all 0.2s' }}>
@@ -1203,9 +1211,9 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
                                 return (
                                   <div key={b.id} onClick={e => { e.stopPropagation(); abrirEditar(b) }}
                                     style={{ position: 'absolute', top, left: 2, right: 2, height, borderRadius: 6, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer', padding: '3px 5px', overflow: 'hidden', zIndex: 2 }}>
-                                    <div style={{ fontSize: 9, fontWeight: 800, color: usuario?.universidad === 'uautonoma' || usuario?.universidad === 'inacap' || usuario?.universidad === 'santotomas' || usuario?.universidad === 'uctemuco' ? 'white' : 'var(--color-primary)', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.ramo_nombre}</div>
-                                    <div style={{ fontSize: 8, color: usuario?.universidad === 'uautonoma' || usuario?.universidad === 'inacap' || usuario?.universidad === 'santotomas' || usuario?.universidad === 'uctemuco' ? 'white' : 'var(--color-primary)', opacity: 0.85, marginTop: 1 }}>{b.hora_inicio}–{b.hora_fin}</div>
-                                    {b.sala && <div style={{ fontSize: 8, color: usuario?.universidad === 'uautonoma' || usuario?.universidad === 'inacap' || usuario?.universidad === 'santotomas' || usuario?.universidad === 'uctemuco' ? 'white' : 'var(--color-primary)', opacity: 0.65, marginTop: 1 }}>{b.sala}</div>}
+                                    <div style={{ fontSize: 9, fontWeight: 800, color: colorTextoSobreHeader(usuario?.universidad), lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.ramo_nombre}</div>
+                                    <div style={{ fontSize: 8, color: colorTextoSobreHeader(usuario?.universidad), opacity: 0.85, marginTop: 1 }}>{b.hora_inicio}–{b.hora_fin}</div>
+                                    {b.sala && <div style={{ fontSize: 8, color: colorTextoSobreHeader(usuario?.universidad), opacity: 0.65, marginTop: 1 }}>{b.sala}</div>}
                                   </div>
                                 )
                               })}
@@ -1490,7 +1498,7 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
               </div>
             </div>
           ) : (
-            <button onClick={() => setMostrando(true)} style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid var(--color-primary)', borderRadius: 16, padding: '16px', color: usuario?.universidad === 'uautonoma' || usuario?.universidad === 'inacap' || usuario?.universidad === 'santotomas' || usuario?.universidad === 'uctemuco' ? 'white' : 'var(--color-primary)', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+            <button onClick={() => setMostrando(true)} style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid var(--color-primary)', borderRadius: 16, padding: '16px', color: colorTextoSobreHeader(usuario?.universidad), fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
               + Agregar ramo
             </button>
           )}
@@ -2182,45 +2190,112 @@ function AdminScreen({ usuario, onBack }) {
   )
 }
 
-export default function App() {
-  const [pantalla, setPantalla] = useState('login')
-  const [usuario, setUsuario] = useState(null)
-  const [tab, setTab] = useState('home')
+function RamoRouteWrapper({ ramos, loadingRamos, usuario, onUpdate, onDelete, evalDestacada, onClearEval }) {
+  const { ramoId } = useParams()
+  const navigate = useNavigate()
+  if (!usuario) return <Navigate to="/" replace />
+  if (loadingRamos) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-secondary)' }}>Cargando...</div>
+  const ramo = ramos.find(r => r.id === Number(ramoId))
+  if (!ramo) return <Navigate to="/ramos" replace />
+  return (
+    <>
+      <RamoScreen
+        ramo={ramo}
+        onBack={() => navigate('/ramos')}
+        onUpdate={onUpdate}
+        onDelete={onDelete}
+        evalDestacada={evalDestacada}
+        onClearEval={onClearEval}
+        onPlan={(ev) => { if (!ev || !ev.id) { alert('Error: evaluación inválida'); return; } navigate(`/ramos/${ramo.id}/plan/${ev.id}`) }}
+      />
+      <BottomNav />
+    </>
+  )
+}
 
-  useTheme(usuario?.universidad)
+function PlanEstudioRouteWrapper({ ramos, loadingRamos, usuario, cargarRamos }) {
+  const { ramoId, evalId } = useParams()
+  const navigate = useNavigate()
+  if (!usuario) return <Navigate to="/" replace />
+  if (loadingRamos) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-secondary)' }}>Cargando...</div>
+  const ramo = ramos.find(r => r.id === Number(ramoId))
+  const ev = ramo?.evaluaciones?.find(e => e.id === Number(evalId))
+  if (!ramo || !ev) return <Navigate to="/ramos" replace />
+  return (
+    <>
+      <PlanEstudio
+        evaluacion={ev}
+        ramo={ramo}
+        onBack={async () => {
+          const token = localStorage.getItem('token')
+          await cargarRamos(token, true)
+          navigate(-1)
+        }}
+      />
+      <BottomNav />
+    </>
+  )
+}
+
+function QuizRouteWrapper({ ramos, loadingRamos, usuario }) {
+  const { ramoId, evalId } = useParams()
+  const navigate = useNavigate()
+  if (!usuario) return <Navigate to="/" replace />
+  if (loadingRamos) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-secondary)' }}>Cargando...</div>
+  const ramo = ramos.find(r => r.id === Number(ramoId))
+  const ev = ramo?.evaluaciones?.find(e => e.id === Number(evalId))
+  if (!ramo || !ev) return <Navigate to="/ramos" replace />
+  return (
+    <>
+      <Quiz evaluacion={ev} ramo={ramo} onBack={() => navigate(-1)} />
+      <BottomNav />
+    </>
+  )
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
+  )
+}
+
+function AppContent() {
+  const [usuario, setUsuario] = useState(null)
+  const [loadingAuth, setLoadingAuth] = useState(true)
   const [ramos, setRamos] = useState([])
+  const [loadingRamos, setLoadingRamos] = useState(true)
   const [novedades, setNovedades] = useState([])
-  const [ramoActivo, setRamoActivo] = useState(null)
-  const [planEv, setPlanEv] = useState(null)
   const [horarioGlobal, setHorarioGlobal] = useState([])
   const [mostrarNotif, setMostrarNotif] = useState(false)
   const [evalDestacada, setEvalDestacada] = useState(null)
+  const navigate = useNavigate()
+
+  useTheme(usuario?.universidad)
 
   const irAPlanEval = (ramoId, evalId) => {
-    const ramo = ramos.find(r => r.id === ramoId)
-    if (!ramo) return
-    const ev = (ramo.evaluaciones || []).find(e => e.id === evalId)
-    if (!ev) return
-    setRamoActivo(ramo)
-    setPlanEv(ev)
-    setPantalla('plan')
+    navigate(`/ramos/${ramoId}/plan/${evalId}`)
   }
 
   const irAEvaluacion = (ramoId, evalId) => {
-    const ramo = ramos.find(r => r.id === ramoId)
-    if (ramo) { setRamoActivo(ramo); setEvalDestacada(evalId); setPantalla('ramo') }
+    setEvalDestacada(evalId)
+    navigate(`/ramos/${ramoId}`)
   }
 
   useEffect(() => {
     const token = localStorage.getItem('token')
     const user = localStorage.getItem('usuario')
     if (token && user) {
-      setUsuario(JSON.parse(user))
+      const userData = JSON.parse(user)
+      setUsuario(userData)
       cargarRamos(token)
-      const userData = JSON.parse(user); cargarNovedades(token, userData.universidad || userData.user?.universidad)
+      cargarNovedades(token, userData.universidad || userData.user?.universidad)
       cargarHorarioGlobal()
-      setPantalla('ramos')
+    } else {
+      setLoadingRamos(false)
     }
+    setLoadingAuth(false)
     const handler = () => cargarRamos(localStorage.getItem('token'))
     window.addEventListener('ramos-actualizados', handler)
     return () => window.removeEventListener('ramos-actualizados', handler)
@@ -2240,24 +2315,15 @@ export default function App() {
     } catch(e) { console.log('Sin novedades BD, usando defaults') }
   }
 
-  const cargarRamos = async (token, refreshActivo = false) => {
+  const cargarRamos = async (token) => {
     try {
       const res = await fetch(`${API}/ramos`, { headers: authHeaders({ 'Content-Type': 'application/json' }) })
       if (res.ok) {
         const data = await res.json()
         setRamos(data)
-        if (refreshActivo && ramoActivo) {
-          const ramoFresh = data.find(r => r.id === ramoActivo.id)
-          if (ramoFresh) {
-            setRamoActivo(ramoFresh)
-            if (planEv) {
-              const evFresh = ramoFresh.evaluaciones?.find(e => e.id === planEv.id)
-              if (evFresh) setPlanEv(evFresh)
-            }
-          }
-        }
       }
     } catch (e) { console.error(e) }
+    setLoadingRamos(false)
   }
 
   const cargarHorarioGlobal = async () => {
@@ -2285,11 +2351,11 @@ export default function App() {
           localStorage.setItem('usuario', JSON.stringify(user))
           setUsuario(user)
           if (!user.onboarding_v2) {
-            setPantalla('onboarding')
+            navigate('/onboarding')
           } else {
             cargarRamos(data.token)
             cargarHorarioGlobal()
-            setPantalla('ramos')
+            navigate('/home')
           }
         })
         .catch(e => console.error('Error auth/exchange:', e))
@@ -2298,7 +2364,7 @@ export default function App() {
 
   const handleUniversidad = async (universidad) => {
     if (universidad === 'cambiar') {
-      setPantalla('onboarding')
+      navigate('/onboarding')
       return
     }
     try {
@@ -2317,7 +2383,7 @@ export default function App() {
 
   const handleLogout = () => {
     localStorage.removeItem('token'); localStorage.removeItem('usuario')
-    setUsuario(null); setRamos([]); setRamoActivo(null); setPantalla('login')
+    setUsuario(null); setRamos([]); setLoadingRamos(true); navigate('/')
   }
 
   const handleAddRamo = async (data) => {
@@ -2333,7 +2399,6 @@ export default function App() {
       if (res.ok) {
         const updated = await res.json()
         setRamos(ramos.map(r => r.id === updated.id ? updated : r))
-        setRamoActivo(updated)
       }
     } catch (e) { console.error(e) }
   }
@@ -2341,25 +2406,39 @@ export default function App() {
   const handleDeleteRamo = async (id) => {
     try {
       const res = await fetch(`${API}/ramos/${id}`, { method: 'DELETE', headers: authHeaders() })
-      if (res.ok) { setRamos(ramos.filter(r => r.id !== id)); setPantalla('ramos'); setRamoActivo(null) }
+      if (res.ok) { setRamos(ramos.filter(r => r.id !== id)); navigate('/ramos') }
     } catch (e) { console.error(e) }
   }
 
-  if (pantalla === 'admin' && usuario?.email === 'abelespinozav@gmail.com') return <AdminScreen usuario={usuario} onBack={() => setPantalla('ramos')} />
-  if (pantalla === 'login') return <LoginScreen onLogin={handleLogin} />
-  if (pantalla === 'onboarding') return <OnboardingScreen user={usuario} API={API} onComplete={(u) => { if (!u) return; setUsuario({ ...usuario, ...u, name: u.nombre || u.name || '' }); const token = localStorage.getItem('token'); cargarRamos(token); setPantalla('ramos') }} />
-  if (pantalla === 'ramos') {
-    const proximas3dias = ramos.flatMap(r =>
-      (r.evaluaciones || []).filter(e => e.fecha && (e.nota === null || e.nota === undefined || e.nota === ''))
-        .map(e => ({ ...e }))
-    ).filter(e => {
-      const dias = Math.ceil((new Date(e.fecha) - new Date()) / 86400000)
-      return dias >= 0 && dias <= 3
-    }).length
+  if (loadingAuth) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)', color: 'var(--color-text-secondary)' }}>
+      Cargando...
+    </div>
+  )
 
-    return (
-      <>
-        {tab === 'home' && (
+  const proximas3dias = ramos.flatMap(r =>
+    (r.evaluaciones || []).filter(e => e.fecha && (e.nota === null || e.nota === undefined || e.nota === ''))
+      .map(e => ({ ...e }))
+  ).filter(e => {
+    const dias = Math.ceil((new Date(e.fecha) - new Date()) / 86400000)
+    return dias >= 0 && dias <= 3
+  }).length
+
+  const esAdmin = usuario?.email === 'abelespinozav@gmail.com'
+  const requireAuth = (el) => usuario ? el : <Navigate to="/" replace />
+  const withBottomNav = (el) => <>{el}<BottomNav /></>
+
+  return (
+    <>
+      <Routes>
+        <Route path="/" element={!usuario ? <LoginScreen onLogin={handleLogin} /> : <Navigate to="/home" replace />} />
+        <Route path="/onboarding" element={
+          usuario
+            ? <OnboardingScreen user={usuario} API={API} onComplete={(u) => { if (!u) return; setUsuario({ ...usuario, ...u, name: u.nombre || u.name || '' }); const token = localStorage.getItem('token'); cargarRamos(token); navigate('/home') }} />
+            : <Navigate to="/" replace />
+        } />
+        <Route path="/admin" element={esAdmin ? <AdminScreen usuario={usuario} onBack={() => navigate('/home')} /> : <Navigate to="/" replace />} />
+        <Route path="/home" element={requireAuth(withBottomNav(
           <HomeScreen
             ramos={ramos}
             usuario={usuario}
@@ -2367,23 +2446,23 @@ export default function App() {
             numeroRegistro={usuario?.numero_registro}
             horario={horarioGlobal}
             onVerRamo={(ev) => irAPlanEval(ev.ramoId, ev.id)}
-            onHorario={() => setPantalla('horario')}
-            onVerHorario={() => setTab('horario')}
+            onHorario={() => navigate('/horario')}
+            onVerHorario={() => navigate('/horario')}
             onNotif={() => setMostrarNotif(true)}
-            onPerfil={() => setTab('perfil')}
-            onAdmin={() => setPantalla('admin')}
+            onPerfil={() => navigate('/perfil')}
+            onAdmin={() => navigate('/admin')}
             evalProximas3dias={proximas3dias}
             novedades={novedades}
           />
-        )}
-        {tab === 'ramos' && (
+        ))} />
+        <Route path="/ramos" element={requireAuth(withBottomNav(
           <RamosScreen
             ramos={ramos}
-            onSelect={r => { setRamoActivo(r); setPantalla('ramo') }}
+            onSelect={r => navigate(`/ramos/${r.id}`)}
             onAdd={handleAddRamo}
             onLogout={handleLogout}
-            onAdmin={() => setPantalla('admin')}
-            onHorario={() => setPantalla('horario')}
+            onAdmin={() => navigate('/admin')}
+            onHorario={() => navigate('/horario')}
             usuario={usuario}
             onUniversidad={handleUniversidad}
             horario={horarioGlobal}
@@ -2391,68 +2470,55 @@ export default function App() {
             numeroRegistro={usuario?.numero_registro}
             onBorrarRamos={borrarTodosRamos}
             onIrAEval={irAPlanEval}
-            tab={tab}
-            setTab={setTab}
           />
-        )}
-        {tab === 'plan' && (
-          <div key="plan" style={{ animation: 'slideUp 0.35s ease both' }}>
-            <PlanTab ramos={ramos} onIniciarPlan={(r, ev) => { setRamoActivo(r); setPlanEv(ev); setPantalla('plan_rapido') }} />
-          </div>
-        )}
-        {tab === 'quiz' && (
-          <div key="quiz" style={{ animation: 'slideUp 0.35s ease both' }}>
-            <QuizTab ramos={ramos} onIniciarQuiz={(r, ev) => { setRamoActivo(r); setEvalDestacada(ev); setPantalla('quiz_rapido') }} />
-          </div>
-        )}
-        {tab === 'horario' && (
-          <div key="horario" style={{ animation: 'slideUp 0.35s ease both' }}>
-            <HorarioScreen usuario={usuario} onBack={() => setTab('home')} API={API} authHeaders={authHeaders} />
-          </div>
-        )}
-        {tab === 'perfil' && (
-          <div key="perfil" style={{ animation: 'slideUp 0.35s ease both' }}>
-            <PerfilTab
-              usuario={usuario}
-              onLogout={handleLogout}
-              onUniversidad={handleUniversidad}
-              esFundador={usuario?.es_fundador}
-              numeroRegistro={usuario?.numero_registro}
-            />
-          </div>
-        )}
-        <BottomNav tab={tab} setTab={setTab} setPantalla={setPantalla} />
-        {mostrarNotif && <PanelNotificaciones onClose={() => setMostrarNotif(false)} proximas={ramos.flatMap(r => (r.evaluaciones||[]).filter(e => e.fecha && !e.nota).map(e => ({...e, ramoNombre: r.nombre})))} />}
-      </>
-    )
-  }
-  if (pantalla === 'plan_rapido' && ramoActivo && planEv) return (
-    <><PlanEstudio evaluacion={planEv} ramo={ramoActivo} onBack={() => { setRamoActivo(null); setPlanEv(null); setPantalla('ramos'); setTab('plan') }} />
-    <BottomNav tab={tab} setTab={setTab} setPantalla={setPantalla} /></>
-  )
-  if (pantalla === 'quiz_rapido' && ramoActivo && evalDestacada) return (
-    <><Quiz evaluacion={evalDestacada} ramo={ramoActivo} onBack={() => { setRamoActivo(null); setEvalDestacada(null); setPantalla('ramos'); setTab('quiz') }} />
-    <BottomNav tab={tab} setTab={setTab} setPantalla={setPantalla} /></>
-  )
-  if (pantalla === 'ramo' && ramoActivo) return (
-    <><RamoScreen ramo={ramoActivo} onBack={() => setPantalla('ramos')} onUpdate={handleUpdateRamo} onDelete={handleDeleteRamo} evalDestacada={evalDestacada} onClearEval={() => setEvalDestacada(null)} onPlan={(ev) => { if (!ev || !ev.id) { alert('Error: evaluación inválida'); return; } setPlanEv(ev); setPantalla('plan') }} />
-    <BottomNav tab={tab} setTab={setTab} setPantalla={setPantalla} /></>
-  )
-  if (pantalla === 'horario') return (
-    <><HorarioScreen usuario={usuario} onBack={() => { cargarHorarioGlobal(); setPantalla('ramos') }} API={API} authHeaders={authHeaders} />
-    <BottomNav tab={tab} setTab={setTab} setPantalla={setPantalla} /></>
-  )
-  if (pantalla === 'plan' && planEv && ramoActivo) return (
-    <><PlanEstudio evaluacion={planEv} ramo={ramoActivo} onBack={async () => {
-    const token = localStorage.getItem('token')
-    await cargarRamos(token, true)
-    setPantalla('ramo')
-  }} />
-    <BottomNav tab={tab} setTab={setTab} setPantalla={setPantalla} /></>
-  )
-  return (
-    <>
-      {mostrarNotif && <PanelNotificaciones onClose={() => setMostrarNotif(false)} proximas={proximas3dias > 0 ? ramos.flatMap(r => (r.evaluaciones||[]).filter(e => e.fecha && !e.nota).map(e => ({...e, ramoNombre: r.nombre}))) : []} />}
+        ))} />
+        <Route path="/plan" element={requireAuth(withBottomNav(
+          <PlanTab ramos={ramos} onIniciarPlan={(r, ev) => navigate(`/ramos/${r.id}/plan/${ev.id}`)} />
+        ))} />
+        <Route path="/quiz" element={requireAuth(withBottomNav(
+          <QuizTab ramos={ramos} onIniciarQuiz={(r, ev) => navigate(`/ramos/${r.id}/quiz/${ev.id}`)} />
+        ))} />
+        <Route path="/horario" element={requireAuth(withBottomNav(
+          <HorarioScreen usuario={usuario} onBack={() => { cargarHorarioGlobal(); navigate('/home') }} API={API} authHeaders={authHeaders} />
+        ))} />
+        <Route path="/perfil" element={requireAuth(withBottomNav(
+          <PerfilTab
+            usuario={usuario}
+            onLogout={handleLogout}
+            onUniversidad={handleUniversidad}
+            esFundador={usuario?.es_fundador}
+            numeroRegistro={usuario?.numero_registro}
+          />
+        ))} />
+        <Route path="/ramos/:ramoId" element={
+          <RamoRouteWrapper
+            ramos={ramos}
+            loadingRamos={loadingRamos}
+            usuario={usuario}
+            onUpdate={handleUpdateRamo}
+            onDelete={handleDeleteRamo}
+            evalDestacada={evalDestacada}
+            onClearEval={() => setEvalDestacada(null)}
+          />
+        } />
+        <Route path="/ramos/:ramoId/plan/:evalId" element={
+          <PlanEstudioRouteWrapper
+            ramos={ramos}
+            loadingRamos={loadingRamos}
+            usuario={usuario}
+            cargarRamos={cargarRamos}
+          />
+        } />
+        <Route path="/ramos/:ramoId/quiz/:evalId" element={
+          <QuizRouteWrapper
+            ramos={ramos}
+            loadingRamos={loadingRamos}
+            usuario={usuario}
+          />
+        } />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      {mostrarNotif && <PanelNotificaciones onClose={() => setMostrarNotif(false)} proximas={ramos.flatMap(r => (r.evaluaciones||[]).filter(e => e.fecha && !e.nota).map(e => ({...e, ramoNombre: r.nombre})))} />}
     </>
   )
 }
