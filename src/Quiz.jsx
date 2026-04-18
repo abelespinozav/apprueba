@@ -13,6 +13,7 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
   const [mostrarExplicacion, setMostrarExplicacion] = useState(false)
   const [error, setError] = useState(null)
   const [quizzesUsados, setQuizzesUsados] = useState(null)
+  const [limiteGlobal, setLimiteGlobal] = useState(100)
   const [historialGuardado, setHistorialGuardado] = useState(false)
 
   useEffect(() => {
@@ -31,8 +32,12 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
 
   const cargarContador = async () => {
     try {
-      const res = await fetch(API + '/auth/me', { headers: authHeaders() })
-      if (res.ok) { const d = await res.json(); setQuizzesUsados(d.quizzes_usados || 0) }
+      const [meRes, limRes] = await Promise.all([
+        fetch(API + '/auth/me', { headers: authHeaders() }),
+        fetch(API + '/config/limite-global', { headers: authHeaders() })
+      ])
+      if (meRes.ok) { const d = await meRes.json(); setQuizzesUsados(d.quizzes_usados || 0) }
+      if (limRes.ok) { const d = await limRes.json(); if (d.limite !== undefined) setLimiteGlobal(d.limite) }
     } catch(e) {}
   }
 
@@ -56,7 +61,7 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
       if (!contentType.includes('text/event-stream')) {
         const data = await res.json()
         if (res.status === 403 && data.error === 'limite_alcanzado') {
-          setQuizzesUsados(5); setEstado('inicio'); return
+          setQuizzesUsados(limiteGlobal); setEstado('inicio'); return
         }
         if (!res.ok) { setError(data.error || 'Error desconocido'); setEstado('inicio'); return }
         setPreguntas(data.preguntas)
@@ -94,7 +99,7 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
               setQuizzesUsados(prev => (prev || 0) + 1)
               setEstado('quiz')
             } else if (evento.tipo === 'error') {
-              if (evento.error === 'limite_alcanzado') setQuizzesUsados(5)
+              if (evento.error === 'limite_alcanzado') setQuizzesUsados(limiteGlobal)
               else setError(evento.mensaje || 'Error generando quiz')
               setMostrarModal(false)
               setEstado('inicio')
@@ -205,9 +210,9 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
           </div>
         )}
 
-        {quizzesUsados >= 5 ? (
+        {quizzesUsados >= limiteGlobal ? (
           <div style={{ background: 'rgba(248,113,113,0.1)', border: '1px solid #f87171', borderRadius: 10, padding: 12, color: '#f87171', fontSize: 13, marginBottom: 16 }}>
-            🔒 Alcanzaste el límite de 5 quizzes en el plan gratuito.
+            🔒 Alcanzaste el límite de {limiteGlobal} quizzes.
           </div>
         ) : null}
         {evaluacion.quiz_generado && (
@@ -220,8 +225,8 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
             ⏳ {progresoMsg || 'Iniciando...'}
           </button>
         ) : (
-          <button onClick={() => generarQuiz(false)} disabled={quizzesUsados >= 5} style={{ ...s.btn, background: quizzesUsados >= 5 ? 'rgba(46,125,209,0.3)' : 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', cursor: quizzesUsados >= 5 ? 'not-allowed' : 'pointer' }}>
-            {quizzesUsados >= 5 ? '🔒 Límite alcanzado' : `🤖 Generar Quiz con IA (${5 - (quizzesUsados || 0)} restantes)`}
+          <button onClick={() => generarQuiz(false)} disabled={quizzesUsados >= limiteGlobal} style={{ ...s.btn, background: quizzesUsados >= limiteGlobal ? 'rgba(46,125,209,0.3)' : 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', cursor: quizzesUsados >= limiteGlobal ? 'not-allowed' : 'pointer' }}>
+            {quizzesUsados >= limiteGlobal ? '🔒 Límite alcanzado' : `🤖 Generar Quiz con IA (${limiteGlobal - (quizzesUsados || 0)} restantes)`}
           </button>
         )}
       </div>
@@ -319,8 +324,8 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={() => generarQuiz(true)} disabled={quizzesUsados >= 5} style={{ ...s.btn, flex: 1, background: quizzesUsados >= 5 ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.08)', cursor: quizzesUsados >= 5 ? 'not-allowed' : 'pointer' }}>
-              {quizzesUsados >= 5 ? '🔒 Límite' : '🔄 Nuevo quiz'}
+            <button onClick={() => generarQuiz(true)} disabled={quizzesUsados >= limiteGlobal} style={{ ...s.btn, flex: 1, background: quizzesUsados >= limiteGlobal ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.08)', cursor: quizzesUsados >= limiteGlobal ? 'not-allowed' : 'pointer' }}>
+              {quizzesUsados >= limiteGlobal ? '🔒 Límite' : '🔄 Nuevo quiz'}
             </button>
             <button onClick={onBack} style={{ ...s.btn, flex: 1 }}>← Volver</button>
           </div>

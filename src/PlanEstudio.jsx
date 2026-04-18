@@ -46,23 +46,18 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
   const fileRef = useRef()
 
   const eliminarArchivo = async (id) => {
+    if (!window.confirm('⚠️ Al eliminar este archivo se regenerará el plan de estudio. Tu progreso de tareas completadas se conservará. ¿Continuar?')) return
     try {
       await fetch(`${API}/archivos/${id}`, { method: 'DELETE', headers: authHeaders() })
       const nuevosArchivos = archivosGuardados.filter(a => a.id !== id)
       setArchivosGuardados(nuevosArchivos)
       setPlan(null)
-      setCompletadas(new Set())
     } catch (e) { console.error(e) }
   }
 
   const diasRestantes = evaluacion.fecha
     ? Math.round((new Date(evaluacion.fecha + 'T00:00:00') - new Date().setHours(0,0,0,0)) / 86400000)
     : null
-
-  const regenerarPlan = () => {
-    setPlan(null)
-    setCompletadas(new Set())
-  }
 
   const agregarYoutubeUrl = () => {
     const url = youtubeInput.trim()
@@ -109,8 +104,8 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
               cargarArchivos()
             } else if (evento.tipo === 'error') {
               if (evento.error === 'limite_alcanzado') {
-                setPlanesUsados(3)
-                alert('🔒 Alcanzaste el límite de 3 regeneraciones de plan en el plan gratuito.')
+                setPlanesUsados(limiteGlobal)
+                alert(`🔒 Alcanzaste el límite de ${limiteGlobal} regeneraciones de plan.`)
               } else if (evento.error === 'sin_material') {
                 alert('📚 Debes subir tu material de estudio (PDF o Word) para generar el plan.')
               } else if (evento.error === 'archivo_no_legible') {
@@ -233,7 +228,7 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
     try {
       const [meRes, limiteRes] = await Promise.all([
         fetch(API + '/auth/me', { headers: authHeaders() }),
-        fetch(API + '/admin/limite-global', { headers: authHeaders() })
+        fetch(API + '/config/limite-global', { headers: authHeaders() })
       ])
       if (meRes.ok) {
         const data = await meRes.json()
@@ -524,7 +519,7 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
                       <button onClick={() => verGuia(t, i)} style={{ background: 'rgba(var(--color-primary-rgb, 46,125,209), 0.15)', border: 'none', borderRadius: 8, padding: '6px 12px', color: 'var(--color-secondary)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
   {guiasGeneradas[i] ? '📖 Ver guía' : '✨ Generar guía'}
 </button>
-                      <button onClick={() => descargarEjercicios(t, i)} disabled={descargandoEjerciciosId === i || ejerciciosUsados >= 5} style={{ background: ejerciciosUsados >= 5 ? 'rgba(255,255,255,0.05)' : 'rgba(74,222,128,0.15)', border: 'none', borderRadius: 8, padding: '6px 12px', color: ejerciciosUsados >= 5 ? 'rgba(255,255,255,0.2)' : '#4ade80', fontSize: 12, cursor: (descargandoEjerciciosId === i || ejerciciosUsados >= 5) ? 'not-allowed' : 'pointer', fontWeight: 600 }}>
+                      <button onClick={() => descargarEjercicios(t, i)} disabled={descargandoEjerciciosId === i || ejerciciosUsados >= limiteGlobal} style={{ background: ejerciciosUsados >= limiteGlobal ? 'rgba(255,255,255,0.05)' : 'rgba(74,222,128,0.15)', border: 'none', borderRadius: 8, padding: '6px 12px', color: ejerciciosUsados >= limiteGlobal ? 'rgba(255,255,255,0.2)' : '#4ade80', fontSize: 12, cursor: (descargandoEjerciciosId === i || ejerciciosUsados >= limiteGlobal) ? 'not-allowed' : 'pointer', fontWeight: 600 }}>
   {descargandoEjerciciosId === i ? <><span style={spinnerStyle}></span>Generando...</> : ejerciciosUsados >= limiteGlobal ? '🔒 Límite alcanzado' : ejerciciosGenerados[i] ? '📥 Ver ejercicios PDF' : `✨ Ejercicios PDF (${limiteGlobal - (ejerciciosUsados || 0)} restantes)`}
 </button>
                       {podcastsExistentes.some(p => Number(p.tarea_idx) === i) ? (

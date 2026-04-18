@@ -262,38 +262,13 @@ function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVer
 
         {/* Novedades */}
         {(() => {
-          const novedadesData = novedades.length > 0 ? { [usuario?.universidad || 'ufro']: novedades } : {
-            ufro: [
-              { tipo: 'Beca', emoji: '🦷', titulo: 'Beca Instrumental Odontología', descripcion: 'Postulaciones abiertas del 13 al 19 de abril', color: '#f5c800' },
-              { tipo: 'Menú', emoji: '🍽️', titulo: 'Menú Casino Hoy', descripcion: 'Cazuela de vacuno · Ensalada mixta · Jugo natural', color: '#4ade80' },
-              { tipo: 'Académico', emoji: '📅', titulo: 'Calendario Académico', descripcion: 'Consulta fechas clave del semestre', color: '#60a5fa' },
-              { tipo: 'Deporte', emoji: '🏃', titulo: 'Muévete por tu Bienestar', descripcion: '16 abril · 11:30 hrs · Campus central', color: '#f97316' },
-              { tipo: 'Cultural', emoji: '🎵', titulo: 'Recital de Música Sacra', descripcion: 'Estudiantil · 18 de abril', color: '#a78bfa' },
-              { tipo: 'TNE', emoji: '🚌', titulo: 'Revalidación TNE', descripcion: 'Cursos superiores · 15 y 16 de abril', color: '#38bdf8' },
-            ],
-            umayor: [
-              { tipo: 'Académico', emoji: '📅', titulo: 'Inicio Semestre 2026', descripcion: 'Revisa el calendario académico oficial', color: '#f5c800' },
-              { tipo: 'Evento', emoji: '🎉', titulo: 'Bienvenida Nuevos Estudiantes', descripcion: 'Actividades de integración campus', color: '#f97316' },
-            ],
-            uautonoma: [
-              { tipo: 'Académico', emoji: '📅', titulo: 'Calendario Académico', descripcion: 'Fechas importantes del semestre', color: '#60a5fa' },
-              { tipo: 'Beca', emoji: '💰', titulo: 'Becas Disponibles', descripcion: 'Consulta las becas vigentes para este semestre', color: '#4ade80' },
-            ],
-            inacap: [
-              { tipo: 'Académico', emoji: '📅', titulo: 'Calendario INACAP 2026', descripcion: 'Revisa fechas de evaluaciones y feriados', color: '#60a5fa' },
-              { tipo: 'Evento', emoji: '🏆', titulo: 'Olimpiadas INACAP', descripcion: 'Inscripciones abiertas hasta el 30 de abril', color: '#f97316' },
-            ],
-            santotomas: [
-              { tipo: 'Académico', emoji: '📅', titulo: 'Calendario Académico UST', descripcion: 'Fechas clave del semestre en curso', color: '#4ade80' },
-              { tipo: 'Beca', emoji: '💰', titulo: 'Fondo Solidario', descripcion: 'Postulaciones abiertas hasta el 25 de abril', color: '#f5c800' },
-            ],
-            uctemuco: [
-              { tipo: 'Académico', emoji: '📅', titulo: 'Calendario UC Temuco', descripcion: 'Consulta las fechas importantes del semestre', color: '#60a5fa' },
-              { tipo: 'Evento', emoji: '🎵', titulo: 'Semana Cultural UCT', descripcion: 'Actividades del 21 al 25 de abril', color: '#a78bfa' },
-            ],
-          }
           const uni = usuario?.universidad || 'ufro'
-          const novedadesLista = novedadesData[uni] || novedadesData['ufro']
+          const fallbackNovedades = [
+            { tipo: 'Académico', emoji: '📅', titulo: 'Calendario académico', descripcion: 'Consulta fechas clave del semestre', color: '#60a5fa' },
+            { tipo: 'Becas', emoji: '💰', titulo: 'Becas disponibles', descripcion: 'Revisa las convocatorias abiertas', color: '#4ade80' },
+            { tipo: 'Bienestar', emoji: '🧘', titulo: 'Salud estudiantil', descripcion: 'Servicios de apoyo en tu campus', color: '#a78bfa' },
+          ]
+          const novedadesLista = novedades.length > 0 ? novedades : fallbackNovedades
           const uniLabel = uni === 'ufro' ? 'UFRO' : uni === 'umayor' ? 'U. Mayor' : uni === 'uautonoma' ? 'U. Autónoma' : uni === 'inacap' ? 'INACAP' : uni === 'santotomas' ? 'Santo Tomás' : uni === 'uctemuco' ? 'UC Temuco' : uni.toUpperCase()
           return (
             <div style={{ marginBottom: 12 }}>
@@ -847,9 +822,11 @@ function calcular(evaluaciones, min, ramo) {
   const pesoPendiente = pendientes.reduce((acc, e) => acc + e.ponderacion, 0)
   const puntajeActual = completadas.reduce((acc, e) => acc + e.nota * (e.ponderacion / 100), 0)
   const promedioActual = pesoCompletado > 0 ? (puntajeActual / (pesoCompletado / 100)) : null
-  const necesariaRaw = (pesoCompleto && pesoPendiente > 0) ? ((parseFloat(min) - puntajeActual) / (pesoPendiente / 100)) : null
+  const necesariaRaw = pesoPendiente > 0 ? ((parseFloat(min) * pesoTotal / 100 - puntajeActual) / (pesoPendiente / 100)) : null
   const necesaria = necesariaRaw
-  const estadoPendiente = necesariaRaw !== null && necesariaRaw > 7 ? 'imposible' : necesariaRaw !== null && necesariaRaw < 0 ? 'aprobado' : null
+  const estadoPendiente = pesoCompleto && necesariaRaw !== null && necesariaRaw > 7 ? 'imposible'
+                        : pesoCompleto && necesariaRaw !== null && necesariaRaw < 0 ? 'aprobado'
+                        : null
   return { promedio: promedioActual, necesaria, necesariaExamen: null, estado: estadoPendiente, pendientesCount: pendientes.length, pesoCompleto, pesoTotal, eximido: false }
 }
 
@@ -864,7 +841,7 @@ function LoginScreen({ onLogin }) {
   const urlParams = new URLSearchParams(window.location.search)
   const errorParam = urlParams.get('error')
   const [spots, setSpots] = useState(null)
-  useState(() => {
+  useEffect(() => {
     fetch(API + '/fundadores/spots').then(r => r.json()).then(d => setSpots(d)).catch(() => {})
   }, [])
   return (
@@ -1603,6 +1580,18 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan, evalDestacada, o
     if (estado) return null
     // Faltan evaluaciones para llegar al 100%
     if (!pesoCompleto && pesoDisponible > 0) {
+      if (necesaria !== null) {
+        return (
+          <div style={{ background: necesaria > 6 ? 'rgba(239,68,68,0.1)' : necesaria > 5 ? 'rgba(245,158,11,0.1)' : 'rgba(34,197,94,0.1)', border: `1px solid ${necesaria > 6 ? 'rgba(239,68,68,0.25)' : necesaria > 5 ? 'rgba(245,158,11,0.25)' : 'rgba(34,197,94,0.25)'}`, borderRadius: 14, padding: '12px 16px' }}>
+            <p style={{ fontSize: 13, color: 'white', margin: '0 0 4px', lineHeight: 1.5 }}>
+              📌 Estimado: necesitas <strong style={{ color: colorNecesaria }}>{necesaria.toFixed(1)}</strong> en {pendientesCount === 1 ? 'la evaluación restante' : `las ${pendientesCount} evaluaciones restantes`}
+            </p>
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', margin: 0 }}>
+              ⚠️ Tus ponderaciones suman {pesoTotal}% — agrega las que faltan para un cálculo exacto
+            </p>
+          </div>
+        )
+      }
       return (
         <div style={{ background: 'rgba(108,99,255,0.08)', border: '1px solid var(--shadow-color)', borderRadius: 14, padding: '12px 16px' }}>
           <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', margin: 0, lineHeight: 1.5 }}>
@@ -2285,25 +2274,25 @@ export default function App() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    const token = params.get('token')
-    if (token) {
-      localStorage.setItem('token', token)
+    if (params.get('auth') === 'success') {
       window.history.replaceState({}, '', '/')
-      fetch(`${API}/auth/me`, { headers: { 'Authorization': `Bearer ${token}` } })
+      fetch(`${API}/auth/exchange`, { method: 'POST', credentials: 'include' })
         .then(r => r.json())
         .then(data => {
-          const user = data.user || data
+          if (!data.token) return
+          localStorage.setItem('token', data.token)
+          const user = data.usuario
           localStorage.setItem('usuario', JSON.stringify(user))
           setUsuario(user)
           if (!user.onboarding_v2) {
             setPantalla('onboarding')
           } else {
-            cargarRamos(token)
+            cargarRamos(data.token)
             cargarHorarioGlobal()
             setPantalla('ramos')
           }
         })
-        .catch(e => console.error('Error auth/me:', e))
+        .catch(e => console.error('Error auth/exchange:', e))
     }
   }, [])
 
