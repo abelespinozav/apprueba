@@ -41,8 +41,20 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
     } catch(e) {}
   }
 
-  // Cargar contador al montar
-  useEffect(() => { cargarContador() }, [])
+  // Cargar contador al montar + auto-recuperar quiz cacheado si existe
+  useEffect(() => {
+    cargarContador()
+    if (evaluacion.quiz_generado) {
+      const pregs = typeof evaluacion.quiz_generado === 'string'
+        ? JSON.parse(evaluacion.quiz_generado)
+        : evaluacion.quiz_generado
+      setPreguntas(pregs)
+      setRespuestas({})
+      setPreguntaActual(0)
+      setMostrarExplicacion(false)
+      setEstado('quiz')
+    }
+  }, [evaluacion.id])
 
   const generarQuiz = async (forzar = false) => {
     setEstado('cargando')
