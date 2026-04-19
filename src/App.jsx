@@ -2917,6 +2917,22 @@ function AppContent() {
     return () => window.removeEventListener('ramos-actualizados', handler)
   }, [])
 
+  // Re-fetch novedades cada 60s + cuando el tab del browser vuelve a estar
+  // activo. Así las novedades publicadas vía bot Telegram (casino, descuentos)
+  // aparecen sin necesidad de recargar la app.
+  useEffect(() => {
+    const uni = usuario?.universidad
+    const token = localStorage.getItem('token')
+    if (!token || !uni) return
+    const refresh = () => cargarNovedades(token, uni)
+    const interval = setInterval(refresh, 60_000)
+    window.addEventListener('focus', refresh)
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('focus', refresh)
+    }
+  }, [usuario?.universidad])
+
   const borrarTodosRamos = async () => {
     if (!window.confirm('¿Seguro que quieres eliminar todos tus ramos? Esta acción no se puede deshacer.')) return
     await fetch(API + '/ramos/limpiar-todos', { method: 'DELETE', headers: authHeaders() })
