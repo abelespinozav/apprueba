@@ -700,7 +700,7 @@ const PQ_CSS = `
   .pq-empty-txt { font-size: 15px; color: var(--color-text); font-weight: 800; margin: 0 0 4px; }
   .pq-empty-sub { font-size: 12px; color: var(--color-text-muted); margin: 0; font-weight: 600; }
 
-  .pq-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 999; display: flex; align-items: center; justify-content: center; padding: 24px; animation: pqBackdropIn 0.2s ease; }
+  .pq-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 999; display: flex; align-items: center; justify-content: center; padding: 24px 24px 110px; overflow-y: auto; animation: pqBackdropIn 0.2s ease; }
   @keyframes pqBackdropIn { from { opacity: 0; } }
   .pq-modal { background: rgba(22,22,34,0.88); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); border: 1px solid rgba(255,255,255,0.1); border-left: 3px solid var(--color-primary); border-radius: 22px; padding: 24px; max-width: 340px; width: 100%; animation: pqModalIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); box-sizing: border-box; }
   @keyframes pqModalIn { from { opacity: 0; transform: translateY(12px) scale(0.96); } }
@@ -1363,7 +1363,7 @@ const HORARIO_CSS = `
   .hor-grid-bloque-hora { font-size: 8px; color: var(--color-text-muted); margin-top: 1px; font-weight: 700; }
   .hor-grid-bloque-sala { font-size: 8px; color: var(--color-text-muted); margin-top: 1px; font-weight: 600; opacity: 0.8; }
 
-  .hor-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; animation: horModalBd 0.2s ease; }
+  .hor-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px 20px 110px; overflow-y: auto; animation: horModalBd 0.2s ease; }
   @keyframes horModalBd { from { opacity: 0; } }
   .hor-modal { background: rgba(22,22,34,0.88); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); border: 1px solid rgba(255,255,255,0.1); border-left: 3px solid var(--color-primary); border-radius: 22px; padding: 24px; width: 100%; max-width: 380px; box-sizing: border-box; animation: horModalIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); max-height: 90vh; overflow-y: auto; }
   @keyframes horModalIn { from { opacity: 0; transform: translateY(12px) scale(0.96); } }
@@ -2320,8 +2320,8 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPatchEval, onPlan, eva
     <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', paddingBottom: 100 }}>
       <Confetti active={confetti} />
       {editandoRamo && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setEditandoRamo(false)}>
-          <div style={{ background: 'var(--bg-secondary)', borderRadius: '24px 24px 0 0', padding: '28px 20px 40px', width: '100%', maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 100 }} onClick={() => setEditandoRamo(false)}>
+          <div style={{ background: 'var(--bg-secondary)', borderRadius: '24px 24px 0 0', padding: '28px 20px 28px', width: '100%', maxWidth: 480, maxHeight: 'calc(100vh - 120px)', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
             <p style={{ fontSize: 16, fontWeight: 700, color: 'white', margin: '0 0 20px' }}>✏️ Editar ramo</p>
             <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Nombre del ramo</p>
             <input value={editNombre} onChange={e => setEditNombre(e.target.value)}
@@ -2589,8 +2589,8 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPatchEval, onPlan, eva
 
       {/* Modal editar metadata de evaluación */}
       {editingMeta && (
-        <div onClick={() => setEditingMeta(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'rgba(22,22,34,0.95)', backdropFilter: 'blur(30px)', WebkitBackdropFilter: 'blur(30px)', border: '1px solid rgba(255,255,255,0.1)', borderLeft: '3px solid var(--color-primary)', borderRadius: 22, padding: 24, width: '100%', maxWidth: 380, boxSizing: 'border-box' }}>
+        <div onClick={() => setEditingMeta(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 20px 110px', overflowY: 'auto' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'rgba(22,22,34,0.95)', backdropFilter: 'blur(30px)', WebkitBackdropFilter: 'blur(30px)', border: '1px solid rgba(255,255,255,0.1)', borderLeft: '3px solid var(--color-primary)', borderRadius: 22, padding: 24, width: '100%', maxWidth: 380, boxSizing: 'border-box', maxHeight: 'calc(100vh - 130px)', overflowY: 'auto' }}>
             <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--color-primary)', margin: '0 0 4px' }}>✏️ Editar</div>
             <h3 style={{ fontSize: 18, fontWeight: 900, color: 'var(--color-text)', margin: '0 0 16px', letterSpacing: '-0.02em' }}>Datos de la evaluación</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -2875,8 +2875,8 @@ function AdminScreen({ usuario, onBack }) {
 
       {/* MODAL DETALLE USUARIO */}
       {detalleUsuario && (
-        <div onClick={() => setDetalleUsuario(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '20px 16px', overflowY: 'auto' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-card)', borderRadius: 20, padding: 24, width: '100%', maxWidth: 680, border: '1px solid rgba(255,255,255,0.1)', marginTop: 20 }}>
+        <div onClick={() => setDetalleUsuario(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '20px 16px 110px', overflowY: 'auto' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-card)', borderRadius: 20, padding: 24, width: '100%', maxWidth: 680, border: '1px solid rgba(255,255,255,0.1)', marginTop: 20, marginBottom: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#fff' }}>{detalleUsuario.nombre}</h3>
