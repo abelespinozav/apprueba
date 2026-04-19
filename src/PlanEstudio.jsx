@@ -333,7 +333,7 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
 
   // Vista guía de tarea
   if (tareaActiva) return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', paddingBottom: 40 }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', paddingBottom: 'calc(120px + env(safe-area-inset-bottom, 0px))' }}>
       <div style={{ background: 'linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%)', padding: '56px 20px 24px' }}>
         <button onClick={() => { setTareaActiva(null); setGuia(null) }} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 12, padding: '8px 14px', color: 'rgba(255,255,255,0.6)', fontSize: 13, cursor: 'pointer', marginBottom: 20 }}>← Volver al plan</button>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
