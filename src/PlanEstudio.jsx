@@ -196,30 +196,45 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
       setGuiasGeneradas(indices)
     }
 
-    // Polling: si el plan está generándose en background, consultar cada 5s
+    // Polling: verificar estado del plan al montar y cada 5s si está generando en segundo plano
     let pollingInterval = null
+
+    const iniciarPolling = () => {
+      if (!pollingInterval) {
+        pollingInterval = setInterval(verificarPlanListo, 5000)
+      }
+    }
+
     const verificarPlanListo = async () => {
       try {
         const res = await fetch(`${API}/evaluaciones/${evaluacion.id}/plan-estado`, { headers: authHeaders() })
         if (!res.ok) return
         const data = await res.json()
-        if (data.listo && data.plan && !plan) {
+        if (data.generando) {
+          // Plan generándose en segundo plano → mostrar estado de carga y mantener polling
+          setGenerando(true)
+          setProgresoMsg('⏳ Generando tu plan en segundo plano...')
+          iniciarPolling()
+        } else if (data.listo && data.plan) {
+          // Plan listo → mostrarlo
           setPlan(data.plan)
-          setCompletadas(new Set())
+          setCompletadas(new Set(evaluacion.tareas_completadas || []))
           setGenerando(false)
           setProgresoMsg('')
           clearInterval(pollingInterval)
-        } else if (!data.generando) {
+          pollingInterval = null
+        } else {
+          // No está generando ni hay plan → estado inicial
+          setGenerando(false)
+          setProgresoMsg('')
           clearInterval(pollingInterval)
+          pollingInterval = null
         }
       } catch(e) {}
     }
 
-    // Iniciar polling solo si no hay plan aún
-    if (!evaluacion.plan_estudio) {
-      verificarPlanListo()
-      pollingInterval = setInterval(verificarPlanListo, 5000)
-    }
+    // Verificar al montar (detecta generación en segundo plano)
+    verificarPlanListo()
 
     return () => { if (pollingInterval) clearInterval(pollingInterval) }
   }, [evaluacion.id])
@@ -593,12 +608,14 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
               {(archivos.length > 0 || youtubeUrls.length > 0) ? `📎 ${archivos.length} archivo(s) + 🎬 ${youtubeUrls.length} video(s)` : '📎 Agregar material (PDF, video, YouTube...)'}
             </button>
             <button onClick={generarPlan} disabled={generando} style={{ width: '100%', background: generando ? 'rgba(108,99,255,0.3)' : 'linear-gradient(135deg, #6c63ff, #8b5cf6)', border: 'none', borderRadius: 16, padding: 14, color: 'white', fontSize: 15, fontWeight: 700, cursor: generando ? 'not-allowed' : 'pointer', boxShadow: '0 4px 20px rgba(108,99,255,0.35)' }}>
-              {generando ? (progresoMsg || '⏳ Iniciando...') : '🤖 Generar plan con IA'}
+              {generando
+                ? <><span style={spinnerStyle}></span>{progresoMsg || '⏳ Generando plan...'}</>
+                : '🤖 Generar plan con IA'}
             </button>
             {generando && (
               <div style={{ marginTop: 12, background: 'rgba(108,99,255,0.12)', border: '1px solid rgba(46,125,209,0.3)', borderRadius: 12, padding: '12px 16px', textAlign: 'center' }}>
-                <p style={{ margin: 0, fontSize: 13, color: 'var(--color-secondary)', fontWeight: 600 }}>💡 Puedes salir de la app</p>
-                <p style={{ margin: '4px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>Tu plan se está generando en segundo plano. Te notificaremos cuando esté listo.</p>
+                <p style={{ margin: 0, fontSize: 13, color: 'var(--color-secondary)', fontWeight: 600 }}>🔄 Tu plan está siendo generado</p>
+                <p style={{ margin: '4px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>Este proceso puede tomar 1-2 minutos. Te notificaremos cuando esté listo.</p>
               </div>
             )}
           </div>
