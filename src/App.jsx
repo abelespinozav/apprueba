@@ -3339,6 +3339,7 @@ function QuizRouteWrapper({ ramos, loadingRamos, usuario }) {
 // real devuelve children sin tocar nada.
 function DesktopFrame({ children }) {
   const [isDesktop, setIsDesktop] = useState(false)
+  const location = useLocation()
   useEffect(() => {
     const check = () => {
       const desktop = window.innerWidth > 768 && !/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
@@ -3348,7 +3349,10 @@ function DesktopFrame({ children }) {
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   }, [])
+  // Ruta /admin se renderiza fullscreen en desktop (panel administrativo,
+  // no tiene sentido verlo dentro del phone frame).
   if (!isDesktop) return children
+  if (location.pathname.startsWith('/admin')) return children
   return (
     <>
       <style>{`
