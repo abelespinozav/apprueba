@@ -25,12 +25,16 @@ export const TEMAS = {
     bgPrimary: '#0a0a0a',
     bgSecondary: '#161616',
     bgCard: '#1f1f1f',
-    colorPrimary: '#F5C800',
-    colorSecondary: '#FFD93D',
-    colorAccent: '#c9a800',
+    // Primary moderado (gold) para fondos de botón y nav activo —
+    // antes era #F5C800 (amarillo banana) que quemaba como bg grande.
+    // El amarillo vivo se reserva ahora para secondary (gradient/hover)
+    // y el brightest para accents puntuales (flame, badges, glows).
+    colorPrimary: '#c9a800',
+    colorSecondary: '#F5C800',
+    colorAccent: '#FFD93D',
     gradientFrom: '#1a1a1a',
-    gradientTo: '#F5C800',
-    shadowColor: 'rgba(245,200,0,0.4)',
+    gradientTo: '#c9a800',
+    shadowColor: 'rgba(201,168,0,0.35)',
   },
   autonoma: {
     bgPrimary: '#0a0a0a',

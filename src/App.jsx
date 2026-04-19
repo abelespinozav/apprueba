@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom'
 import PanelNotificaciones from './Notificaciones'
-import { motion, AnimatePresence } from 'framer-motion'
 import PlanEstudio from './PlanEstudio'
 import Quiz from './Quiz'
 import OnboardingScreen from './OnboardingScreen.jsx'
@@ -171,7 +170,135 @@ const diasRestantes = (fecha) => {
   return Math.round((f - hoy) / (1000 * 60 * 60 * 24))
 }
 
+const HOME_CSS = `
+  .home-root { background: transparent; padding: 0 0 120px; height: 100vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .home-hero { padding: 56px 20px 20px; position: relative; z-index: 1; }
+  .home-hero-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .home-saludo { font-size: 32px; font-weight: 900; letter-spacing: -0.035em; line-height: 1; color: var(--color-text); }
+  .home-wave { display: inline-block; animation: homeWave 2.5s ease-in-out infinite; transform-origin: 70% 70%; }
+  @keyframes homeWave { 0%, 60%, 100% { transform: rotate(0); } 10%, 30% { transform: rotate(14deg); } 20% { transform: rotate(-8deg); } 40%, 50% { transform: rotate(14deg); } }
+  .home-actions { display: flex; align-items: center; gap: 8px; }
+  .home-iconbtn { background: rgba(255,255,255,0.1); border: none; border-radius: 50%; width: 38px; height: 38px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; color: var(--color-text); }
+  .home-notif-badge { position: absolute; top: -2px; right: -2px; background: #f87171; color: white; border-radius: 50%; width: 16px; height: 16px; font-size: 10px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+  .home-avatar { width: 44px; height: 44px; border-radius: 999px; background: linear-gradient(135deg, var(--color-primary), var(--color-accent)); display: grid; place-items: center; font-weight: 900; font-size: 17px; color: #fff; box-shadow: 0 8px 20px var(--shadow-color), inset 0 1px 0 rgba(255,255,255,0.3); cursor: pointer; transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .home-avatar:hover { transform: scale(1.1) rotate(-6deg); }
+
+  .home-streak-pill { display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, rgba(251,146,60,0.22), rgba(251,191,36,0.12)); border: 1px solid rgba(251,146,60,0.35); border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 800; color: #fbbf24; box-shadow: 0 0 28px rgba(251,146,60,0.2); margin-bottom: 20px; }
+  .home-flame { font-size: 16px; display: inline-block; animation: homeFlame 1.6s ease-in-out infinite; transform-origin: center bottom; filter: drop-shadow(0 0 10px rgba(251,146,60,0.8)); }
+  @keyframes homeFlame { 0%, 100% { transform: scale(1) rotate(-3deg); } 50% { transform: scale(1.18) rotate(4deg); } }
+
+  .home-promedio-block { text-align: center; padding: 8px 0 12px; }
+  .home-promedio-giga { font-size: clamp(88px, 22vw, 130px); font-weight: 900; letter-spacing: -0.07em; line-height: 0.82; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: homeGradientSlide 7s linear infinite; background-size: 200% 200%; }
+  @keyframes homeGradientSlide { to { background-position: 200% 0; } }
+  .home-promedio-giga.nivel-excelente { background-image: linear-gradient(135deg, #10b981, #34d399 50%, #fbbf24 100%); filter: drop-shadow(0 0 40px rgba(16,185,129,0.5)); }
+  .home-promedio-giga.nivel-bien { background-image: linear-gradient(135deg, var(--color-primary), var(--color-secondary), var(--color-accent)); filter: drop-shadow(0 0 40px var(--shadow-color)); }
+  .home-promedio-giga.nivel-apretado { background-image: linear-gradient(135deg, #f59e0b, #fbbf24, #fde047); filter: drop-shadow(0 0 40px rgba(245,158,11,0.5)); }
+  .home-promedio-giga.nivel-riesgo { background-image: linear-gradient(135deg, #dc2626, #ef4444, #fb7185); filter: drop-shadow(0 0 40px rgba(239,68,68,0.5)); }
+  .home-promedio-giga.nivel-none { color: rgba(255,255,255,0.25); background: none; -webkit-text-fill-color: rgba(255,255,255,0.25); animation: none; }
+  .home-promedio-caption { margin-top: 12px; font-size: 11px; font-weight: 900; letter-spacing: 0.22em; text-transform: uppercase; color: var(--color-text-muted); }
+
+  .home-promedio-dots { display: inline-flex; gap: 8px; margin-top: 12px; padding: 8px 14px; background: rgba(255,255,255,0.05); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.09); border-radius: 999px; flex-wrap: wrap; justify-content: center; max-width: 260px; }
+  .home-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; animation: homeDotPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) backwards; }
+  .home-dot:nth-child(1) { animation-delay: 0.05s; }
+  .home-dot:nth-child(2) { animation-delay: 0.12s; }
+  .home-dot:nth-child(3) { animation-delay: 0.19s; }
+  .home-dot:nth-child(4) { animation-delay: 0.26s; }
+  .home-dot:nth-child(5) { animation-delay: 0.33s; }
+  .home-dot:nth-child(6) { animation-delay: 0.4s; }
+  .home-dot:nth-child(7) { animation-delay: 0.47s; }
+  .home-dot:nth-child(8) { animation-delay: 0.54s; }
+  @keyframes homeDotPop { from { transform: scale(0); opacity: 0; } }
+  .home-dot.ok { background: #34d399; box-shadow: 0 0 10px rgba(52,211,153,0.7); }
+  .home-dot.critical { background: #f87171; box-shadow: 0 0 10px rgba(248,113,113,0.8); animation: homeDotPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) backwards, homeDotCritical 1.4s 0.6s ease-in-out infinite; }
+  .home-dot.extra { background: rgba(255,255,255,0.28); box-shadow: 0 0 6px rgba(255,255,255,0.12); cursor: help; }
+  @keyframes homeDotCritical { 0%, 100% { box-shadow: 0 0 10px rgba(248,113,113,0.8); transform: scale(1); } 50% { box-shadow: 0 0 20px rgba(248,113,113,1); transform: scale(1.18); } }
+  .home-promedio-context { margin-top: 8px; font-size: 12px; color: var(--color-text-muted); font-weight: 700; }
+  .home-promedio-context .sep { opacity: 0.4; margin: 0 6px; }
+  .home-promedio-context .c-ok { color: #34d399; }
+  .home-promedio-context .c-crit { color: #f87171; }
+
+  .home-suggest-card { margin: 20px 20px 0; background: rgba(255,255,255,0.04); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.08); border-left: 3px solid var(--color-primary); border-radius: 22px; padding: 20px; position: relative; overflow: hidden; color: #fff; }
+  .home-suggest-tag { position: relative; font-size: 10px; font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase; color: var(--color-primary); margin-bottom: 8px; display: block; }
+  .home-suggest-card h3 { position: relative; font-size: 22px; font-weight: 900; letter-spacing: -0.02em; margin: 0 0 4px; }
+  .home-suggest-sub { position: relative; font-size: 13px; opacity: 0.85; margin: 0 0 16px; }
+  .home-btn-suggest { position: relative; width: 100%; padding: 13px; background: color-mix(in srgb, var(--color-primary) 12%, transparent); color: #fff; border: 1px solid var(--color-primary); border-radius: 16px; font-family: inherit; font-weight: 900; font-size: 14px; cursor: pointer; transition: background 0.2s, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+  .home-btn-suggest:hover { background: color-mix(in srgb, var(--color-primary) 20%, transparent); transform: scale(1.02); }
+  .home-btn-suggest:active { transform: scale(0.97); }
+
+  .home-section-block { padding: 28px 20px 0; }
+  .home-section-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .home-section-title h4 { font-size: 11px; font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase; color: var(--color-text-muted); margin: 0; }
+  .home-section-title .link { font-size: 12px; font-weight: 700; color: var(--color-secondary); text-decoration: none; cursor: pointer; background: none; border: none; padding: 0; font-family: inherit; }
+  .home-urgente-label h4 { color: #fbbf24 !important; letter-spacing: 0.18em !important; }
+
+  .home-clase-card { display: grid; grid-template-columns: auto 1fr auto; gap: 16px; align-items: center; padding: 16px; background: rgba(255,255,255,0.04); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.08); border-radius: 22px; position: relative; overflow: hidden; }
+  .home-clase-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--urgency-color, #10b981); }
+  .home-clase-urgencia { width: 56px; height: 56px; border-radius: 16px; background: color-mix(in srgb, var(--urgency-color, #10b981) 20%, transparent); color: var(--urgency-color, #10b981); display: grid; place-items: center; font-size: 22px; border: 1px solid color-mix(in srgb, var(--urgency-color, #10b981) 40%, transparent); }
+  .home-clase-info .home-clase-nombre { font-size: 16px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 2px; color: var(--color-text); }
+  .home-clase-info .home-clase-meta { font-size: 12px; color: var(--color-text-muted); }
+  .home-clase-cuanto { text-align: right; }
+  .home-clase-cuanto .home-tiempo { font-size: 15px; font-weight: 900; color: var(--urgency-color, #10b981); letter-spacing: -0.02em; line-height: 1; }
+  .home-clase-cuanto .home-subtime { font-size: 10px; color: var(--color-text-muted); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 4px; }
+  .home-clase-card.urgencia-amarillo { --urgency-color: #f59e0b; background: rgba(245,158,11,0.09); border-color: rgba(245,158,11,0.35); animation: homePulseAmber 2s ease-in-out infinite; }
+  @keyframes homePulseAmber { 0%, 100% { box-shadow: 0 0 0 1px rgba(245,158,11,0.25), 0 8px 32px -8px rgba(245,158,11,0.25); border-color: rgba(245,158,11,0.35); } 50% { box-shadow: 0 0 0 3px rgba(245,158,11,0.4), 0 12px 40px -8px rgba(245,158,11,0.4); border-color: rgba(245,158,11,0.7); } }
+  .home-clase-card.urgencia-rojo { --urgency-color: #ef4444; background: rgba(239,68,68,0.11); border-color: rgba(239,68,68,0.45); animation: homePulseRed 1.4s ease-in-out infinite; }
+  @keyframes homePulseRed { 0%, 100% { box-shadow: 0 0 0 1px rgba(239,68,68,0.3), 0 8px 32px -8px rgba(239,68,68,0.35); border-color: rgba(239,68,68,0.45); } 50% { box-shadow: 0 0 0 4px rgba(239,68,68,0.5), 0 16px 48px -8px rgba(239,68,68,0.5); border-color: rgba(239,68,68,0.9); } }
+
+  .home-clase-empty { text-align: center; padding: 28px 16px; background: rgba(255,255,255,0.03); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px dashed rgba(255,255,255,0.12); border-radius: 22px; }
+  .home-clase-empty .home-empty-emoji { font-size: 44px; margin-bottom: 8px; display: inline-block; animation: homeFloaty 3s ease-in-out infinite; }
+  @keyframes homeFloaty { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+  .home-clase-empty .home-empty-txt { font-size: 16px; font-weight: 800; margin-bottom: 4px; color: var(--color-text); }
+  .home-clase-empty .home-empty-sub { font-size: 13px; color: var(--color-text-muted); }
+
+  .home-ramos-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .home-ramo-card { position: relative; background: rgba(255,255,255,0.04); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 10px; overflow: hidden; cursor: pointer; transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.35s; }
+  .home-ramo-card::after { content: ''; position: absolute; top: 0; left: 0; width: 3px; height: 100%; background: var(--accent); }
+  .home-ramo-card:hover { transform: translateY(-4px); border-color: rgba(255,255,255,0.18); }
+  .home-ramo-card > * { position: relative; }
+  .home-ramo-card.accent-cyan { --accent: #06b6d4; --accent-glow: rgba(6,182,212,0.4); }
+  .home-ramo-card.accent-purple { --accent: #a78bfa; --accent-glow: rgba(167,139,250,0.4); }
+  .home-ramo-card.accent-pink { --accent: #ec4899; --accent-glow: rgba(236,72,153,0.4); }
+  .home-ramo-card.accent-orange { --accent: #f97316; --accent-glow: rgba(249,115,22,0.4); }
+  .home-ramo-card.accent-emerald { --accent: #10b981; --accent-glow: rgba(16,185,129,0.4); }
+  .home-ramo-card.accent-yellow { --accent: #eab308; --accent-glow: rgba(234,179,8,0.4); }
+  .home-ramo-title { font-size: 11px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.2; margin-bottom: 4px; min-height: 24px; color: var(--color-text); }
+  .home-ramo-nota-wrap { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 2px; }
+  .home-ramo-nota { font-size: 20px; font-weight: 900; letter-spacing: -0.03em; line-height: 1; color: #fff; }
+  .home-ramo-nota-tipo { font-size: 7px; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-text-muted); }
+  .home-ramo-necesita { font-size: 9px; color: var(--color-text-muted); font-weight: 700; line-height: 1.25; min-height: 16px; display: flex; align-items: center; gap: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .home-ramo-necesita strong { color: #fbbf24; font-weight: 900; }
+  .home-ramo-necesita.aprobado { color: #34d399; font-weight: 900; }
+  .home-ramo-necesita.aprobado strong { color: #34d399; }
+  .home-ramo-necesita.critico strong { color: #f87171; }
+  .home-ramo-progreso { margin: 6px 0; }
+  .home-prog-row { display: flex; justify-content: space-between; font-size: 8px; color: var(--color-text-muted); margin-bottom: 2px; font-weight: 700; letter-spacing: 0.03em; }
+  .home-prog-track { height: 3px; background: rgba(255,255,255,0.06); border-radius: 999px; overflow: hidden; }
+  .home-prog-fill { height: 100%; background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 60%, white)); border-radius: 999px; box-shadow: 0 0 10px var(--accent-glow); animation: homeFillIn 1.2s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+  @keyframes homeFillIn { from { width: 0 !important; } }
+  .home-ramo-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 8px; font-weight: 800; padding: 2px 6px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); }
+  .home-ramo-badge.ok { background: rgba(16,185,129,0.12); color: #34d399; border-color: rgba(16,185,129,0.3); }
+  .home-ramo-badge.warn { background: rgba(245,158,11,0.12); color: #fbbf24; border-color: rgba(245,158,11,0.3); }
+  .home-ramo-badge.risk { background: rgba(239,68,68,0.12); color: #f87171; border-color: rgba(239,68,68,0.3); }
+
+  .home-vive h4 .uni { color: var(--color-primary); font-weight: 900; letter-spacing: 0.22em; }
+  .home-vive-empty { padding: 28px 16px; text-align: center; color: var(--color-text-muted); font-size: 14px; font-weight: 600; background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.1); border-radius: 16px; }
+  .home-novedades-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 12px; margin: 0 -20px; padding-left: 20px; padding-right: 20px; scroll-snap-type: x mandatory; scrollbar-width: none; }
+  .home-novedades-scroll::-webkit-scrollbar { display: none; }
+  .home-novedad-card { flex: 0 0 180px; scroll-snap-align: start; background: rgba(255,255,255,0.04); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.08); border-radius: 22px; padding: 16px; position: relative; overflow: hidden; transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.35s; cursor: pointer; }
+  .home-novedad-card:hover { transform: translateY(-4px); border-color: var(--color-primary); }
+  .home-novedad-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--nov-color, var(--color-primary)); box-shadow: 0 0 16px var(--nov-color, var(--color-primary)); }
+  .home-novedad-emoji { font-size: 32px; margin-bottom: 8px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.4)); display: inline-block; }
+  .home-novedad-tipo { display: inline-block; font-size: 10px; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; color: var(--nov-color, var(--color-primary)); padding: 3px 8px; background: color-mix(in srgb, var(--nov-color, var(--color-primary)) 15%, transparent); border-radius: 999px; margin-bottom: 8px; }
+  .home-novedad-title { font-size: 14px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.25; margin-bottom: 4px; color: var(--color-text); }
+  .home-novedad-desc { font-size: 12px; color: var(--color-text-muted); line-height: 1.4; }
+
+  .home-fundador-badge { display: inline-flex; align-items: center; gap: 4px; background: rgba(201,168,76,0.25); border: 1px solid rgba(201,168,76,0.5); border-radius: 20px; padding: 2px 10px; font-size: 11px; color: #C9A84C; font-weight: 700; margin-top: 6px; }
+`
+
+const HOME_ACCENTS = ['accent-cyan', 'accent-purple', 'accent-pink', 'accent-orange', 'accent-emerald', 'accent-yellow']
+
 function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVerRamo, onHorario, onVerHorario, onNotif, onPerfil, onAdmin, evalProximas3dias, novedades }) {
+  const navigate = useNavigate()
   const hoy = new Date()
   const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado']
   const diaHoy = dias[hoy.getDay()]
@@ -187,311 +314,523 @@ function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVer
       }, 0) / ramosConNotas.length
     : null
 
-  const aprobados = ramos.filter(r => {
+  // Estado por ramo: 3 categorías semánticas, pero solo 2 colores de dot.
+  // - aprobado  → ramo cerrado con promedio ≥ min (o eximido). Dot verde.
+  // - en_curso  → evaluaciones pendientes sin alerta. Dot verde.
+  // - critical  → reprobado / imposible / necesita > 5. Dot rojo.
+  const getRamoEstado = (r) => {
     const evs = (r.evaluaciones || []).map(e => ({ ...e, ponderacion: parseFloat(e.ponderacion) || 0 }))
-    const calc = evs.length > 0 ? calcular(evs, r.min_aprobacion, r) : null
-    return calc?.estado === 'aprobado' || calc?.estado === 'eximido'
-  }).length
+    if (evs.length === 0) return 'en_curso'
+    const calc = calcular(evs, r.min_aprobacion, r)
+    if (!calc) return 'en_curso'
+    if (calc.estado === 'aprobado' || calc.estado === 'eximido') return 'aprobado'
+    if (calc.estado === 'reprobado_sin_examen' || calc.estado === 'reprobado_imposible' || calc.estado === 'imposible') return 'critical'
+    if (calc.necesaria != null && calc.necesaria > 5) return 'critical'
+    return 'en_curso'
+  }
+  const ramosEstados = ramos.map(getRamoEstado)
+  const countAprobado = ramosEstados.filter(s => s === 'aprobado').length
+  const countEnCurso = ramosEstados.filter(s => s === 'en_curso').length
+  const countCrit = ramosEstados.filter(s => s === 'critical').length
 
-  const enRiesgo = ramos.filter(r => {
-    const evs = (r.evaluaciones || []).map(e => ({ ...e, ponderacion: parseFloat(e.ponderacion) || 0 }))
-    const calc = evs.length > 0 ? calcular(evs, r.min_aprobacion, r) : null
-    return calc?.necesaria > 6 || calc?.estado === 'reprobado_imposible' || calc?.estado === 'imposible'
-  })
+  // Nivel del promedio → para el gradient
+  const nivelPromedio = promedioGlobal == null ? 'none'
+    : promedioGlobal >= 6 ? 'excelente'
+    : promedioGlobal >= 5 ? 'bien'
+    : promedioGlobal >= 4 ? 'apretado'
+    : 'riesgo'
 
-  const clasesHoy = (horario || [])
-    .filter(h => h.dia?.toLowerCase() === diaHoy)
-    .sort((a, b) => (a.hora_inicio || '').localeCompare(b.hora_inicio || ''))
-  const claseActual = clasesHoy.find(h => toMin(h.hora_inicio) <= ahora && toMin(h.hora_fin) > ahora)
+  // Próxima clase (hoy o el próximo día con clases)
+  const proximaClase = (() => {
+    const clasesDelDia = (diaKey) => (horario || [])
+      .filter(h => h.dia?.toLowerCase() === diaKey)
+      .sort((a, b) => toMin(a.hora_inicio) - toMin(b.hora_inicio))
+    const hoyClases = clasesDelDia(diaHoy)
+    const claseHoy = hoyClases.find(h => toMin(h.hora_inicio) > ahora)
+    if (claseHoy) {
+      const mins = toMin(claseHoy.hora_inicio) - ahora
+      const etiqueta = mins < 60 ? `${mins} min` : `${Math.floor(mins/60)}h ${String(mins%60).padStart(2,'0')}m`
+      return {
+        clase: claseHoy,
+        etiqueta,
+        sub: 'restan',
+        urgencia: mins < 15 ? 'rojo' : mins < 120 ? 'amarillo' : 'verde',
+        esPronto: mins < 120,
+      }
+    }
+    for (let offset = 1; offset <= 7; offset++) {
+      const d = new Date(hoy); d.setDate(d.getDate() + offset)
+      const cs = clasesDelDia(dias[d.getDay()])
+      if (cs.length > 0) {
+        return {
+          clase: cs[0],
+          etiqueta: offset === 1 ? 'Mañana' : cs[0].dia.charAt(0).toUpperCase() + cs[0].dia.slice(1),
+          sub: cs[0].hora_inicio,
+          urgencia: 'verde',
+          esPronto: false,
+        }
+      }
+    }
+    return null
+  })()
 
+  // Próximas evaluaciones (para acción sugerida y badges de ramos)
   const proximas = ramos.flatMap(r =>
     (r.evaluaciones || [])
       .filter(e => e.fecha && (e.nota === null || e.nota === undefined || e.nota === ''))
       .map(e => ({ ...e, ramoNombre: r.nombre, ramoId: r.id }))
-  ).filter(e => { const d = diasRestantes(e.fecha); return d !== null && d >= 0 })
-   .sort((a, b) => diasRestantes(a.fecha) - diasRestantes(b.fecha)).slice(0, 5)
+  ).filter(e => { const d = diasRestantes(e.fecha); return d != null && d >= 0 })
+   .sort((a, b) => diasRestantes(a.fecha) - diasRestantes(b.fecha))
+
+  const sugerida = proximas.find(ev => !ev.plan_estudio) || proximas[0] || null
 
   const xpTotal = ramos.reduce((acc, r) => acc + (r.evaluaciones||[]).filter(e => e.nota).length * 80, 0) + (esFundador ? 500 : 0)
   const nivel = Math.floor(xpTotal / 500) + 1
-  const xpNivel = xpTotal % 500
-  const xpSiguiente = 500
   const nivelLabel = nivel <= 1 ? 'Novato' : nivel <= 2 ? 'Estudiante' : nivel <= 3 ? 'Dedicado' : nivel <= 4 ? 'Experto' : 'Maestro'
 
-  const logros = [
-    { id: 'primera_nota', icon: '🎯', label: 'Primera Nota', desbloqueado: ramos.some(r => (r.evaluaciones||[]).some(e => e.nota)) },
-    { id: 'fundador', icon: '👑', label: 'Fundador', desbloqueado: esFundador },
-    { id: 'aprobado', icon: '✅', label: '1er Aprobado', desbloqueado: aprobados > 0 },
-    { id: 'quiz_master', icon: '🧠', label: 'Quiz Master', desbloqueado: false },
-    { id: 'nota7', icon: '⭐', label: 'Nota 7.0', desbloqueado: ramos.some(r => (r.evaluaciones||[]).some(e => parseFloat(e.nota) === 7)) },
-    { id: 'podcast', icon: '🎙️', label: 'Podcast Pro', desbloqueado: false },
-  ]
+  const nombreCorto = (usuario?.nombre || usuario?.name || 'estudiante').split(' ')[0]
+  const inicial = (usuario?.nombre || usuario?.name || 'U')[0].toUpperCase()
+
+  const uniKey = usuario?.universidad || 'ufro'
+  const uniLabel = uniKey === 'ufro' ? 'UFRO' : uniKey === 'umayor' ? 'U. MAYOR' : uniKey === 'uautonoma' ? 'U. AUTÓNOMA' : uniKey === 'inacap' ? 'INACAP' : uniKey === 'santotomas' ? 'SANTO TOMÁS' : uniKey === 'uctemuco' ? 'UC TEMUCO' : uniKey.toUpperCase()
+
+  // Info de cada ramo para el card
+  const getRamoInfo = (r) => {
+    const evs = (r.evaluaciones || []).map(e => ({ ...e, ponderacion: parseFloat(e.ponderacion) || 0 }))
+    const calc = evs.length > 0 ? calcular(evs, r.min_aprobacion, r) : null
+    const completadas = evs.filter(e => e.nota !== null && e.nota !== undefined && e.nota !== '').length
+    const total = evs.length
+    const progreso = total > 0 ? Math.round((completadas / total) * 100) : 0
+    let notaPrincipal = '--', notaTipo = 'Promedio', necesita = null, badge = null
+    if (calc) {
+      if (calc.estado === 'aprobado' || calc.estado === 'eximido') {
+        notaPrincipal = calc.promedio != null ? calc.promedio.toFixed(1) : '--'
+        notaTipo = 'Final'
+        necesita = { content: <>🎉 <strong>¡Aprobado!</strong></>, variante: 'aprobado' }
+        badge = { texto: '✅ Aprobado', clase: 'ok' }
+      } else if (calc.estado === 'reprobado_sin_examen' || calc.estado === 'reprobado_imposible' || calc.estado === 'imposible') {
+        notaPrincipal = calc.promedio != null ? calc.promedio.toFixed(1) : '--'
+        necesita = { content: 'imposible aprobar', variante: 'critico' }
+        badge = { texto: '⚠️ En riesgo', clase: 'risk' }
+      } else if (calc.promedio != null) {
+        notaPrincipal = calc.promedio.toFixed(1)
+        if (calc.necesaria != null && calc.pendientesCount > 0) {
+          const variante = calc.necesaria > 6 ? 'critico' : ''
+          necesita = { content: <>necesitas <strong>{calc.necesaria.toFixed(1)}</strong></>, variante }
+        }
+      }
+    }
+    if (!badge) {
+      const proxEv = evs.filter(e => e.fecha && (e.nota === null || e.nota === undefined || e.nota === ''))
+        .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))[0]
+      if (proxEv) {
+        const d = diasRestantes(proxEv.fecha)
+        if (d != null && d >= 0) {
+          const clase = d <= 2 ? 'risk' : d <= 5 ? 'warn' : ''
+          const txt = d === 0 ? '¡Hoy!' : d === 1 ? 'Mañana' : `En ${d} días`
+          badge = { texto: `📅 ${txt}`, clase }
+        }
+      }
+    }
+    return { notaPrincipal, notaTipo, necesita, badge, progreso, completadas, total }
+  }
+
+  const renderProximaClase = () => {
+    if (!proximaClase) {
+      return (
+        <div className="home-clase-empty">
+          <div className="home-empty-emoji">🎉</div>
+          <div className="home-empty-txt">Sin clases próximas</div>
+          <div className="home-empty-sub">¡Aprovecha para estudiar lo pendiente!</div>
+        </div>
+      )
+    }
+    const c = proximaClase
+    const urgClase = c.urgencia === 'rojo' ? 'urgencia-rojo' : c.urgencia === 'amarillo' ? 'urgencia-amarillo' : ''
+    const icono = c.urgencia === 'rojo' ? '🔴' : c.urgencia === 'amarillo' ? '🟡' : '🟢'
+    return (
+      <div className={`home-clase-card ${urgClase}`} onClick={onVerHorario}>
+        <div className="home-clase-urgencia">{icono}</div>
+        <div className="home-clase-info">
+          <div className="home-clase-nombre">{c.clase.ramo_nombre || '(sin nombre)'}</div>
+          <div className="home-clase-meta">
+            {c.clase.sala ? `${c.clase.sala} · ` : ''}{c.clase.hora_inicio}{c.clase.hora_fin ? ` – ${c.clase.hora_fin}` : ''}
+          </div>
+        </div>
+        <div className="home-clase-cuanto">
+          <div className="home-tiempo">{c.etiqueta}</div>
+          <div className="home-subtime">{c.sub}</div>
+        </div>
+      </div>
+    )
+  }
+
+  const seccionProximaClase = (titulo, esUrgente) => (
+    <div className="home-section-block">
+      <div className={`home-section-title ${esUrgente ? 'home-urgente-label' : ''}`}>
+        <h4>{titulo}</h4>
+        <button className="link" onClick={onVerHorario}>Ver horario →</button>
+      </div>
+      {renderProximaClase()}
+    </div>
+  )
+
+  const seccionSugerida = () => {
+    if (!sugerida) return null
+    const d = diasRestantes(sugerida.fecha)
+    const diaTxt = d === 0 ? 'hoy' : d === 1 ? 'mañana' : `en ${d} días`
+    return (
+      <div className="home-suggest-card">
+        <span className="home-suggest-tag">⚡ Acción sugerida</span>
+        <h3>{sugerida.nombre} {diaTxt}</h3>
+        <div className="home-suggest-sub">{sugerida.ramoNombre} · {sugerida.ponderacion}% del ramo</div>
+        <button className="home-btn-suggest" onClick={() => onVerRamo && onVerRamo(sugerida)}>
+          🤖 Generar plan ahora →
+        </button>
+      </div>
+    )
+  }
+
+  const esUrgentePronto = !!(proximaClase && proximaClase.esPronto)
+
+  // Texto contextual del promedio — 3 labels semánticos, 2 colores
+  const promedioContext = (() => {
+    const parts = []
+    if (countCrit > 0) parts.push(<span key="c" className="c-crit">{countCrit} {countCrit === 1 ? 'crítico' : 'críticos'}</span>)
+    if (countEnCurso > 0) parts.push(<span key="i" className="c-ok">{countEnCurso} en curso</span>)
+    if (countAprobado > 0) parts.push(<span key="a" className="c-ok">{countAprobado} {countAprobado === 1 ? 'aprobado' : 'aprobados'}</span>)
+    if (parts.length === 0) return null
+    const out = []
+    parts.forEach((p, i) => {
+      if (i > 0) out.push(<span key={`s${i}`} className="sep">·</span>)
+      out.push(p)
+    })
+    return out
+  })()
 
   return (
-    <div style={{ background: 'transparent', paddingBottom: 20, paddingTop: 0 }}>
-      {/* Header integrado */}
-      <div style={{ padding: '52px 16px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 20, fontWeight: 800, color: 'white', letterSpacing: -0.5 }}>APPrueba</span>
-            {usuario?.universidad && <span style={{ fontSize: 10, fontWeight: 700, background: 'rgba(255,255,255,0.15)', color: 'white', padding: '2px 8px', borderRadius: 20 }}>{usuario.universidad.toUpperCase()}</span>}
-          </div>
-          <p style={{ margin: '2px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>Hola, {usuario?.nombre?.split(' ')[0] || usuario?.name?.split(' ')[0] || 'estudiante'} 👋</p>
-          {esFundador && <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(201,168,76,0.25)', border: '1px solid rgba(201,168,76,0.5)', borderRadius: 20, padding: '2px 10px', fontSize: 11, color: '#C9A84C', fontWeight: 700, marginTop: 4 }}>🏅 Fundador #{numeroRegistro}</div>}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {usuario?.email === 'abelespinozav@gmail.com' && <button onClick={onAdmin} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: 38, height: 38, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>⚙️</button>}
-          <button onClick={onNotif} style={{ position: 'relative', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: 38, height: 38, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>🔔{evalProximas3dias > 0 && <span style={{ position: 'absolute', top: -2, right: -2, background: '#f87171', color: 'white', borderRadius: '50%', width: 16, height: 16, fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{evalProximas3dias}</span>}</button>
-          <div onClick={onPerfil} style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, color: 'white', cursor: 'pointer' }}>{(usuario?.nombre || usuario?.name || 'U')[0].toUpperCase()}</div>
-        </div>
-      </div>
-      <div style={{ padding: '16px' }}>
-        {/* XP Bar */}
-        <div style={{ background: 'var(--bg-card)', borderRadius: 16, padding: '14px 16px', marginBottom: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: '1px solid var(--color-border)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 18 }}>⚡</span>
-              <div>
-                <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: 'var(--color-text)' }}>Nivel {nivel} — {nivelLabel}</p>
-                <p style={{ margin: 0, fontSize: 11, color: 'var(--color-text-secondary)' }}>{xpTotal} XP totales</p>
-              </div>
-            </div>
-            <span style={{ fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600 }}>{xpSiguiente - xpNivel} XP para Nv.{nivel + 1}</span>
-          </div>
-          <div style={{ background: 'var(--bg-secondary)', borderRadius: 99, height: 8, overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${(xpNivel / xpSiguiente) * 100}%`, background: 'linear-gradient(90deg, var(--gradient-from), var(--gradient-to))', borderRadius: 99, transition: 'width 0.6s ease' }} />
-          </div>
-        </div>
-
-        {/* Novedades */}
-        {(() => {
-          const uni = usuario?.universidad || 'ufro'
-          const fallbackNovedades = [
-            { tipo: 'Académico', emoji: '📅', titulo: 'Calendario académico', descripcion: 'Consulta fechas clave del semestre', color: '#60a5fa' },
-            { tipo: 'Becas', emoji: '💰', titulo: 'Becas disponibles', descripcion: 'Revisa las convocatorias abiertas', color: '#4ade80' },
-            { tipo: 'Bienestar', emoji: '🧘', titulo: 'Salud estudiantil', descripcion: 'Servicios de apoyo en tu campus', color: '#a78bfa' },
-          ]
-          const novedadesLista = novedades.length > 0 ? novedades : fallbackNovedades
-          const uniLabel = uni === 'ufro' ? 'UFRO' : uni === 'umayor' ? 'U. Mayor' : uni === 'uautonoma' ? 'U. Autónoma' : uni === 'inacap' ? 'INACAP' : uni === 'santotomas' ? 'Santo Tomás' : uni === 'uctemuco' ? 'UC Temuco' : uni.toUpperCase()
-          return (
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: 'var(--color-text)' }}>🔔 Novedades {uniLabel}</p>
-                <span style={{ fontSize: 11, color: 'var(--color-primary)', fontWeight: 600, cursor: 'pointer' }}>Ver más →</span>
-              </div>
-              <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 6, scrollbarWidth: 'none' }}>
-                {novedadesLista.map((n, i) => (
-                  <div key={i} style={{ minWidth: 160, maxWidth: 160, background: 'var(--bg-card)', borderRadius: 14, padding: '12px', border: `1px solid ${n.color}55`, borderLeft: `3px solid ${n.color}`, flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                      <span style={{ fontSize: 18 }}>{n.emoji}</span>
-                      <span style={{ fontSize: 9, fontWeight: 700, color: n.color, background: `${n.color}22`, padding: '2px 7px', borderRadius: 20 }}>{n.tipo}</span>
-                    </div>
-                    <p style={{ margin: '0 0 4px', fontSize: 12, fontWeight: 700, color: 'var(--color-text)', lineHeight: 1.3 }}>{n.titulo}</p>
-                    <p style={{ margin: 0, fontSize: 10, color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>{n.descripcion}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )
-        })()}
-
-
-        {/* Stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
-          {[
-            { icon: '📊', value: promedioGlobal !== null ? promedioGlobal.toFixed(1) : '—', label: 'Promedio', color: promedioGlobal >= 4 ? '#4ade80' : promedioGlobal !== null ? '#f87171' : 'var(--color-primary)' },
-            { icon: '🔥', value: `${proximas.length}`, label: proximas.length === 1 ? 'Evaluación' : 'Evaluaciones', color: proximas.length > 0 ? '#f97316' : '#4ade80' },
-            { icon: '✅', value: `${aprobados}/${ramos.length}`, label: 'Aprobados', color: '#4ade80' },
-          ].map((s, i) => (
-            <div key={i} style={{ background: 'var(--bg-card)', borderRadius: 14, padding: '12px 8px', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid var(--color-border)' }}>
-              <div style={{ fontSize: 20 }}>{s.icon}</div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: s.color, margin: '4px 0 2px', lineHeight: 1 }}>{s.value}</div>
-              <div style={{ fontSize: 10, color: 'var(--color-text-secondary)', fontWeight: 600 }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Alerta riesgo */}
-        {enRiesgo.length > 0 && (
-          <div style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 14, padding: '12px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 22 }}>⚠️</span>
+    <>
+      <style>{HOME_CSS}</style>
+      <div className="home-root">
+        {/* HERO */}
+        <div className="home-hero">
+          <div className="home-hero-top">
             <div>
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#d97706' }}>{enRiesgo.length} ramo{enRiesgo.length > 1 ? 's' : ''} en riesgo</p>
-              <p style={{ margin: 0, fontSize: 11, color: '#92400e' }}>Genera un plan de estudio con IA</p>
+              <div className="home-saludo">Hola, {nombreCorto} <span className="home-wave">👋</span></div>
+              {esFundador && (
+                <div className="home-fundador-badge">🏅 Fundador #{numeroRegistro}</div>
+              )}
+            </div>
+            <div className="home-actions">
+              {usuario?.email === 'abelespinozav@gmail.com' && (
+                <button className="home-iconbtn" onClick={onAdmin}>⚙️</button>
+              )}
+              <button className="home-iconbtn" onClick={onNotif}>
+                🔔
+                {evalProximas3dias > 0 && <span className="home-notif-badge">{evalProximas3dias}</span>}
+              </button>
+              <div onClick={onPerfil} className="home-avatar">{inicial}</div>
+            </div>
+          </div>
+
+          <div className="home-streak-pill">
+            <span className="home-flame">🔥</span>
+            <span>Nivel {nivelLabel} · {xpTotal} XP</span>
+          </div>
+
+          <div className="home-promedio-block">
+            <div className={`home-promedio-giga nivel-${nivelPromedio}`}>
+              {promedioGlobal !== null ? promedioGlobal.toFixed(1) : '—'}
+            </div>
+            <div className="home-promedio-caption">Promedio semestral</div>
+            {ramosEstados.length > 0 && (
+              <>
+                <div><div className="home-promedio-dots">
+                  {ramosEstados.slice(0, 6).map((s, i) => (
+                    <span key={i} className={`home-dot ${s === 'critical' ? 'critical' : 'ok'}`} />
+                  ))}
+                  {ramosEstados.length > 6 && (
+                    <span className="home-dot extra" title={`y ${ramosEstados.length - 6} más`} />
+                  )}
+                </div></div>
+                {promedioContext && <div className="home-promedio-context">{promedioContext}</div>}
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Próxima clase URGENTE va antes de sugerida */}
+        {esUrgentePronto && seccionProximaClase('⏰ Tu clase empieza pronto', true)}
+
+        {/* Acción sugerida */}
+        {seccionSugerida()}
+
+        {/* Próxima clase NO urgente va después */}
+        {!esUrgentePronto && seccionProximaClase('📅 Tu próxima clase', false)}
+
+        {/* Ramos grid 2x2 */}
+        {ramos.length > 0 && (
+          <div className="home-section-block">
+            <div className="home-section-title">
+              <h4>📚 Tus ramos</h4>
+              <button className="link" onClick={() => navigate('/ramos')}>Ver todos →</button>
+            </div>
+            <div className="home-ramos-grid">
+              {ramos.slice(0, 6).map((r, i) => {
+                const info = getRamoInfo(r)
+                const accentClass = HOME_ACCENTS[i % HOME_ACCENTS.length]
+                return (
+                  <div key={r.id} className={`home-ramo-card ${accentClass}`} onClick={() => navigate(`/ramos/${r.id}`)}>
+                    <div className="home-ramo-title">{r.nombre}</div>
+                    <div className="home-ramo-nota-wrap">
+                      <div className="home-ramo-nota">{info.notaPrincipal}</div>
+                      <div className="home-ramo-nota-tipo">{info.notaTipo}</div>
+                    </div>
+                    {info.necesita && (
+                      <div className={`home-ramo-necesita ${info.necesita.variante}`}>{info.necesita.content}</div>
+                    )}
+                    <div className="home-ramo-progreso">
+                      <div className="home-prog-row">
+                        <span>{info.completadas}/{info.total} evaluaciones</span>
+                        <span>{info.progreso}%</span>
+                      </div>
+                      <div className="home-prog-track">
+                        <div className="home-prog-fill" style={{ width: `${info.progreso}%` }} />
+                      </div>
+                    </div>
+                    {info.badge && (
+                      <span className={`home-ramo-badge ${info.badge.clase || ''}`}>{info.badge.texto}</span>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}
 
-        {/* Clases de hoy */}
-        {clasesHoy.length > 0 && (
-          <div style={{ background: 'var(--bg-card)', borderRadius: 16, padding: '14px 16px', marginBottom: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: '1px solid var(--color-border)' }}>
-            <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 800, color: 'var(--color-text)' }}>📅 Hoy — {diaHoy.charAt(0).toUpperCase() + diaHoy.slice(1)}</p>
-            {clasesHoy.map((c, i) => {
-              const esActual = claseActual?.id === c.id
-              return (
-                <div key={c.id || i} onClick={onVerHorario} style={{ display: 'flex', gap: 12, alignItems: 'center', cursor: 'pointer', paddingBottom: i < clasesHoy.length - 1 ? 10 : 0, borderBottom: i < clasesHoy.length - 1 ? '1px solid var(--color-border)' : 'none', marginBottom: i < clasesHoy.length - 1 ? 10 : 0, background: esActual ? 'rgba(0,48,135,0.08)' : 'transparent', borderRadius: esActual ? 10 : 0, padding: esActual ? '8px 10px' : undefined, borderLeft: esActual ? '3px solid var(--color-primary)' : '3px solid transparent' }}>
-                  <div style={{ fontSize: 12, color: 'var(--color-text-muted)', width: 44, flexShrink: 0 }}>{c.hora_inicio}</div>
-                  <div style={{ width: 3, height: 36, background: esActual ? '#4ade80' : 'var(--color-primary)', borderRadius: 2, flexShrink: 0 }} />
-                  <div style={{ flex: 1 }}>
-                    <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>{c.ramo_nombre}</p>
-                    <p style={{ margin: 0, fontSize: 11, color: 'var(--color-text-secondary)' }}>{c.hora_inicio}–{c.hora_fin}{c.sala ? ` · ${c.sala}` : ''}</p>
-                    {esActual && <span style={{ fontSize: 10, fontWeight: 700, color: 'white', background: 'var(--color-primary)', borderRadius: 6, padding: '1px 7px', marginTop: 3, display: 'inline-block' }}>● EN CURSO</span>}
-                    {!esActual && clasesHoy.indexOf(c) === clasesHoy.findIndex(x => toMin(x.hora_inicio) > ahora) && <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--color-primary)', background: 'rgba(0,48,135,0.08)', borderRadius: 6, padding: '1px 7px', marginTop: 3, display: 'inline-block' }}>PRÓXIMA</span>}
-                  </div>
+        {/* Vive {Universidad} — al final, siempre visible */}
+        <div className="home-section-block home-vive">
+          <div className="home-section-title">
+            <h4>🎉 Vive <span className="uni">{uniLabel}</span></h4>
+          </div>
+          {novedades && novedades.length > 0 ? (
+            <div className="home-novedades-scroll">
+              {novedades.slice(0, 6).map((n, i) => (
+                <div key={i} className="home-novedad-card" style={{ '--nov-color': n.color || 'var(--color-primary)' }}>
+                  {n.emoji && <div className="home-novedad-emoji">{n.emoji}</div>}
+                  {n.tipo && <div className="home-novedad-tipo">{n.tipo}</div>}
+                  <div className="home-novedad-title">{n.titulo}</div>
+                  {n.descripcion && <div className="home-novedad-desc">{n.descripcion}</div>}
                 </div>
-              )
-            })}
-
-          </div>
-        )}
-
-        {/* Próximas evaluaciones */}
-        {proximas.length > 0 && (
-          <div style={{ background: 'var(--bg-card)', borderRadius: 16, overflow: 'hidden', marginBottom: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: '1px solid var(--color-border)' }}>
-            <p style={{ margin: 0, padding: '14px 16px 10px', fontSize: 13, fontWeight: 800, color: 'var(--color-text)' }}>🗓️ Próximas Evaluaciones</p>
-            {proximas.map((ev, i) => {
-              const d = diasRestantes(ev.fecha)
-              const urgente = d <= 3
-              const pronto = d <= 7
-              return (
-                <div key={i} onClick={() => onVerRamo && onVerRamo(ev, ev.id)} style={{ padding: '10px 16px', borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
-                  <div>
-                    <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>{ev.nombre}</p>
-                    <p style={{ margin: 0, fontSize: 11, color: 'var(--color-text-secondary)' }}>{ev.ramoNombre}</p>
-                  </div>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'white', background: urgente ? '#f87171' : pronto ? '#fbbf24' : 'var(--color-text-muted)', padding: '4px 10px', borderRadius: 20, minWidth: 48, textAlign: 'center' }}>
-                    {d === 0 ? '¡Hoy!' : d === 1 ? 'Mañana' : `${d}d`}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        )}
-
-
-                {/* Logros */}
-        <div style={{ background: 'var(--bg-card)', borderRadius: 16, padding: '14px 16px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: '1px solid var(--color-border)' }}>
-          <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 800, color: 'var(--color-text)' }}>🏆 Logros</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-            {logros.map(l => (
-              <div key={l.id} style={{ background: 'var(--bg-secondary)', borderRadius: 12, padding: '12px 8px', textAlign: 'center', opacity: l.desbloqueado ? 1 : 0.4, filter: l.desbloqueado ? 'none' : 'grayscale(1)', border: '1px solid var(--color-border)' }}>
-                <div style={{ fontSize: 26, marginBottom: 4 }}>{l.icon}</div>
-                <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: 'var(--color-text)' }}>{l.label}</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="home-vive-empty">Sin novedades hoy 🎓</div>
+          )}
         </div>
       </div>
-    </div>
+    </>
   )
 }
 
 
 // ============================================================
-// QUIZ TAB (selector de ramo para iniciar quiz)
+// PLAN IA + QUIZ TABS (comparten CSS glass)
 // ============================================================
+const PQ_CSS = `
+  .pq-root { background: transparent; padding: 0 0 120px; height: 100vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .pq-hero { padding: 56px 20px 8px; }
+  .pq-hero h1 { font-size: 32px; font-weight: 900; letter-spacing: -0.035em; line-height: 1; margin: 0 0 8px; color: var(--color-text); }
+  .pq-hero-sub { font-size: 13px; color: var(--color-text-muted); font-weight: 600; margin: 0; line-height: 1.5; max-width: 34ch; }
+  .pq-hero-sub strong { color: var(--color-text); font-weight: 800; }
+
+  .pq-brain { display: inline-block; animation: pqBrainPulse 2.8s ease-in-out infinite; transform-origin: center; }
+  @keyframes pqBrainPulse { 0%, 100% { transform: scale(1) translateY(0); filter: drop-shadow(0 0 0 rgba(167,139,250,0)); } 50% { transform: scale(1.08) translateY(-3px); filter: drop-shadow(0 0 16px rgba(167,139,250,0.55)); } }
+
+  .pq-bolt { display: inline-block; animation: pqBoltZap 3s ease-in-out infinite; transform-origin: center; }
+  @keyframes pqBoltZap { 0%, 55%, 100% { transform: scale(1) rotate(0); filter: drop-shadow(0 0 0 rgba(251,191,36,0)); } 18% { transform: scale(1.15) rotate(-7deg); filter: drop-shadow(0 0 14px rgba(251,191,36,0.75)); } 32% { transform: scale(1.05) rotate(7deg); filter: drop-shadow(0 0 10px rgba(251,191,36,0.4)); } 45% { transform: scale(1.02) rotate(-2deg); filter: drop-shadow(0 0 6px rgba(251,191,36,0.2)); } }
+
+  .pq-section { padding: 28px 20px 0; }
+  .pq-section-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .pq-section-title h4 { font-size: 11px; font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase; color: var(--color-text-muted); margin: 0; }
+
+  .pq-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .pq-ramo { position: relative; background: rgba(255,255,255,0.04); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 12px 10px; overflow: hidden; cursor: pointer; transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.35s, background 0.3s; animation: pqIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) backwards; min-height: 78px; display: flex; flex-direction: column; justify-content: space-between; }
+  @keyframes pqIn { from { opacity: 0; transform: translateY(10px); } }
+  .pq-ramo::after { content: ''; position: absolute; top: 0; left: 0; width: 3px; height: 100%; background: var(--accent); transition: width 0.3s, box-shadow 0.3s; }
+  .pq-ramo:hover { transform: translateY(-3px); border-color: rgba(255,255,255,0.18); }
+  .pq-ramo.active { background: rgba(255,255,255,0.08); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+  .pq-ramo.active::after { width: 5px; box-shadow: 0 0 14px var(--accent-glow); }
+  .pq-ramo > * { position: relative; }
+  .pq-ramo.accent-cyan { --accent: #06b6d4; --accent-glow: rgba(6,182,212,0.4); }
+  .pq-ramo.accent-purple { --accent: #a78bfa; --accent-glow: rgba(167,139,250,0.4); }
+  .pq-ramo.accent-pink { --accent: #ec4899; --accent-glow: rgba(236,72,153,0.4); }
+  .pq-ramo.accent-orange { --accent: #f97316; --accent-glow: rgba(249,115,22,0.4); }
+  .pq-ramo.accent-emerald { --accent: #10b981; --accent-glow: rgba(16,185,129,0.4); }
+  .pq-ramo.accent-yellow { --accent: #eab308; --accent-glow: rgba(234,179,8,0.4); }
+  .pq-ramo-title { font-size: 12px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.2; margin: 0 0 4px; color: var(--color-text); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .pq-ramo-count { font-size: 9px; color: var(--color-text-muted); font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+  .pq-ramo.active .pq-ramo-count { color: var(--accent); }
+
+  .pq-evals-panel { margin-top: 16px; display: flex; flex-direction: column; gap: 6px; animation: pqEvalsIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  @keyframes pqEvalsIn { from { opacity: 0; transform: translateY(-6px); } }
+  .pq-evals-header { font-size: 10px; font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase; color: var(--color-text-muted); margin: 4px 2px 8px; }
+  .pq-evals-header .pq-evals-ramo { color: var(--color-text); }
+  .pq-eval { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 14px; background: rgba(255,255,255,0.04); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.08); border-left: 3px solid var(--color-primary); border-radius: 14px; cursor: pointer; transition: background 0.2s, border-color 0.2s, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .pq-eval:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.18); transform: translateX(3px); }
+  .pq-eval-info { flex: 1; min-width: 0; }
+  .pq-eval-nombre { font-size: 14px; font-weight: 800; color: var(--color-text); margin: 0 0 3px; letter-spacing: -0.01em; }
+  .pq-eval-meta { font-size: 11px; color: var(--color-text-muted); margin: 0; font-weight: 700; letter-spacing: 0.02em; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .pq-eval-meta .ok { color: #34d399; }
+  .pq-eval-meta .sep { opacity: 0.35; }
+  .pq-eval-arrow { font-size: 18px; flex-shrink: 0; opacity: 0.6; transition: opacity 0.2s, transform 0.2s; }
+  .pq-eval:hover .pq-eval-arrow { opacity: 1; transform: translateX(2px); }
+  .pq-evals-empty { padding: 18px 16px; font-size: 13px; color: var(--color-text-muted); text-align: center; font-weight: 600; background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.1); border-radius: 14px; }
+
+  .pq-empty { text-align: center; padding: 44px 20px; background: rgba(255,255,255,0.03); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px dashed rgba(255,255,255,0.12); border-radius: 22px; }
+  .pq-empty-emoji { font-size: 48px; margin-bottom: 10px; display: inline-block; animation: pqFloaty 3s ease-in-out infinite; }
+  @keyframes pqFloaty { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+  .pq-empty-txt { font-size: 15px; color: var(--color-text); font-weight: 800; margin: 0 0 4px; }
+  .pq-empty-sub { font-size: 12px; color: var(--color-text-muted); margin: 0; font-weight: 600; }
+
+  .pq-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 999; display: flex; align-items: center; justify-content: center; padding: 24px; animation: pqBackdropIn 0.2s ease; }
+  @keyframes pqBackdropIn { from { opacity: 0; } }
+  .pq-modal { background: rgba(22,22,34,0.88); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); border: 1px solid rgba(255,255,255,0.1); border-left: 3px solid var(--color-primary); border-radius: 22px; padding: 24px; max-width: 340px; width: 100%; animation: pqModalIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); box-sizing: border-box; }
+  @keyframes pqModalIn { from { opacity: 0; transform: translateY(12px) scale(0.96); } }
+  .pq-modal-emoji { font-size: 44px; text-align: center; margin-bottom: 10px; }
+  .pq-modal-title { font-size: 18px; font-weight: 900; color: var(--color-text); text-align: center; margin: 0 0 8px; letter-spacing: -0.02em; }
+  .pq-modal-desc { font-size: 13px; color: var(--color-text-muted); text-align: center; margin: 0 0 20px; line-height: 1.5; font-weight: 600; }
+  .pq-modal-desc strong { color: var(--color-text); font-weight: 800; }
+  .pq-modal-upload { display: block; width: 100%; text-align: center; background: var(--color-primary); color: #1a1a1a; border-radius: 14px; padding: 13px; font-size: 14px; font-weight: 900; cursor: pointer; margin-bottom: 8px; transition: filter 0.2s, transform 0.2s; box-sizing: border-box; }
+  .pq-modal-upload:hover { filter: brightness(1.08); }
+  .pq-modal-upload:active { transform: scale(0.98); }
+  .pq-modal-cancel { width: 100%; padding: 11px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: var(--color-text-muted); font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; transition: background 0.2s; box-sizing: border-box; }
+  .pq-modal-cancel:hover { background: rgba(255,255,255,0.08); }
+
+  .pq-hist { display: flex; flex-direction: column; gap: 8px; }
+  .pq-hist-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: rgba(255,255,255,0.04); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.08); border-left: 3px solid var(--hist-color, var(--color-primary)); border-radius: 14px; padding: 12px 14px; transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.3s; }
+  .pq-hist-item:hover { transform: translateX(3px); border-color: rgba(255,255,255,0.16); }
+  .pq-hist-item.ok { --hist-color: #34d399; }
+  .pq-hist-item.warn { --hist-color: #fbbf24; }
+  .pq-hist-item.risk { --hist-color: #f87171; }
+  .pq-hist-info { flex: 1; min-width: 0; }
+  .pq-hist-name { font-size: 13px; font-weight: 800; color: var(--color-text); margin: 0 0 2px; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pq-hist-meta { font-size: 10px; color: var(--color-text-muted); margin: 0; font-weight: 700; letter-spacing: 0.04em; }
+  .pq-hist-pct { font-size: 20px; font-weight: 900; color: var(--hist-color); letter-spacing: -0.02em; }
+  .pq-hist-empty { padding: 24px 20px; text-align: center; background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.12); border-radius: 16px; color: var(--color-text-muted); font-size: 13px; font-weight: 600; }
+`
+
 function PlanTab({ ramos, onIniciarPlan }) {
   const [ramoExpandido, setRamoExpandido] = useState(null)
   const [evalSinMaterial, setEvalSinMaterial] = useState(null)
 
-  return (
-    <div style={{ padding: '52px 16px 100px', background: 'var(--bg-primary)', minHeight: '100vh', position: 'relative' }}>
-      <BackgroundOrbs />
-      <div style={{ position: 'relative', zIndex: 1 }}>
-      <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--color-text)', margin: '0 0 4px' }}>🧠 Plan IA</h2>
-      <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', margin: '0 0 20px' }}>Elige un ramo y una evaluación para generar tu plan de estudio</p>
+  const ramoActivo = ramoExpandido ? ramos.find(r => r.id === ramoExpandido) : null
+  const evalsActivo = ramoActivo ? (ramoActivo.evaluaciones || []) : []
 
-      {ramos.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>📚</div>
-          <p style={{ color: 'var(--color-text-secondary)', fontSize: 14 }}>Agrega ramos primero para generar un plan</p>
+  return (
+    <>
+      <style>{PQ_CSS}</style>
+      <div className="pq-root">
+        <div className="pq-hero">
+          <h1><span className="pq-brain">🧠</span> Plan IA</h1>
+          <p className="pq-hero-sub">Sube tu material y la IA genera un <strong>plan de estudio personalizado</strong> para cada evaluación, con tareas repartidas en tu horario libre.</p>
         </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 32 }}>
-          {ramos.map(r => (
-            <div key={r.id}>
-              <div onClick={() => setRamoExpandido(ramoExpandido === r.id ? null : r.id)}
-                style={{ background: 'var(--bg-card)', borderRadius: 16, padding: '16px 12px', cursor: 'pointer', border: ramoExpandido === r.id ? '1px solid var(--color-primary)' : '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.05)', minHeight: 90 }}>
-                <span style={{ fontSize: 28 }}>📚</span>
-                <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--color-text)', lineHeight: 1.3 }}>{r.nombre}</p>
-                <p style={{ margin: 0, fontSize: 11, color: 'var(--color-text-secondary)' }}>{(r.evaluaciones||[]).length} evaluaciones</p>
+
+        <div className="pq-section">
+          {ramos.length === 0 ? (
+            <div className="pq-empty">
+              <div className="pq-empty-emoji">📚</div>
+              <div className="pq-empty-txt">Aún no tienes ramos</div>
+              <div className="pq-empty-sub">Agrega ramos primero para generar planes de estudio</div>
+            </div>
+          ) : (
+            <>
+              <div className="pq-section-title"><h4>🎯 Elige un ramo</h4></div>
+              <div className="pq-grid">
+                {ramos.map((r, i) => {
+                  const accent = HOME_ACCENTS[i % HOME_ACCENTS.length]
+                  const active = ramoExpandido === r.id
+                  return (
+                    <div key={r.id} className={`pq-ramo ${accent} ${active ? 'active' : ''}`} style={{ animationDelay: `${i * 0.05}s` }}
+                      onClick={() => setRamoExpandido(active ? null : r.id)}>
+                      <div className="pq-ramo-title">{r.nombre}</div>
+                      <div className="pq-ramo-count">{(r.evaluaciones || []).length} {(r.evaluaciones || []).length === 1 ? 'eval' : 'evals'}</div>
+                    </div>
+                  )
+                })}
               </div>
-              {ramoExpandido === r.id && (
-                <div style={{ background: 'var(--bg-card)', borderRadius: '0 0 16px 16px', border: '1px solid var(--color-border)', borderTop: 'none', overflow: 'hidden' }}>
-                  {(r.evaluaciones||[]).length === 0 ? (
-                    <p style={{ padding: '12px 16px', margin: 0, fontSize: 13, color: 'var(--color-text-secondary)' }}>Sin evaluaciones en este ramo</p>
+
+              {ramoActivo && (
+                <div className="pq-evals-panel">
+                  <div className="pq-evals-header">📋 Evaluaciones de <span className="pq-evals-ramo">{ramoActivo.nombre}</span></div>
+                  {evalsActivo.length === 0 ? (
+                    <div className="pq-evals-empty">Este ramo aún no tiene evaluaciones</div>
                   ) : (
-                    (r.evaluaciones||[]).map(ev => (
-                      <div key={ev.id} onClick={() => {
+                    evalsActivo.map(ev => (
+                      <div key={ev.id} className="pq-eval" onClick={() => {
                         const tieneMaterial = (ev.archivos && ev.archivos.length > 0) || ev.texto_material
-                        if (!tieneMaterial) { setEvalSinMaterial({ ramo: r, ev }); return }
-                        onIniciarPlan(r, ev)
-                      }}
-                        style={{ padding: '12px 16px', borderTop: '1px solid var(--color-border)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(var(--color-primary-rgb),0.08)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                        <div>
-                          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>{ev.nombre}</p>
-                          <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--color-text-secondary)' }}>
-                            {ev.plan_estudio ? '✅ Plan generado' : '📋 Sin plan aún'} · {ev.tipo || 'Evaluación'}
-                          </p>
+                        if (!tieneMaterial) { setEvalSinMaterial({ ramo: ramoActivo, ev }); return }
+                        onIniciarPlan(ramoActivo, ev)
+                      }}>
+                        <div className="pq-eval-info">
+                          <div className="pq-eval-nombre">{ev.nombre}</div>
+                          <div className="pq-eval-meta">
+                            {ev.plan_estudio ? <span className="ok">✅ Plan generado</span> : <span>📋 Sin plan aún</span>}
+                            <span className="sep">·</span>
+                            <span>{ev.tipo || 'Evaluación'}</span>
+                          </div>
                         </div>
-                        <span style={{ fontSize: 18 }}>🧠</span>
+                        <span className="pq-eval-arrow">🧠</span>
                       </div>
                     ))
                   )}
                 </div>
               )}
-            </div>
-          ))}
+            </>
+          )}
         </div>
-      )}
 
-      {/* Modal sin material */}
-      {evalSinMaterial && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div style={{ background: 'var(--bg-card)', borderRadius: 20, padding: 24, maxWidth: 340, width: '100%', border: '1px solid var(--color-border)' }}>
-            <div style={{ fontSize: 40, textAlign: 'center', marginBottom: 12 }}>📭</div>
-            <h3 style={{ color: 'var(--color-text)', fontSize: 16, fontWeight: 800, textAlign: 'center', margin: '0 0 8px' }}>Sin material de estudio</h3>
-            <p style={{ color: 'var(--color-text-secondary)', fontSize: 13, textAlign: 'center', margin: '0 0 20px' }}>
-              <strong>{evalSinMaterial.ev.nombre}</strong> no tiene archivos cargados. Debes subir material para generar el plan.
-            </p>
-            <label style={{ display: 'block', textAlign: 'center', background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', color: '#fff', borderRadius: 10, padding: '11px', fontSize: 13, fontWeight: 700, cursor: 'pointer', marginBottom: 10 }}>
-              📎 Subir material
-              <input type="file" accept=".pdf,.docx,.doc,.txt,.pptx,.ppt,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.mp3,.m4a,.wav,.mp4,.mov" style={{ display: 'none' }} onChange={async (e) => {
-                const file = e.target.files[0]
-                if (!file) return
-                const fd = new FormData()
-                fd.append('archivo', file)
-                const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-                const r = await fetch(`${API}/evaluaciones/${evalSinMaterial.ev.id}/archivos`, {
-                  method: 'POST',
-                  headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-                  body: fd
-                })
-                if (r.ok) {
-                  alert('✅ Material subido. Ahora puedes generar el plan.')
-                  onIniciarPlan(evalSinMaterial.ramo, { ...evalSinMaterial.ev, archivos: [{ nombre: file.name }] })
-                  setEvalSinMaterial(null)
-                } else {
-                  alert('❌ Error al subir el archivo.')
-                }
-              }} />
-            </label>
-            <button onClick={() => setEvalSinMaterial(null)} style={{ width: '100%', padding: '10px', borderRadius: 10, border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text)', fontSize: 13, cursor: 'pointer' }}>
-              Cancelar
-            </button>
+        {evalSinMaterial && (
+          <div className="pq-modal-backdrop" onClick={() => setEvalSinMaterial(null)}>
+            <div className="pq-modal" onClick={e => e.stopPropagation()}>
+              <div className="pq-modal-emoji">📭</div>
+              <h3 className="pq-modal-title">Sin material de estudio</h3>
+              <p className="pq-modal-desc"><strong>{evalSinMaterial.ev.nombre}</strong> no tiene archivos cargados. Debes subir material para generar el plan.</p>
+              <label className="pq-modal-upload">
+                📎 Subir material
+                <input type="file" accept=".pdf,.docx,.doc,.txt,.pptx,.ppt,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.mp3,.m4a,.wav,.mp4,.mov" style={{ display: 'none' }} onChange={async (e) => {
+                  const file = e.target.files[0]
+                  if (!file) return
+                  const fd = new FormData()
+                  fd.append('archivo', file)
+                  const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+                  const r = await fetch(`${API}/evaluaciones/${evalSinMaterial.ev.id}/archivos`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                    body: fd
+                  })
+                  if (r.ok) {
+                    alert('✅ Material subido. Ahora puedes generar el plan.')
+                    onIniciarPlan(evalSinMaterial.ramo, { ...evalSinMaterial.ev, archivos: [{ nombre: file.name }] })
+                    setEvalSinMaterial(null)
+                  } else {
+                    alert('❌ Error al subir el archivo.')
+                  }
+                }} />
+              </label>
+              <button className="pq-modal-cancel" onClick={() => setEvalSinMaterial(null)}>Cancelar</button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
       </div>
-    </div>
+    </>
   )
 }
 
 function QuizTab({ ramos, onIniciarQuiz }) {
   const [historial, setHistorial] = useState([])
   const [ramoExpandido, setRamoExpandido] = useState(null)
-  const [evalSinMaterial, setEvalSinMaterial] = useState(null) // { ramo, ev }
+  const [evalSinMaterial, setEvalSinMaterial] = useState(null)
   const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
   const getToken = () => localStorage.getItem('token')
 
@@ -502,181 +841,251 @@ function QuizTab({ ramos, onIniciarQuiz }) {
       .catch(() => {})
   }, [])
 
-  return (
-    <div style={{ padding: '52px 16px 100px', background: 'var(--bg-primary)', minHeight: '100vh', position: 'relative' }}>
-      <BackgroundOrbs />
-      <div style={{ position: 'relative', zIndex: 1 }}>
-      <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--color-text)', margin: '0 0 4px' }}>⚡ Quiz Rápido</h2>
-      <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', margin: '0 0 20px' }}>Elige un ramo y una evaluación para practicar</p>
+  const ramoActivo = ramoExpandido ? ramos.find(r => r.id === ramoExpandido) : null
+  const evalsActivo = ramoActivo ? (ramoActivo.evaluaciones || []) : []
 
-      {ramos.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>📚</div>
-          <p style={{ color: 'var(--color-text-secondary)', fontSize: 14 }}>Agrega ramos primero para poder hacer quiz</p>
+  return (
+    <>
+      <style>{PQ_CSS}</style>
+      <div className="pq-root">
+        <div className="pq-hero">
+          <h1><span className="pq-bolt">⚡</span> Quiz Rápido</h1>
+          <p className="pq-hero-sub">Practica con <strong>20 preguntas</strong> generadas desde tu propio material — perfecto para repasar justo antes de una evaluación.</p>
         </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 32 }}>
-          {ramos.map(r => (
-            <div key={r.id}>
-              <div onClick={() => setRamoExpandido(ramoExpandido === r.id ? null : r.id)}
-                style={{ background: 'var(--bg-card)', borderRadius: 16, padding: '16px 12px', cursor: 'pointer', border: ramoExpandido === r.id ? '1px solid var(--color-primary)' : '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.05)', minHeight: 90 }}>
-                <span style={{ fontSize: 28 }}>📚</span>
-                <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--color-text)', lineHeight: 1.3 }}>{r.nombre}</p>
-                <p style={{ margin: 0, fontSize: 11, color: 'var(--color-text-secondary)' }}>{(r.evaluaciones||[]).length} evaluaciones</p>
+
+        <div className="pq-section">
+          {ramos.length === 0 ? (
+            <div className="pq-empty">
+              <div className="pq-empty-emoji">📚</div>
+              <div className="pq-empty-txt">Aún no tienes ramos</div>
+              <div className="pq-empty-sub">Agrega ramos primero para poder hacer quiz</div>
+            </div>
+          ) : (
+            <>
+              <div className="pq-section-title"><h4>🎯 Elige un ramo</h4></div>
+              <div className="pq-grid">
+                {ramos.map((r, i) => {
+                  const accent = HOME_ACCENTS[i % HOME_ACCENTS.length]
+                  const active = ramoExpandido === r.id
+                  return (
+                    <div key={r.id} className={`pq-ramo ${accent} ${active ? 'active' : ''}`} style={{ animationDelay: `${i * 0.05}s` }}
+                      onClick={() => setRamoExpandido(active ? null : r.id)}>
+                      <div className="pq-ramo-title">{r.nombre}</div>
+                      <div className="pq-ramo-count">{(r.evaluaciones || []).length} {(r.evaluaciones || []).length === 1 ? 'eval' : 'evals'}</div>
+                    </div>
+                  )
+                })}
               </div>
-              {ramoExpandido === r.id && (
-                <div style={{ background: 'var(--bg-card)', borderRadius: '0 0 16px 16px', border: '1px solid var(--color-border)', borderTop: 'none', overflow: 'hidden' }}>
-                  {(r.evaluaciones||[]).length === 0 ? (
-                    <p style={{ padding: '12px 16px', margin: 0, fontSize: 13, color: 'var(--color-text-secondary)' }}>Sin evaluaciones en este ramo</p>
+
+              {ramoActivo && (
+                <div className="pq-evals-panel">
+                  <div className="pq-evals-header">📋 Evaluaciones de <span className="pq-evals-ramo">{ramoActivo.nombre}</span></div>
+                  {evalsActivo.length === 0 ? (
+                    <div className="pq-evals-empty">Este ramo aún no tiene evaluaciones</div>
                   ) : (
-                    (r.evaluaciones||[]).map(ev => (
-                      <div key={ev.id} onClick={() => {
+                    evalsActivo.map(ev => (
+                      <div key={ev.id} className="pq-eval" onClick={() => {
                         const tieneArchivos = ev.archivos && ev.archivos.length > 0
                         const tieneMaterial = tieneArchivos || ev.texto_material
-                        if (!tieneMaterial) { setEvalSinMaterial({ ramo: r, ev }); return }
-                        onIniciarQuiz(r, ev)
-                      }}
-                        style={{ padding: '12px 16px', borderTop: '1px solid var(--color-border)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(var(--color-primary-rgb),0.08)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                        <div>
-                          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>{ev.nombre}</p>
-                          <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--color-text-secondary)' }}>{ev.tipo || 'Evaluación'}</p>
+                        if (!tieneMaterial) { setEvalSinMaterial({ ramo: ramoActivo, ev }); return }
+                        onIniciarQuiz(ramoActivo, ev)
+                      }}>
+                        <div className="pq-eval-info">
+                          <div className="pq-eval-nombre">{ev.nombre}</div>
+                          <div className="pq-eval-meta">
+                            <span>{ev.tipo || 'Evaluación'}</span>
+                          </div>
                         </div>
-                        <span style={{ fontSize: 18 }}>⚡</span>
+                        <span className="pq-eval-arrow">⚡</span>
                       </div>
                     ))
                   )}
                 </div>
               )}
-            </div>
-          ))}
+            </>
+          )}
         </div>
-      )}
 
-      {/* Modal sin material */}
-      {evalSinMaterial && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div style={{ background: 'var(--bg-card)', borderRadius: 20, padding: 24, maxWidth: 340, width: '100%', border: '1px solid var(--color-border)' }}>
-            <div style={{ fontSize: 40, textAlign: 'center', marginBottom: 12 }}>📭</div>
-            <h3 style={{ color: 'var(--color-text)', fontSize: 16, fontWeight: 800, textAlign: 'center', margin: '0 0 8px' }}>Sin material de estudio</h3>
-            <p style={{ color: 'var(--color-text-secondary)', fontSize: 13, textAlign: 'center', margin: '0 0 20px' }}>
-              <strong>{evalSinMaterial.ev.nombre}</strong> no tiene archivos cargados. Debes subir material para poder generar el quiz.
-            </p>
-            <label style={{ display: 'block', textAlign: 'center', background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', color: '#fff', borderRadius: 10, padding: '11px', fontSize: 13, fontWeight: 700, cursor: 'pointer', marginBottom: 10 }}>
-              📎 Subir material
-              <input type="file" accept=".pdf,.docx,.doc,.txt,.pptx,.ppt,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.mp3,.m4a,.wav,.mp4,.mov" style={{ display: 'none' }} onChange={async (e) => {
-                const file = e.target.files[0]
-                if (!file) return
-                const fd = new FormData()
-                fd.append('archivo', file)
-                const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-                const r = await fetch(`${API}/evaluaciones/${evalSinMaterial.ev.id}/archivos`, {
-                  method: 'POST',
-                  headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-                  body: fd
-                })
-                if (r.ok) {
-                  alert('✅ Material subido correctamente. Ahora puedes generar el quiz.')
-                  onIniciarQuiz(evalSinMaterial.ramo, { ...evalSinMaterial.ev, archivos: [{ nombre: file.name }] })
-                  setEvalSinMaterial(null)
-                } else {
-                  alert('❌ Error al subir el archivo. Intenta de nuevo.')
-                }
-              }} />
-            </label>
-            <button onClick={() => setEvalSinMaterial(null)} style={{ width: '100%', padding: '10px', borderRadius: 10, border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text)', fontSize: 13, cursor: 'pointer' }}>
-              Cancelar
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Historial */}
-      <div>
-        <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text)', margin: '0 0 12px' }}>📋 Historial de quizzes</h3>
-        {historial.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '24px 20px', background: 'var(--bg-card)', borderRadius: 16, border: '1px solid var(--color-border)' }}>
-            <p style={{ color: 'var(--color-text-secondary)', fontSize: 13, margin: 0 }}>Aún no has hecho ningún quiz</p>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {historial.map(h => {
-              const color = h.porcentaje >= 70 ? '#4ade80' : h.porcentaje >= 50 ? '#fbbf24' : '#f87171'
-              const emoji = h.porcentaje >= 70 ? '🎉' : h.porcentaje >= 50 ? '😅' : '📚'
-              const fecha = new Date(h.created_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })
-              return (
-                <div key={h.id} style={{ background: 'var(--bg-card)', borderRadius: 14, padding: '12px 16px', border: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>{emoji} {h.ramo_nombre}</p>
-                    <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--color-text-secondary)' }}>{fecha} · {h.puntaje}/{h.total} correctas</p>
+        {/* Historial */}
+        <div className="pq-section">
+          <div className="pq-section-title"><h4>📋 Historial de quizzes</h4></div>
+          {historial.length === 0 ? (
+            <div className="pq-hist-empty">Aún no has hecho ningún quiz</div>
+          ) : (
+            <div className="pq-hist">
+              {historial.map(h => {
+                const clase = h.porcentaje >= 70 ? 'ok' : h.porcentaje >= 50 ? 'warn' : 'risk'
+                const emoji = h.porcentaje >= 70 ? '🎉' : h.porcentaje >= 50 ? '😅' : '📚'
+                const fecha = new Date(h.created_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })
+                return (
+                  <div key={h.id} className={`pq-hist-item ${clase}`}>
+                    <div className="pq-hist-info">
+                      <div className="pq-hist-name">{emoji} {h.ramo_nombre}</div>
+                      <div className="pq-hist-meta">{fecha} · {h.puntaje}/{h.total} correctas</div>
+                    </div>
+                    <div className="pq-hist-pct">{h.porcentaje}%</div>
                   </div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color }}>{h.porcentaje}%</div>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {evalSinMaterial && (
+          <div className="pq-modal-backdrop" onClick={() => setEvalSinMaterial(null)}>
+            <div className="pq-modal" onClick={e => e.stopPropagation()}>
+              <div className="pq-modal-emoji">📭</div>
+              <h3 className="pq-modal-title">Sin material de estudio</h3>
+              <p className="pq-modal-desc"><strong>{evalSinMaterial.ev.nombre}</strong> no tiene archivos cargados. Debes subir material para poder generar el quiz.</p>
+              <label className="pq-modal-upload">
+                📎 Subir material
+                <input type="file" accept=".pdf,.docx,.doc,.txt,.pptx,.ppt,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.mp3,.m4a,.wav,.mp4,.mov" style={{ display: 'none' }} onChange={async (e) => {
+                  const file = e.target.files[0]
+                  if (!file) return
+                  const fd = new FormData()
+                  fd.append('archivo', file)
+                  const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+                  const r = await fetch(`${API}/evaluaciones/${evalSinMaterial.ev.id}/archivos`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                    body: fd
+                  })
+                  if (r.ok) {
+                    alert('✅ Material subido correctamente. Ahora puedes generar el quiz.')
+                    onIniciarQuiz(evalSinMaterial.ramo, { ...evalSinMaterial.ev, archivos: [{ nombre: file.name }] })
+                    setEvalSinMaterial(null)
+                  } else {
+                    alert('❌ Error al subir el archivo. Intenta de nuevo.')
+                  }
+                }} />
+              </label>
+              <button className="pq-modal-cancel" onClick={() => setEvalSinMaterial(null)}>Cancelar</button>
+            </div>
           </div>
         )}
       </div>
-      </div>
-    </div>
+    </>
   )
 }
 
 // ============================================================
 // PERFIL TAB
 // ============================================================
+const PERFIL_CSS = `
+  .perfil-root { background: transparent; padding: 0 0 120px; min-height: 100vh; }
+  .perfil-hero { padding: 56px 20px 8px; text-align: center; }
+  .perfil-hero-emoji { display: inline-block; font-size: 40px; animation: perfilBounce 3.2s ease-in-out infinite; transform-origin: center bottom; margin-bottom: 6px; filter: drop-shadow(0 4px 12px var(--shadow-color)); }
+  @keyframes perfilBounce { 0%, 70%, 100% { transform: translateY(0) scale(1); } 15% { transform: translateY(-8px) scale(1.05); } 30% { transform: translateY(0) scale(1); } 45% { transform: translateY(-4px) scale(1.02); } 55% { transform: translateY(0) scale(1); } }
+  .perfil-hero h1 { font-size: 32px; font-weight: 900; letter-spacing: -0.035em; line-height: 1; margin: 0 0 4px; color: var(--color-text); }
+  .perfil-hero-sub { font-size: 13px; color: var(--color-text-muted); font-weight: 600; margin: 0; }
+
+  .perfil-avatar-block { text-align: center; padding: 20px 20px 8px; animation: perfilIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  @keyframes perfilIn { from { opacity: 0; transform: translateY(8px); } }
+  .perfil-avatar { width: 92px; height: 92px; border-radius: 50%; background: linear-gradient(135deg, var(--color-primary), var(--color-accent)); display: flex; align-items: center; justify-content: center; font-size: 36px; font-weight: 900; color: #fff; margin: 0 auto 14px; box-shadow: 0 14px 36px var(--shadow-color), inset 0 1px 0 rgba(255,255,255,0.3); animation: perfilAvatarFloat 5s ease-in-out infinite; }
+  @keyframes perfilAvatarFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+  .perfil-nombre { font-size: 22px; font-weight: 900; color: var(--color-text); margin: 0 0 4px; letter-spacing: -0.02em; }
+  .perfil-email { font-size: 13px; color: var(--color-text-muted); margin: 0; font-weight: 600; }
+  .perfil-fundador { display: inline-flex; align-items: center; gap: 6px; background: rgba(201,168,76,0.2); border: 1px solid rgba(201,168,76,0.45); border-radius: 999px; padding: 5px 12px; font-size: 12px; color: #C9A84C; font-weight: 800; margin-top: 12px; letter-spacing: 0.02em; }
+
+  .perfil-section { padding: 28px 20px 0; }
+  .perfil-section-title { font-size: 11px; font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase; color: var(--color-text-muted); margin: 0 0 12px; }
+
+  .perfil-info { display: flex; flex-direction: column; gap: 8px; }
+  .perfil-info-item { position: relative; display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: rgba(255,255,255,0.04); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.08); border-left: 3px solid var(--color-primary); border-radius: 14px; overflow: hidden; transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.3s; }
+  .perfil-info-item:hover { border-color: rgba(255,255,255,0.18); transform: translateX(2px); }
+  .perfil-info-icon { font-size: 22px; flex-shrink: 0; filter: drop-shadow(0 0 8px var(--shadow-color)); }
+  .perfil-info-content { flex: 1; min-width: 0; }
+  .perfil-info-label { font-size: 9px; font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase; color: var(--color-text-muted); margin: 0 0 2px; }
+  .perfil-info-value { font-size: 14px; font-weight: 800; color: var(--color-text); margin: 0; letter-spacing: -0.01em; }
+
+  .perfil-btn { width: 100%; display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.04); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 14px 16px; color: var(--color-text); font-size: 14px; font-weight: 700; cursor: pointer; text-align: left; font-family: inherit; transition: background 0.2s, border-color 0.2s, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); box-sizing: border-box; margin-bottom: 8px; }
+  .perfil-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.18); transform: translateX(3px); }
+  .perfil-btn-icon { font-size: 20px; }
+  .perfil-btn-arrow { margin-left: auto; opacity: 0.4; font-size: 14px; transition: opacity 0.2s, transform 0.2s; }
+  .perfil-btn:hover .perfil-btn-arrow { opacity: 0.9; transform: translateX(2px); }
+  .perfil-btn.logout { background: rgba(239,68,68,0.06); border-color: rgba(239,68,68,0.22); color: #f87171; }
+  .perfil-btn.logout:hover { background: rgba(239,68,68,0.14); border-color: rgba(239,68,68,0.4); }
+`
+
 function PerfilTab({ usuario, onLogout, onUniversidad, esFundador, numeroRegistro }) {
   const uni = usuario?.universidad || ''
-  const uniLabel = uni === 'ufro' ? 'UFRO' : uni === 'uchile' ? 'U. Chile' : uni === 'puc' ? 'PUC' : uni === 'usach' ? 'USACH' : uni ? uni.toUpperCase() : 'Sin universidad'
+  const uniLabel = uni === 'ufro' ? 'UFRO' : uni === 'umayor' ? 'U. Mayor' : uni === 'uautonoma' ? 'U. Autónoma' : uni === 'inacap' ? 'INACAP' : uni === 'santotomas' ? 'Santo Tomás' : uni === 'uctemuco' ? 'UC Temuco' : uni ? uni.toUpperCase() : 'Sin universidad'
   const inicial = (usuario?.nombre || usuario?.name || 'U')[0].toUpperCase()
 
   return (
-    <div style={{ padding: '52px 16px 100px', background: 'var(--bg-primary)', minHeight: '100vh' }}>
-      {/* Avatar */}
-      <div style={{ textAlign: 'center', marginBottom: 24 }}>
-        <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 800, color: 'white', margin: '0 auto 12px' }}>{inicial}</div>
-        <p style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--color-text)' }}>{usuario?.nombre || usuario?.name || 'Estudiante'}</p>
-        <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--color-text-secondary)' }}>{usuario?.email}</p>
-        {esFundador && (
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 20, padding: '4px 12px', fontSize: 12, color: '#C9A84C', fontWeight: 700, marginTop: 8 }}>
-            🏅 Fundador #{numeroRegistro}
-          </div>
-        )}
-      </div>
+    <>
+      <style>{PERFIL_CSS}</style>
+      <div className="perfil-root">
+        {/* HERO */}
+        <div className="perfil-hero">
+          <div className="perfil-hero-emoji">👤</div>
+          <h1>Mi Perfil</h1>
+          <p className="perfil-hero-sub">Tu cuenta en Apprueba</p>
+        </div>
 
-      {/* Info */}
-      <div style={{ background: 'var(--bg-card)', borderRadius: 16, overflow: 'hidden', border: '1px solid var(--color-border)', marginBottom: 16 }}>
-        {[
-          { label: 'Universidad', value: uniLabel, icon: '🎓' },
-          { label: 'Miembro desde', value: usuario?.created_at ? new Date(usuario.created_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' }) : '—', icon: '📅' },
-        ].map((item, i, arr) => (
-          <div key={i} style={{ padding: '14px 16px', borderBottom: i < arr.length - 1 ? '1px solid var(--color-border)' : 'none', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 18 }}>{item.icon}</span>
-            <div>
-              <p style={{ margin: 0, fontSize: 11, color: 'var(--color-text-secondary)' }}>{item.label}</p>
-              <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--color-text)' }}>{item.value}</p>
+        {/* AVATAR */}
+        <div className="perfil-avatar-block">
+          <div className="perfil-avatar">{inicial}</div>
+          <div className="perfil-nombre">{usuario?.nombre || usuario?.name || 'Estudiante'}</div>
+          <div className="perfil-email">{usuario?.email}</div>
+          {esFundador && (
+            <div className="perfil-fundador">🏅 Fundador #{numeroRegistro}</div>
+          )}
+        </div>
+
+        {/* INFO */}
+        <div className="perfil-section">
+          <h4 className="perfil-section-title">📋 Tu información</h4>
+          <div className="perfil-info">
+            <div className="perfil-info-item">
+              <span className="perfil-info-icon">🎓</span>
+              <div className="perfil-info-content">
+                <div className="perfil-info-label">Universidad</div>
+                <div className="perfil-info-value">{uniLabel}</div>
+              </div>
+            </div>
+            <div className="perfil-info-item">
+              <span className="perfil-info-icon">📅</span>
+              <div className="perfil-info-content">
+                <div className="perfil-info-label">Miembro desde</div>
+                <div className="perfil-info-value">{usuario?.created_at ? new Date(usuario.created_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}</div>
+              </div>
             </div>
           </div>
-        ))}
+        </div>
+
+        {/* ACCIONES */}
+        <div className="perfil-section">
+          <h4 className="perfil-section-title">⚙️ Ajustes</h4>
+          <button className="perfil-btn" onClick={() => onUniversidad('cambiar')}>
+            <span className="perfil-btn-icon">🏫</span>
+            <span>Cambiar universidad</span>
+            <span className="perfil-btn-arrow">→</span>
+          </button>
+          <button className="perfil-btn logout" onClick={onLogout}>
+            <span className="perfil-btn-icon">🚪</span>
+            <span>Cerrar sesión</span>
+            <span className="perfil-btn-arrow">→</span>
+          </button>
+        </div>
       </div>
-
-      {/* Cambiar universidad */}
-      <button onClick={() => onUniversidad('cambiar')} style={{ width: '100%', background: 'var(--bg-card)', border: '1px solid var(--color-border)', borderRadius: 16, padding: '14px 16px', color: colorTextoSobreHeader(usuario?.universidad), fontSize: 14, fontWeight: 600, cursor: 'pointer', marginBottom: 10, textAlign: 'left' }}>
-        🏫 Cambiar universidad
-      </button>
-
-      {/* Logout */}
-      <button onClick={onLogout} style={{ width: '100%', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.25)', borderRadius: 16, padding: '14px 16px', color: '#f87171', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
-        🚪 Cerrar sesión
-      </button>
-    </div>
+    </>
   )
 }
 
 // ============================================================
 // BOTTOM NAV
 // ============================================================
+const NAV_CSS = `
+  .nav-root { position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000; height: 90px; background: color-mix(in srgb, var(--bg-primary) 70%, transparent); backdrop-filter: blur(30px) saturate(180%); -webkit-backdrop-filter: blur(30px) saturate(180%); border-top: 1px solid rgba(255,255,255,0.08); display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; padding: 10px 8px 22px; box-sizing: border-box; }
+  .nav-item { display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; background: none; border: none; padding: 0; font-family: inherit; transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); min-width: 0; }
+  .nav-item:active { transform: scale(0.9); }
+  .nav-icon-bg { display: grid; place-items: center; width: 54px; height: 34px; border-radius: 999px; font-size: 22px; line-height: 1; transition: background 0.3s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s; }
+  .nav-label { font-size: 11px; font-weight: 700; letter-spacing: 0.01em; color: var(--color-text-muted); transition: color 0.3s, font-weight 0.3s; white-space: nowrap; }
+  .nav-item.active .nav-icon-bg { background: linear-gradient(135deg, var(--color-primary), var(--color-secondary)); box-shadow: 0 8px 20px -4px var(--shadow-color), inset 0 1px 0 rgba(255,255,255,0.22); transform: translateY(-2px); }
+  .nav-item.active .nav-label { color: var(--color-primary); font-weight: 900; }
+`
+
 function BottomNav() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -689,43 +1098,21 @@ function BottomNav() {
     { path: '/perfil', icon: '👤', label: 'Perfil' },
   ]
   return (
-    <div style={{
-      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1000,
-      background: 'var(--bg-card)',
-      borderTop: '1px solid var(--color-border)',
-      display: 'flex', justifyContent: 'space-around', alignItems: 'center',
-      padding: '8px 0 16px',
-      boxShadow: '0 -4px 20px rgba(0,0,0,0.08)'
-    }}>
-      {tabs.map(t => {
-        const activo = location.pathname === t.path
-                     || (t.path === '/ramos' && location.pathname.startsWith('/ramos/'))
-        return (
-          <button key={t.path} onClick={() => navigate(t.path)} style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-            padding: '4px 8px',
-            opacity: 1,
-            transition: 'all 0.2s',
-            minWidth: 56
-          }}>
-            <div style={{
-              background: activo ? 'var(--color-primary)' : 'transparent',
-              borderRadius: 12,
-              padding: '4px 16px',
-              transition: 'all 0.2s',
-              display: 'flex', alignItems: 'center', justifyContent: 'center'
-            }}>
-              <span style={{ fontSize: 22 }}>{t.icon}</span>
-            </div>
-            <span style={{
-              fontSize: 10, fontWeight: activo ? 700 : 500,
-              color: activo ? 'var(--color-primary)' : 'var(--color-text)',
-            }}>{t.label}</span>
-          </button>
-        )
-      })}
-    </div>
+    <>
+      <style>{NAV_CSS}</style>
+      <div className="nav-root">
+        {tabs.map(t => {
+          const activo = location.pathname === t.path
+                       || (t.path === '/ramos' && location.pathname.startsWith('/ramos/'))
+          return (
+            <button key={t.path} onClick={() => navigate(t.path)} className={`nav-item ${activo ? 'active' : ''}`}>
+              <div className="nav-icon-bg">{t.icon}</div>
+              <div className="nav-label">{t.label}</div>
+            </button>
+          )
+        })}
+      </div>
+    </>
   )
 }
 
@@ -884,10 +1271,114 @@ function LoginScreen({ onLogin }) {
 
 
 
+const HORARIO_CSS = `
+  .hor-root { background: transparent; padding: 0 0 120px; min-height: 100vh; }
+  .hor-hero { padding: 56px 20px 8px; max-width: 700px; margin: 0 auto; }
+  .hor-hero h1 { font-size: 32px; font-weight: 900; letter-spacing: -0.035em; line-height: 1; margin: 0 0 6px; color: var(--color-text); }
+  .hor-hero-sub { font-size: 13px; color: var(--color-text-muted); font-weight: 600; margin: 0; }
+  .hor-emoji { display: inline-block; animation: horCal 3.4s ease-in-out infinite; transform-origin: 50% 60%; }
+  @keyframes horCal { 0%, 70%, 100% { transform: rotate(0) scale(1); } 15% { transform: rotate(-10deg) scale(1.06); } 30% { transform: rotate(0) scale(1); } 45% { transform: rotate(10deg) scale(1.06); } 55% { transform: rotate(0) scale(1); } }
+
+  .hor-container { max-width: 700px; margin: 0 auto; padding: 0 20px; }
+  .hor-section { margin-top: 24px; }
+  .hor-section-title { font-size: 11px; font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase; color: var(--color-text-muted); margin: 0 0 12px; }
+
+  .hor-msg { background: rgba(255,255,255,0.06); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.08); border-left: 3px solid var(--color-primary); border-radius: 14px; padding: 12px 16px; margin-top: 14px; font-size: 13px; color: var(--color-text); animation: horIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); font-weight: 600; }
+  @keyframes horIn { from { opacity: 0; transform: translateY(-4px); } }
+
+  .hor-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
+  .hor-btn { width: 100%; padding: 12px 14px; border-radius: 14px; font-size: 13px; font-weight: 800; cursor: pointer; font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.2s, border-color 0.2s, transform 0.2s, filter 0.2s; box-sizing: border-box; letter-spacing: 0.01em; }
+  .hor-btn-primary { background: var(--color-primary); color: #1a1a1a; border: none; font-weight: 900; }
+  .hor-btn-primary:hover:not(:disabled) { filter: brightness(1.08); }
+  .hor-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .hor-btn-glass { background: rgba(255,255,255,0.04); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.1); color: var(--color-text); }
+  .hor-btn-glass:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); }
+  .hor-btn-danger { background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.22); color: #f87171; }
+  .hor-btn-danger:hover { background: rgba(239,68,68,0.14); }
+
+  .hor-import { display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.03); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px dashed rgba(255,255,255,0.15); border-radius: 14px; padding: 12px 16px; cursor: pointer; transition: background 0.2s, border-color 0.2s; }
+  .hor-import:hover { background: rgba(255,255,255,0.06); border-color: var(--color-primary); }
+  .hor-import-icon { font-size: 22px; }
+  .hor-import-txt { flex: 1; text-align: center; }
+  .hor-import-title { font-size: 13px; font-weight: 800; color: var(--color-text); margin: 0 0 2px; }
+  .hor-import-sub { font-size: 11px; color: var(--color-text-muted); margin: 0; font-weight: 600; }
+
+  .hor-tip-ufro { background: rgba(46,125,209,0.1); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(46,125,209,0.25); border-left: 3px solid #60a5fa; border-radius: 14px; padding: 14px 16px; margin-top: 14px; }
+  .hor-tip-ufro-title { font-size: 10px; font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase; color: #60a5fa; margin: 0 0 8px; }
+  .hor-tip-ufro-desc { font-size: 12px; color: var(--color-text-muted); line-height: 1.5; margin: 0 0 10px; font-weight: 600; }
+  .hor-tip-ufro-steps { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--color-text-muted); margin-bottom: 12px; font-weight: 600; }
+  .hor-tip-ufro-steps strong { color: var(--color-text); font-weight: 800; }
+  .hor-tip-ufro-link { display: inline-block; background: rgba(46,125,209,0.18); border: 1px solid rgba(46,125,209,0.4); border-radius: 10px; padding: 7px 14px; color: #60a5fa; font-size: 12px; font-weight: 800; text-decoration: none; letter-spacing: 0.02em; transition: background 0.2s, transform 0.2s; }
+  .hor-tip-ufro-link:hover { background: rgba(46,125,209,0.28); transform: translateX(2px); }
+
+  .hor-preview { background: rgba(255,255,255,0.04); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.08); border-left: 3px solid var(--color-primary); border-radius: 18px; padding: 18px; margin-top: 18px; animation: horIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .hor-preview-title { font-size: 11px; font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase; color: var(--color-primary); margin: 0 0 14px; }
+  .hor-preview-list { display: flex; flex-direction: column; gap: 6px; max-height: 300px; overflow-y: auto; margin-bottom: 14px; }
+  .hor-preview-actions { display: flex; gap: 8px; }
+
+  .hor-block { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.04); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.08); border-left: 3px solid var(--tipo-color, var(--color-primary)); border-radius: 12px; padding: 10px 14px; cursor: pointer; transition: background 0.2s, border-color 0.2s, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .hor-block:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.18); transform: translateX(2px); }
+  .hor-block-hora { font-size: 11px; color: var(--color-text-muted); min-width: 88px; font-weight: 800; letter-spacing: 0.04em; }
+  .hor-block-info { flex: 1; min-width: 0; }
+  .hor-block-name { font-size: 13px; font-weight: 800; color: var(--color-text); letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hor-block-meta { font-size: 11px; color: var(--color-text-muted); margin-top: 1px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hor-block-tipo { font-size: 10px; color: var(--tipo-color, var(--color-primary)); font-weight: 800; letter-spacing: 0.04em; }
+  .hor-block-del { background: none; border: none; color: rgba(255,255,255,0.3); cursor: pointer; font-size: 15px; padding: 4px; transition: color 0.2s; font-family: inherit; }
+  .hor-block-del:hover { color: #f87171; }
+
+  .hor-dia-label { font-size: 10px; font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase; color: var(--color-text-muted); margin: 0 0 8px; }
+  .hor-dia-bloque { margin-bottom: 16px; }
+  .hor-dia-lista { display: flex; flex-direction: column; gap: 6px; }
+
+  .hor-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
+  .hor-toolbar-title { font-size: 11px; font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase; color: var(--color-text-muted); margin: 0; }
+  .hor-toolbar-switch { display: flex; gap: 2px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 3px; }
+  .hor-toolbar-switch button { padding: 5px 12px; border-radius: 8px; border: none; background: transparent; color: var(--color-text-muted); font-size: 13px; cursor: pointer; font-family: inherit; transition: background 0.2s, color 0.2s; }
+  .hor-toolbar-switch button.on { background: rgba(255,255,255,0.1); color: var(--color-text); }
+  .hor-legend { display: flex; gap: 10px; flex-wrap: wrap; }
+  .hor-legend-item { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--color-text-muted); font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; }
+  .hor-legend-dot { width: 8px; height: 8px; border-radius: 2px; background: var(--tipo-color, var(--color-primary)); }
+
+  .hor-grid-wrap { overflow-x: auto; background: rgba(255,255,255,0.02); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 8px; scrollbar-width: none; }
+  .hor-grid-wrap::-webkit-scrollbar { display: none; }
+  .hor-grid-hora { font-size: 9px; color: var(--color-text-muted); font-weight: 800; text-align: right; padding-right: 6px; }
+  .hor-grid-dia { font-size: 11px; font-weight: 900; color: var(--color-text-muted); text-align: center; letter-spacing: 0.1em; text-transform: uppercase; }
+  .hor-grid-bloque { position: absolute; border-radius: 8px; background: rgba(255,255,255,0.06); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.12); border-left: 3px solid var(--tipo-color, var(--color-primary)); padding: 4px 6px; overflow: hidden; cursor: pointer; transition: background 0.2s, border-color 0.2s; }
+  .hor-grid-bloque:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.25); }
+  .hor-grid-bloque-name { font-size: 9px; font-weight: 900; color: var(--color-text); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hor-grid-bloque-hora { font-size: 8px; color: var(--color-text-muted); margin-top: 1px; font-weight: 700; }
+  .hor-grid-bloque-sala { font-size: 8px; color: var(--color-text-muted); margin-top: 1px; font-weight: 600; opacity: 0.8; }
+
+  .hor-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; animation: horModalBd 0.2s ease; }
+  @keyframes horModalBd { from { opacity: 0; } }
+  .hor-modal { background: rgba(22,22,34,0.88); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); border: 1px solid rgba(255,255,255,0.1); border-left: 3px solid var(--color-primary); border-radius: 22px; padding: 24px; width: 100%; max-width: 380px; box-sizing: border-box; animation: horModalIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); max-height: 90vh; overflow-y: auto; }
+  @keyframes horModalIn { from { opacity: 0; transform: translateY(12px) scale(0.96); } }
+  .hor-modal-tag { font-size: 10px; font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase; color: var(--color-primary); margin: 0 0 4px; }
+  .hor-modal-title { font-size: 18px; font-weight: 900; color: var(--color-text); margin: 0 0 16px; letter-spacing: -0.02em; }
+  .hor-modal-fields { display: flex; flex-direction: column; gap: 10px; }
+  .hor-input { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 11px 13px; color: var(--color-text); font-size: 14px; outline: none; font-family: inherit; transition: border-color 0.2s, background 0.2s; box-sizing: border-box; width: 100%; }
+  .hor-input:focus { border-color: var(--color-primary); background: rgba(255,255,255,0.09); }
+  .hor-input::placeholder { color: var(--color-text-muted); opacity: 0.6; }
+  .hor-input-row { display: flex; gap: 8px; }
+  .hor-input-row > input { flex: 1; min-width: 0; }
+  .hor-tipo-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+  .hor-tipo-chip { padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.12); background: transparent; color: var(--color-text-muted); font-size: 12px; cursor: pointer; font-weight: 700; font-family: inherit; transition: all 0.2s; letter-spacing: 0.02em; }
+  .hor-tipo-chip:hover { border-color: rgba(255,255,255,0.25); }
+  .hor-tipo-chip.on { color: var(--tipo-color, var(--color-primary)); border-color: var(--tipo-color, var(--color-primary)); background: color-mix(in srgb, var(--tipo-color, var(--color-primary)) 15%, transparent); }
+  .hor-modal-danger { width: 100%; margin-top: 14px; padding: 11px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.28); border-radius: 12px; color: #f87171; font-size: 13px; font-weight: 800; cursor: pointer; font-family: inherit; transition: background 0.2s; letter-spacing: 0.01em; }
+  .hor-modal-danger:hover { background: rgba(239,68,68,0.15); }
+  .hor-modal-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .hor-modal-cancel { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 11px; color: var(--color-text-muted); font-size: 14px; cursor: pointer; font-family: inherit; font-weight: 700; transition: background 0.2s; }
+  .hor-modal-cancel:hover { background: rgba(255,255,255,0.09); }
+  .hor-modal-submit { flex: 2; background: var(--color-primary); color: #1a1a1a; border: none; border-radius: 12px; padding: 11px; font-size: 14px; font-weight: 900; cursor: pointer; font-family: inherit; transition: filter 0.2s; }
+  .hor-modal-submit:hover:not(:disabled) { filter: brightness(1.08); }
+  .hor-modal-submit:disabled { opacity: 0.4; cursor: not-allowed; }
+`
+
 function HorarioScreen({ usuario, onBack, API, authHeaders }) {
   const DIAS_ORDEN = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
   const TIPOS = [
-    { value: 'clase', label: 'Clase', color: '#6c63ff' },
+    { value: 'clase', label: 'Clase', color: 'var(--color-primary)' },
     { value: 'topon', label: 'Topón', color: '#f59e0b' },
     { value: 'ayudantia', label: 'Ayudantía', color: '#a3e635' },
     { value: 'prueba', label: 'Prueba', color: '#f97316' },
@@ -1033,255 +1524,343 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
     ? [...new Set([...DIAS_SEMANA, ...horario.map(h => h.dia)])].sort((a,b) => DIAS_ORDEN.indexOf(a) - DIAS_ORDEN.indexOf(b))
     : DIAS_SEMANA
 
-  const getTipoColor = (tipo) => TIPOS.find(t => t.value === tipo)?.color || '#6c63ff'
+  const getTipoColor = (tipo) => TIPOS.find(t => t.value === tipo)?.color || 'var(--color-primary)'
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', padding: '52px 16px 100px' }}>
-      <div style={{ maxWidth: 700, margin: '0 auto' }}>
-        <div style={{ marginBottom: 20 }}>
-          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>📅 Mi Horario</h2>
+    <>
+      <style>{HORARIO_CSS}</style>
+      <div className="hor-root">
+        <div className="hor-hero">
+          <h1><span className="hor-emoji">📅</span> Mi Horario</h1>
+          <p className="hor-hero-sub">Organiza tus clases, ayudantías y pruebas por semana</p>
         </div>
 
-        {mensaje && (
-          <div style={{ background: 'rgba(255,255,255,0.07)', borderRadius: 12, padding: '12px 16px', marginBottom: 16, fontSize: 14 }}>{mensaje}</div>
-        )}
+        <div className="hor-container">
+          {mensaje && <div className="hor-msg">{mensaje}</div>}
 
-        {/* Subir imagen */}
-        {horario.length > 0 && (
-          <button onClick={borrarHorario} style={{ width: '100%', marginBottom: 12, padding: '10px', background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 12, color: '#f87171', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-            🗑️ Borrar horario completo
-          </button>
-        )}
-        <button onClick={() => abrirNuevoBloque('Lunes', '')} style={{ width: '100%', marginBottom: 12, padding: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, color: colorTextoSobreHeader(usuario?.universidad), fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-          ➕ Agregar bloque manualmente
-        </button>
-        <div onClick={() => inputRef.current.click()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, background: 'rgba(255,255,255,0.04)', border: '1px dashed rgba(255,255,255,0.12)', borderRadius: 12, padding: '10px 14px', cursor: 'pointer', marginBottom: 16, transition: 'all 0.2s' }}>
-          <span style={{ fontSize: 18 }}>{extrayendo ? '⏳' : '📸'}</span>
-          <div style={{ textAlign: 'center' }}>
-            <p style={{ margin: 0, fontWeight: 600, fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>{extrayendo ? 'Analizando...' : 'Importar desde foto, PDF o Excel'}</p>
-            <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>La IA detecta tus ramos automáticamente</p>
-          </div>
-          <input ref={inputRef} type="file" accept="image/*,.pdf,.xls,.xlsx" style={{ display: 'none' }} onChange={handleImagen} />
-        </div>
-
-        {/* Tip específico UFRO */}
-        {usuario?.universidad === 'ufro' && horario.length === 0 && (
-          <div style={{ background: 'rgba(0,100,200,0.08)', border: '1px solid rgba(0,150,255,0.2)', borderRadius: 12, padding: '12px 16px', marginBottom: 16 }}>
-            <p style={{ margin: '0 0 6px', fontWeight: 700, fontSize: 13, color: '#60a5fa' }}>🎓 Tip para estudiantes UFRO</p>
-            <p style={{ margin: '0 0 8px', fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>
-              Descarga tu horario en Excel desde la Intranet para importarlo automáticamente:
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 10 }}>
-              <span>1️⃣ Intranet → Alumno → Horarios</span>
-              <span>2️⃣ Haz clic en <strong style={{color:'rgba(255,255,255,0.6)'}}>Exportar a Excel</strong></span>
-              <span>3️⃣ Sube el archivo .xls aquí arriba ⬆️</span>
-            </div>
-            <a href="https://intranet.ufro.cl/alumno/ver_horario.php" target="_blank" rel="noopener noreferrer"
-              style={{ display: 'inline-block', background: 'rgba(0,150,255,0.15)', border: '1px solid rgba(0,150,255,0.3)', borderRadius: 8, padding: '6px 12px', color: '#60a5fa', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
-              🔗 Ir a Intranet UFRO →
-            </a>
-          </div>
-        )}
-
-        {/* Preview bloques extraídos */}
-        {bloquesPreview && (
-          <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 16, padding: 20, marginBottom: 24 }}>
-            <h3 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 700 }}>✨ Bloques detectados ({bloquesPreview.length})</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 300, overflowY: 'auto', marginBottom: 16 }}>
-              {bloquesPreview.map((b, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '10px 14px', borderLeft: '3px solid ' + getTipoColor(b.tipo) }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: 13 }}>{b.ramo_nombre}</div>
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>{b.dia} · {b.hora_inicio}–{b.hora_fin} {b.sala ? '· ' + b.sala : ''}</div>
-                  </div>
-                  <div style={{ fontSize: 11, color: getTipoColor(b.tipo), fontWeight: 600 }}>{TIPOS.find(t=>t.value===b.tipo)?.label}</div>
-                </div>
-              ))}
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setBloquesPreview(null)} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: 12, color: 'rgba(255,255,255,0.5)', fontSize: 14, cursor: 'pointer' }}>Cancelar</button>
-              <button onClick={confirmarHorario} disabled={guardando} style={{ flex: 2, background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', border: 'none', borderRadius: 12, padding: 12, color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
-                {guardando ? 'Guardando...' : '✅ Confirmar y guardar'}
+          <div className="hor-actions">
+            {horario.length > 0 && (
+              <button className="hor-btn hor-btn-danger" onClick={borrarHorario}>
+                🗑️ Borrar horario completo
               </button>
+            )}
+            <button className="hor-btn hor-btn-glass" onClick={() => abrirNuevoBloque('Lunes', '')}>
+              ➕ Agregar bloque manualmente
+            </button>
+            <div className="hor-import" onClick={() => inputRef.current.click()}>
+              <span className="hor-import-icon">{extrayendo ? '⏳' : '📸'}</span>
+              <div className="hor-import-txt">
+                <div className="hor-import-title">{extrayendo ? 'Analizando...' : 'Importar desde foto, PDF o Excel'}</div>
+                <div className="hor-import-sub">La IA detecta tus ramos automáticamente</div>
+              </div>
+              <input ref={inputRef} type="file" accept="image/*,.pdf,.xls,.xlsx" style={{ display: 'none' }} onChange={handleImagen} />
             </div>
           </div>
-        )}
 
-        {/* Horario guardado */}
-        {!bloquesPreview && (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>{horario.length > 0 ? 'Tu horario actual' : 'Toca cualquier celda para agregar una clase'}</h3>
-              <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 10, padding: 3 }}>
-                <button onClick={() => setVistaGrid(false)} style={{ padding: '5px 10px', borderRadius: 8, border: 'none', background: !vistaGrid ? 'rgba(255,255,255,0.12)' : 'transparent', color: !vistaGrid ? 'white' : 'rgba(255,255,255,0.4)', fontSize: 13, cursor: 'pointer' }}>☰</button>
-                <button onClick={() => setVistaGrid(true)} style={{ padding: '5px 10px', borderRadius: 8, border: 'none', background: vistaGrid ? 'rgba(255,255,255,0.12)' : 'transparent', color: vistaGrid ? 'white' : 'rgba(255,255,255,0.4)', fontSize: 13, cursor: 'pointer' }}>⊞</button>
+          {usuario?.universidad === 'ufro' && horario.length === 0 && (
+            <div className="hor-tip-ufro">
+              <div className="hor-tip-ufro-title">🎓 Tip para estudiantes UFRO</div>
+              <p className="hor-tip-ufro-desc">Descarga tu horario en Excel desde la Intranet para importarlo automáticamente:</p>
+              <div className="hor-tip-ufro-steps">
+                <span>1️⃣ Intranet → Alumno → Horarios</span>
+                <span>2️⃣ Haz clic en <strong>Exportar a Excel</strong></span>
+                <span>3️⃣ Sube el archivo .xls aquí arriba ⬆️</span>
               </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {TIPOS.map(t => (
-                  <div key={t.value} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
-                    <div style={{ width: 8, height: 8, borderRadius: 2, background: t.color }} />{t.label}
+              <a href="https://intranet.ufro.cl/alumno/ver_horario.php" target="_blank" rel="noopener noreferrer" className="hor-tip-ufro-link">
+                🔗 Ir a Intranet UFRO →
+              </a>
+            </div>
+          )}
+
+          {bloquesPreview && (
+            <div className="hor-preview">
+              <div className="hor-preview-title">✨ Bloques detectados ({bloquesPreview.length})</div>
+              <div className="hor-preview-list">
+                {bloquesPreview.map((b, i) => (
+                  <div key={i} className="hor-block" style={{ '--tipo-color': getTipoColor(b.tipo), cursor: 'default' }}>
+                    <div className="hor-block-info">
+                      <div className="hor-block-name">{b.ramo_nombre}</div>
+                      <div className="hor-block-meta">{b.dia} · {b.hora_inicio}–{b.hora_fin} {b.sala ? '· ' + b.sala : ''}</div>
+                    </div>
+                    <div className="hor-block-tipo">{TIPOS.find(t=>t.value===b.tipo)?.label}</div>
                   </div>
                 ))}
               </div>
-            </div>
-            {!vistaGrid ? (
-              diasConClases.map(dia => (
-                <div key={dia} style={{ marginBottom: 16 }}>
-                  <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 1 }}>{dia}</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {horario.filter(h => h.dia === dia).sort((a,b) => (a.hora_inicio||'').localeCompare(b.hora_inicio||'')).map(h => (
-                      <div key={h.id} onClick={() => abrirEditar(h)} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: '10px 14px', borderLeft: '3px solid ' + getTipoColor(h.tipo), cursor: 'pointer' }}>
-                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', minWidth: 90, fontWeight: 600 }}>{h.hora_inicio}–{h.hora_fin}</div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 700, fontSize: 13 }}>{h.ramo_nombre}</div>
-                          {(h.codigo || h.sala) && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>{[h.codigo, h.sala].filter(Boolean).join(' · ')}</div>}
-                        </div>
-                        <button onClick={e => { e.stopPropagation(); eliminarBloque(h.id) }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.2)', cursor: 'pointer', fontSize: 16, padding: 4 }}>✕</button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div style={{ overflowX: 'auto' }}>
-                {(() => {
-                  const toMinCalc = h => { if (!h) return 0; const [hh,mm] = h.split(':').map(Number); return hh*60+(mm||0) }
-                  const minutosOcupados = horario.flatMap(h => [toMinCalc(h.hora_inicio), toMinCalc(h.hora_fin)]).filter(Boolean)
-                  const HORA_INICIO = minutosOcupados.length ? Math.max(0, Math.floor((Math.min(...minutosOcupados) - 30) / 30) * 30) : 8 * 60
-                  const HORA_FIN = minutosOcupados.length ? Math.min(24*60, Math.ceil((Math.max(...minutosOcupados) + 30) / 30) * 30) : 21 * 60 + 30
-                  const TOTAL_MIN = HORA_FIN - HORA_INICIO
-                  const PX_POR_MIN = 1.0
-                  const ALTURA = TOTAL_MIN * PX_POR_MIN
-                  const COL_HORA = 52
-                  const toMin = toMinCalc
-                  const horas = []
-                  for (let m = HORA_INICIO; m <= HORA_FIN; m += 30) {
-                    const hh = String(Math.floor(m/60)).padStart(2,'0')
-                    const mm = String(m%60).padStart(2,'0')
-                    horas.push(hh+':'+mm)
-                  }
-                  // deduplicar bloques por id
-                  const vistos = new Set()
-                  const horarioUnico = horario.filter(h => { if (vistos.has(h.id)) return false; vistos.add(h.id); return true })
-                  return (
-                    <div style={{ display: 'flex', minWidth: 340 }}>
-                      {/* Columna horas */}
-                      <div style={{ width: COL_HORA, flexShrink: 0, position: 'relative', height: ALTURA + 24 }}>
-                        <div style={{ height: 24 }} />
-                        <div style={{ position: 'relative', height: ALTURA }}>
-                          {horas.map(h => (
-                            <div key={h} style={{ position: 'absolute', top: (toMin(h) - HORA_INICIO) * PX_POR_MIN, left: 0, right: 0, fontSize: 9, color: 'rgba(255,255,255,0.3)', fontWeight: 600, paddingRight: 6, textAlign: 'right', lineHeight: 1 }}>{h}</div>
-                          ))}
-                        </div>
-                      </div>
-                      {/* Columnas días */}
-                      {diasConClases.map(dia => {
-                        const bloquesDia = horarioUnico.filter(h => h.dia === dia)
-                        return (
-                          <div key={dia} style={{ flex: 1, minWidth: 60, display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.6)' }}>{dia.slice(0,3)}</div>
-                            <div style={{ position: 'relative', height: ALTURA, borderLeft: '1px solid rgba(255,255,255,0.06)' }}>
-                              {/* Líneas de hora */}
-                              {horas.map(h => (
-                                <div key={h} style={{ position: 'absolute', top: (toMin(h) - HORA_INICIO) * PX_POR_MIN, left: 0, right: 0, borderTop: '1px solid rgba(255,255,255,0.04)', cursor: 'pointer' }}
-                                  onClick={() => abrirNuevoBloque(dia, h, horas[horas.indexOf(h)+2] || '')}
-                                />
-                              ))}
-                              {/* Zona clickeable fondo */}
-                              <div style={{ position: 'absolute', inset: 0, cursor: 'pointer' }}
-                                onClick={e => {
-                                  const rect = e.currentTarget.getBoundingClientRect()
-                                  const y = e.clientY - rect.top
-                                  const minutos = Math.round(y / PX_POR_MIN / 10) * 10 + HORA_INICIO
-                                  const hh = String(Math.floor(minutos/60)).padStart(2,'0')
-                                  const mm = String(minutos%60).padStart(2,'0')
-                                  const horaClick = hh+':'+mm
-                                  const finMin = minutos + 60
-                                  const hf = String(Math.floor(finMin/60)).padStart(2,'0')
-                                  const mf = String(finMin%60).padStart(2,'0')
-                                  abrirNuevoBloque(dia, horaClick, hf+':'+mf)
-                                }}
-                              />
-                              {/* Bloques */}
-                              {bloquesDia.map(b => {
-                                const top = (toMin(b.hora_inicio) - HORA_INICIO) * PX_POR_MIN
-                                const dur = toMin(b.hora_fin) - toMin(b.hora_inicio)
-                                const height = Math.max(dur * PX_POR_MIN - 3, 20)
-                                const color = getTipoColor(b.tipo)
-                                return (
-                                  <div key={b.id} onClick={e => { e.stopPropagation(); abrirEditar(b) }}
-                                    style={{ position: 'absolute', top, left: 2, right: 2, height, borderRadius: 6, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer', padding: '3px 5px', overflow: 'hidden', zIndex: 2 }}>
-                                    <div style={{ fontSize: 9, fontWeight: 800, color: colorTextoSobreHeader(usuario?.universidad), lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.ramo_nombre}</div>
-                                    <div style={{ fontSize: 8, color: colorTextoSobreHeader(usuario?.universidad), opacity: 0.85, marginTop: 1 }}>{b.hora_inicio}–{b.hora_fin}</div>
-                                    {b.sala && <div style={{ fontSize: 8, color: colorTextoSobreHeader(usuario?.universidad), opacity: 0.65, marginTop: 1 }}>{b.sala}</div>}
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )
-                })()}
+              <div className="hor-preview-actions">
+                <button className="hor-btn hor-btn-glass" style={{ flex: 1 }} onClick={() => setBloquesPreview(null)}>Cancelar</button>
+                <button className="hor-btn hor-btn-primary" style={{ flex: 2 }} disabled={guardando} onClick={confirmarHorario}>
+                  {guardando ? 'Guardando...' : '✅ Confirmar y guardar'}
+                </button>
               </div>
-            )}
+            </div>
+          )}
+
+          {!bloquesPreview && (
+            <div className="hor-section">
+              <div className="hor-toolbar">
+                <h4 className="hor-toolbar-title">{horario.length > 0 ? '🗓 Tu horario actual' : 'Toca cualquier celda para agregar'}</h4>
+                <div className="hor-toolbar-switch">
+                  <button className={!vistaGrid ? 'on' : ''} onClick={() => setVistaGrid(false)}>☰</button>
+                  <button className={vistaGrid ? 'on' : ''} onClick={() => setVistaGrid(true)}>⊞</button>
+                </div>
+                <div className="hor-legend">
+                  {TIPOS.map(t => (
+                    <div key={t.value} className="hor-legend-item" style={{ '--tipo-color': t.color }}>
+                      <span className="hor-legend-dot" />
+                      {t.label}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {!vistaGrid ? (
+                diasConClases.map(dia => (
+                  <div key={dia} className="hor-dia-bloque">
+                    <div className="hor-dia-label">{dia}</div>
+                    <div className="hor-dia-lista">
+                      {horario.filter(h => h.dia === dia).sort((a,b) => (a.hora_inicio||'').localeCompare(b.hora_inicio||'')).map(h => (
+                        <div key={h.id} className="hor-block" style={{ '--tipo-color': getTipoColor(h.tipo) }} onClick={() => abrirEditar(h)}>
+                          <div className="hor-block-hora">{h.hora_inicio}–{h.hora_fin}</div>
+                          <div className="hor-block-info">
+                            <div className="hor-block-name">{h.ramo_nombre}</div>
+                            {(h.codigo || h.sala) && <div className="hor-block-meta">{[h.codigo, h.sala].filter(Boolean).join(' · ')}</div>}
+                          </div>
+                          <button className="hor-block-del" onClick={e => { e.stopPropagation(); eliminarBloque(h.id) }}>✕</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="hor-grid-wrap">
+                  {(() => {
+                    const toMinCalc = h => { if (!h) return 0; const [hh,mm] = h.split(':').map(Number); return hh*60+(mm||0) }
+                    const minutosOcupados = horario.flatMap(h => [toMinCalc(h.hora_inicio), toMinCalc(h.hora_fin)]).filter(Boolean)
+                    const HORA_INICIO = minutosOcupados.length ? Math.max(0, Math.floor((Math.min(...minutosOcupados) - 30) / 30) * 30) : 8 * 60
+                    const HORA_FIN = minutosOcupados.length ? Math.min(24*60, Math.ceil((Math.max(...minutosOcupados) + 30) / 30) * 30) : 21 * 60 + 30
+                    const TOTAL_MIN = HORA_FIN - HORA_INICIO
+                    const PX_POR_MIN = 1.0
+                    const ALTURA = TOTAL_MIN * PX_POR_MIN
+                    const COL_HORA = 52
+                    const toMin = toMinCalc
+                    const horas = []
+                    for (let m = HORA_INICIO; m <= HORA_FIN; m += 30) {
+                      const hh = String(Math.floor(m/60)).padStart(2,'0')
+                      const mm = String(m%60).padStart(2,'0')
+                      horas.push(hh+':'+mm)
+                    }
+                    const vistos = new Set()
+                    const horarioUnico = horario.filter(h => { if (vistos.has(h.id)) return false; vistos.add(h.id); return true })
+                    return (
+                      <div style={{ display: 'flex', minWidth: 340 }}>
+                        <div style={{ width: COL_HORA, flexShrink: 0, position: 'relative', height: ALTURA + 24 }}>
+                          <div style={{ height: 24 }} />
+                          <div style={{ position: 'relative', height: ALTURA }}>
+                            {horas.map(h => (
+                              <div key={h} className="hor-grid-hora" style={{ position: 'absolute', top: (toMin(h) - HORA_INICIO) * PX_POR_MIN, left: 0, right: 0, lineHeight: 1 }}>{h}</div>
+                            ))}
+                          </div>
+                        </div>
+                        {diasConClases.map(dia => {
+                          const bloquesDia = horarioUnico.filter(h => h.dia === dia)
+                          return (
+                            <div key={dia} style={{ flex: 1, minWidth: 60, display: 'flex', flexDirection: 'column' }}>
+                              <div className="hor-grid-dia" style={{ height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{dia.slice(0,3)}</div>
+                              <div style={{ position: 'relative', height: ALTURA, borderLeft: '1px solid rgba(255,255,255,0.06)' }}>
+                                {horas.map(h => (
+                                  <div key={h} style={{ position: 'absolute', top: (toMin(h) - HORA_INICIO) * PX_POR_MIN, left: 0, right: 0, borderTop: '1px solid rgba(255,255,255,0.04)', cursor: 'pointer' }}
+                                    onClick={() => abrirNuevoBloque(dia, h, horas[horas.indexOf(h)+2] || '')}
+                                  />
+                                ))}
+                                <div style={{ position: 'absolute', inset: 0, cursor: 'pointer' }}
+                                  onClick={e => {
+                                    const rect = e.currentTarget.getBoundingClientRect()
+                                    const y = e.clientY - rect.top
+                                    const minutos = Math.round(y / PX_POR_MIN / 10) * 10 + HORA_INICIO
+                                    const hh = String(Math.floor(minutos/60)).padStart(2,'0')
+                                    const mm = String(minutos%60).padStart(2,'0')
+                                    const horaClick = hh+':'+mm
+                                    const finMin = minutos + 60
+                                    const hf = String(Math.floor(finMin/60)).padStart(2,'0')
+                                    const mf = String(finMin%60).padStart(2,'0')
+                                    abrirNuevoBloque(dia, horaClick, hf+':'+mf)
+                                  }}
+                                />
+                                {bloquesDia.map(b => {
+                                  const top = (toMin(b.hora_inicio) - HORA_INICIO) * PX_POR_MIN
+                                  const dur = toMin(b.hora_fin) - toMin(b.hora_inicio)
+                                  const height = Math.max(dur * PX_POR_MIN - 3, 20)
+                                  return (
+                                    <div key={b.id} className="hor-grid-bloque" onClick={e => { e.stopPropagation(); abrirEditar(b) }}
+                                      style={{ top, left: 2, right: 2, height, zIndex: 2, '--tipo-color': getTipoColor(b.tipo) }}>
+                                      <div className="hor-grid-bloque-name">{b.ramo_nombre}</div>
+                                      <div className="hor-grid-bloque-hora">{b.hora_inicio}–{b.hora_fin}</div>
+                                      {b.sala && <div className="hor-grid-bloque-sala">{b.sala}</div>}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )
+                  })()}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Modal editar bloque */}
+        {editandoBloque && (
+          <div className="hor-modal-backdrop" onClick={() => setEditandoBloque(null)}>
+            <div className="hor-modal" onClick={e => e.stopPropagation()}>
+              <div className="hor-modal-tag">{editandoBloque?._nuevo ? '➕ Nuevo bloque' : '✏️ Editando'}</div>
+              <h3 className="hor-modal-title">{editandoBloque?._nuevo ? 'Agrega un bloque a tu horario' : 'Edita tu bloque'}</h3>
+              <div className="hor-modal-fields">
+                <input className="hor-input" placeholder="Nombre del ramo *" value={formBloque.ramo_nombre} onChange={e => setFormBloque({...formBloque, ramo_nombre: e.target.value})} />
+                <select className="hor-input" value={formBloque.dia} onChange={e => setFormBloque({...formBloque, dia: e.target.value})}>
+                  {['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'].map(d => <option key={d} value={d} style={{ background: 'var(--bg-card)' }}>{d}</option>)}
+                </select>
+                <div className="hor-input-row">
+                  <input className="hor-input" placeholder="Inicio (08:30)" value={formBloque.hora_inicio} onChange={e => setFormBloque({...formBloque, hora_inicio: e.target.value})} />
+                  <input className="hor-input" placeholder="Fin (09:30)" value={formBloque.hora_fin} onChange={e => setFormBloque({...formBloque, hora_fin: e.target.value})} />
+                </div>
+                <input className="hor-input" placeholder="Sala (ej: RA-2003)" value={formBloque.sala} onChange={e => setFormBloque({...formBloque, sala: e.target.value})} />
+                <input className="hor-input" placeholder="Código (ej: IME086-6)" value={formBloque.codigo} onChange={e => setFormBloque({...formBloque, codigo: e.target.value})} />
+                <div className="hor-tipo-chips">
+                  {TIPOS.map(t => (
+                    <button key={t.value} className={`hor-tipo-chip ${formBloque.tipo === t.value ? 'on' : ''}`} style={{ '--tipo-color': t.color }} onClick={() => setFormBloque({...formBloque, tipo: t.value})}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {!editandoBloque?._nuevo && (
+                <button className="hor-modal-danger" onClick={async () => { if(window.confirm('¿Eliminar este bloque?')) { await eliminarBloque(editandoBloque.id); setEditandoBloque(null) } }}>
+                  🗑️ Eliminar bloque
+                </button>
+              )}
+              <div className="hor-modal-actions">
+                <button className="hor-modal-cancel" onClick={() => setEditandoBloque(null)}>Cancelar</button>
+                <button className="hor-modal-submit" onClick={guardarEdicion} disabled={guardando || !formBloque.ramo_nombre.trim()}>
+                  {guardando ? 'Guardando...' : '💾 Guardar'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
-
-      {/* Modal editar bloque */}
-      {editandoBloque && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
-          <div style={{ background: 'var(--bg-secondary)', borderRadius: 20, padding: 24, width: '100%', maxWidth: 360 }}>
-            <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 800 }}>{editandoBloque?._nuevo ? '➕ Nuevo bloque' : '✏️ Editar bloque'}</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <input placeholder="Nombre del ramo *" value={formBloque.ramo_nombre} onChange={e => setFormBloque({...formBloque, ramo_nombre: e.target.value})}
-                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 12px', color: 'white', fontSize: 14, outline: 'none' }} />
-              <select value={formBloque.dia} onChange={e => setFormBloque({...formBloque, dia: e.target.value})}
-                style={{ background: 'var(--bg-card)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 12px', color: 'white', fontSize: 14, outline: 'none' }}>
-                {['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'].map(d => <option key={d} value={d} style={{ background: 'var(--bg-card)' }}>{d}</option>)}
-              </select>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input placeholder="Inicio (08:30)" value={formBloque.hora_inicio} onChange={e => setFormBloque({...formBloque, hora_inicio: e.target.value})}
-                  style={{ flex: 1, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 12px', color: 'white', fontSize: 14, outline: 'none' }} />
-                <input placeholder="Fin (09:30)" value={formBloque.hora_fin} onChange={e => setFormBloque({...formBloque, hora_fin: e.target.value})}
-                  style={{ flex: 1, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 12px', color: 'white', fontSize: 14, outline: 'none' }} />
-              </div>
-              <input placeholder="Sala (ej: RA-2003)" value={formBloque.sala} onChange={e => setFormBloque({...formBloque, sala: e.target.value})}
-                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 12px', color: 'white', fontSize: 14, outline: 'none' }} />
-              <input placeholder="Código (ej: IME086-6)" value={formBloque.codigo} onChange={e => setFormBloque({...formBloque, codigo: e.target.value})}
-                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 12px', color: 'white', fontSize: 14, outline: 'none' }} />
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {[{value:'clase',label:'Clase',color:'#6c63ff'},{value:'topon',label:'Topón',color:'#f59e0b'},{value:'ayudantia',label:'Ayudantía',color:'#a3e635'},{value:'prueba',label:'Prueba',color:'#f97316'},{value:'otra',label:'Otra',color:'#86efac'}].map(t => (
-                  <button key={t.value} onClick={() => setFormBloque({...formBloque, tipo: t.value})}
-                    style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid ' + (formBloque.tipo === t.value ? t.color : 'rgba(255,255,255,0.1)'),
-                      background: formBloque.tipo === t.value ? t.color + '33' : 'transparent', color: formBloque.tipo === t.value ? t.color : 'rgba(255,255,255,0.5)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {!editandoBloque?._nuevo && (
-              <button onClick={async () => { if(window.confirm('¿Eliminar este bloque?')) { await eliminarBloque(editandoBloque.id); setEditandoBloque(null) } }}
-                style={{ width: '100%', marginTop: 16, padding: 12, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 12, color: '#f87171', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
-                🗑️ Eliminar bloque
-              </button>
-            )}
-            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-              <button onClick={() => setEditandoBloque(null)}
-                style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: 12, color: 'rgba(255,255,255,0.5)', fontSize: 14, cursor: 'pointer' }}>Cancelar</button>
-              <button onClick={guardarEdicion} disabled={guardando || !formBloque.ramo_nombre.trim()}
-                style={{ flex: 2, background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', border: 'none', borderRadius: 12, padding: 12, color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: !formBloque.ramo_nombre.trim() ? 0.5 : 1 }}>
-                {guardando ? 'Guardando...' : '💾 Guardar cambios'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    </>
   )
 }
+
+const RAMOS_CSS = `
+  .ramos-root { background: transparent; padding: 0 0 120px; height: 100vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .ramos-hero { padding: 56px 20px 8px; }
+  .ramos-hero h1 { font-size: 32px; font-weight: 900; letter-spacing: -0.035em; line-height: 1; margin: 0 0 6px; color: var(--color-text); }
+  .ramos-emoji { display: inline-block; animation: ramosBook 3.2s ease-in-out infinite; transform-origin: 50% 85%; }
+  @keyframes ramosBook { 0%, 65%, 100% { transform: translateY(0) rotate(0); } 10% { transform: translateY(-5px) rotate(-7deg); } 20% { transform: translateY(0) rotate(0); } 30% { transform: translateY(-5px) rotate(7deg); } 40% { transform: translateY(0) rotate(0); } }
+  .ramos-hero-sub { font-size: 13px; color: var(--color-text-muted); font-weight: 600; margin: 0; }
+  .ramos-hero-sub strong { color: var(--color-text); font-weight: 800; }
+
+  .ramos-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; padding: 20px 20px 0; }
+  .ramos-stat { position: relative; padding: 14px 10px; background: rgba(255,255,255,0.04); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; text-align: center; overflow: hidden; animation: ramosStatIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) backwards; }
+  .ramos-stat:nth-child(2) { animation-delay: 0.08s; }
+  .ramos-stat:nth-child(3) { animation-delay: 0.16s; }
+  @keyframes ramosStatIn { from { opacity: 0; transform: scale(0.85); } }
+  .ramos-stat::after { content: ''; position: absolute; top: 0; left: 0; width: 3px; height: 100%; background: var(--sv, var(--color-primary)); }
+  .ramos-stat-val { font-size: 26px; font-weight: 900; letter-spacing: -0.03em; line-height: 1; color: var(--sv, var(--color-text)); }
+  .ramos-stat-lbl { margin-top: 6px; font-size: 9px; font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase; color: var(--color-text-muted); }
+  .ramos-stat.ok { --sv: #34d399; }
+  .ramos-stat.warn { --sv: #fbbf24; }
+  .ramos-stat.risk { --sv: #f87171; }
+
+  .ramos-section { padding: 28px 20px 0; }
+  .ramos-section-tight { padding-top: 20px; }
+  .ramos-section-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .ramos-section-title h4 { font-size: 11px; font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase; color: var(--color-text-muted); margin: 0; }
+
+  .ramos-proxs-scroll { display: flex; gap: 10px; overflow-x: auto; margin: 0 -20px; padding: 4px 20px 12px; scroll-snap-type: x mandatory; scrollbar-width: none; }
+  .ramos-proxs-scroll::-webkit-scrollbar { display: none; }
+  .ramos-proxs-card { flex: 0 0 162px; scroll-snap-align: start; position: relative; background: rgba(255,255,255,0.04); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 12px 14px; cursor: pointer; overflow: hidden; transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.35s; }
+  .ramos-proxs-card::after { content: ''; position: absolute; top: 0; left: 0; width: 3px; height: 100%; background: var(--urg-color, #34d399); box-shadow: 0 0 12px var(--urg-color, rgba(52,211,153,0.6)); }
+  .ramos-proxs-card:hover { transform: translateY(-3px); border-color: rgba(255,255,255,0.18); }
+  .ramos-proxs-card.urg-risk { --urg-color: #f87171; }
+  .ramos-proxs-card.urg-warn { --urg-color: #fbbf24; }
+  .ramos-proxs-card.urg-ok { --urg-color: #34d399; }
+  .ramos-proxs-name { font-size: 12px; font-weight: 800; letter-spacing: -0.01em; color: var(--color-text); margin: 0 0 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ramos-proxs-ramo { font-size: 10px; color: var(--color-text-muted); margin: 0 0 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+  .ramos-proxs-foot { display: flex; justify-content: space-between; align-items: center; }
+  .ramos-proxs-dias { font-size: 12px; font-weight: 900; color: var(--urg-color, #34d399); letter-spacing: -0.01em; }
+  .ramos-proxs-pond { font-size: 9px; font-weight: 800; color: var(--color-text-muted); letter-spacing: 0.06em; }
+
+  .ramos-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .ramos-card { position: relative; background: rgba(255,255,255,0.04); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 10px; overflow: hidden; cursor: pointer; transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.35s; animation: ramosCardIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) backwards; }
+  @keyframes ramosCardIn { from { opacity: 0; transform: translateY(10px); } }
+  .ramos-card::after { content: ''; position: absolute; top: 0; left: 0; width: 3px; height: 100%; background: var(--accent); }
+  .ramos-card:hover { transform: translateY(-4px); border-color: rgba(255,255,255,0.18); }
+  .ramos-card > * { position: relative; }
+  .ramos-card.accent-cyan { --accent: #06b6d4; --accent-glow: rgba(6,182,212,0.4); }
+  .ramos-card.accent-purple { --accent: #a78bfa; --accent-glow: rgba(167,139,250,0.4); }
+  .ramos-card.accent-pink { --accent: #ec4899; --accent-glow: rgba(236,72,153,0.4); }
+  .ramos-card.accent-orange { --accent: #f97316; --accent-glow: rgba(249,115,22,0.4); }
+  .ramos-card.accent-emerald { --accent: #10b981; --accent-glow: rgba(16,185,129,0.4); }
+  .ramos-card.accent-yellow { --accent: #eab308; --accent-glow: rgba(234,179,8,0.4); }
+  .ramos-card-title { font-size: 11px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.2; margin: 0 0 6px; min-height: 24px; color: var(--color-text); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .ramos-card-nota-wrap { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }
+  .ramos-card-nota { font-size: 22px; font-weight: 900; letter-spacing: -0.03em; line-height: 1; color: #fff; }
+  .ramos-card-nota.nota-ok { color: #34d399; }
+  .ramos-card-nota.nota-warn { color: #fbbf24; }
+  .ramos-card-nota.nota-risk { color: #f87171; }
+  .ramos-card-nota-lbl { font-size: 7px; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-text-muted); }
+  .ramos-card-prog { margin: 6px 0; }
+  .ramos-card-prog-row { display: flex; justify-content: space-between; font-size: 8px; color: var(--color-text-muted); margin-bottom: 2px; font-weight: 700; letter-spacing: 0.03em; }
+  .ramos-card-prog-track { height: 3px; background: rgba(255,255,255,0.06); border-radius: 999px; overflow: hidden; }
+  .ramos-card-prog-fill { height: 100%; background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 60%, white)); border-radius: 999px; box-shadow: 0 0 10px var(--accent-glow); animation: ramosFillIn 1.2s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+  @keyframes ramosFillIn { from { width: 0 !important; } }
+  .ramos-card-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 8px; font-weight: 800; padding: 2px 6px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); }
+  .ramos-card-badge.ok { background: rgba(16,185,129,0.12); color: #34d399; border-color: rgba(16,185,129,0.3); }
+  .ramos-card-badge.warn { background: rgba(245,158,11,0.12); color: #fbbf24; border-color: rgba(245,158,11,0.3); }
+  .ramos-card-badge.risk { background: rgba(239,68,68,0.12); color: #f87171; border-color: rgba(239,68,68,0.3); }
+
+  .ramos-empty { text-align: center; padding: 40px 20px; background: rgba(255,255,255,0.03); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px dashed rgba(255,255,255,0.12); border-radius: 22px; }
+  .ramos-empty-emoji { font-size: 48px; margin-bottom: 10px; display: inline-block; animation: ramosFloaty 3s ease-in-out infinite; }
+  @keyframes ramosFloaty { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+  .ramos-empty-txt { font-size: 15px; color: var(--color-text); font-weight: 800; margin: 0 0 4px; }
+  .ramos-empty-sub { font-size: 12px; color: var(--color-text-muted); margin: 0; font-weight: 600; }
+
+  .ramos-actions { margin-top: 16px; }
+  .ramos-btn-add { width: 100%; padding: 14px; background: color-mix(in srgb, var(--color-primary) 12%, transparent); color: #fff; border: 1px solid var(--color-primary); border-radius: 16px; font-family: inherit; font-weight: 900; font-size: 14px; cursor: pointer; transition: background 0.2s, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+  .ramos-btn-add:hover { background: color-mix(in srgb, var(--color-primary) 20%, transparent); transform: scale(1.01); }
+  .ramos-btn-add:active { transform: scale(0.98); }
+  .ramos-btn-danger { width: 100%; margin-top: 10px; padding: 11px; background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.22); border-radius: 14px; color: #f87171; font-family: inherit; font-size: 12px; font-weight: 800; cursor: pointer; transition: background 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; letter-spacing: 0.02em; }
+  .ramos-btn-danger:hover { background: rgba(239,68,68,0.14); }
+
+  .ramos-form { margin-top: 16px; background: rgba(255,255,255,0.04); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.08); border-left: 3px solid var(--color-primary); border-radius: 22px; padding: 20px; animation: ramosFormIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  @keyframes ramosFormIn { from { opacity: 0; transform: translateY(8px); } }
+  .ramos-form-tag { font-size: 10px; font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase; color: var(--color-primary); margin: 0 0 6px; }
+  .ramos-form-h { font-size: 20px; font-weight: 900; letter-spacing: -0.02em; color: var(--color-text); margin: 0 0 16px; }
+  .ramos-form-field { margin-bottom: 14px; }
+  .ramos-form-label { display: block; font-size: 10px; font-weight: 900; letter-spacing: 0.15em; text-transform: uppercase; color: var(--color-text-muted); margin: 0 0 6px; }
+  .ramos-form-input { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px 14px; font-size: 14px; color: var(--color-text); outline: none; box-sizing: border-box; font-family: inherit; transition: border-color 0.2s, background 0.2s; }
+  .ramos-form-input:focus { border-color: var(--color-primary); background: rgba(255,255,255,0.07); }
+  .ramos-form-toggle { background: none; border: none; color: var(--color-secondary); font-size: 12px; font-weight: 800; cursor: pointer; padding: 0; font-family: inherit; margin-bottom: 10px; letter-spacing: 0.01em; }
+  .ramos-form-check { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px 0; }
+  .ramos-form-check-box { width: 20px; height: 20px; border-radius: 6px; border: 2px solid rgba(255,255,255,0.25); background: transparent; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; }
+  .ramos-form-check-box.on { background: var(--color-accent); border-color: var(--color-accent); }
+  .ramos-form-check-box.on::after { content: '✓'; color: white; font-size: 12px; font-weight: 900; }
+  .ramos-form-check-lbl { font-size: 13px; color: var(--color-text-muted); font-weight: 600; }
+  .ramos-form-actions { display: flex; gap: 10px; margin-top: 4px; }
+  .ramos-form-cancel { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px; color: var(--color-text-muted); font-size: 14px; cursor: pointer; font-family: inherit; font-weight: 700; transition: background 0.2s; }
+  .ramos-form-cancel:hover { background: rgba(255,255,255,0.09); }
+  .ramos-form-submit { flex: 2; background: color-mix(in srgb, var(--color-primary) 18%, transparent); color: var(--color-primary); border: 1px solid var(--color-primary); border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 900; cursor: pointer; font-family: inherit; transition: background 0.2s, transform 0.2s; }
+  .ramos-form-submit:hover { background: color-mix(in srgb, var(--color-primary) 28%, transparent); }
+  .ramos-form-submit:active { transform: scale(0.98); }
+`
+
+const RAMOS_ACCENTS = ['accent-cyan', 'accent-purple', 'accent-pink', 'accent-orange', 'accent-emerald', 'accent-yellow']
 
 function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usuario, onUniversidad, horario, esFundador, numeroRegistro, onBorrarRamos, onIrAEval }) {
   const [nuevo, setNuevo] = useState('')
@@ -1297,12 +1876,6 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
     setNuevo(''); setMin('4.0'); setExim(''); setCondExim(''); setMostrarExim(false); setMostrando(false)
   }
 
-  const badgeFundador = esFundador ? (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.2))', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 20, padding: '4px 12px', fontSize: 12, color: '#a5b4fc', fontWeight: 700, marginTop: 4 }}>
-      🏅 Fundador #{numeroRegistro}
-    </div>
-  ) : null
-
   // Stats globales
   const statsRamos = ramos.map(r => {
     const evs = (r.evaluaciones || []).map(e => ({ ...e, ponderacion: parseFloat(e.ponderacion) || 0 }))
@@ -1310,201 +1883,220 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
   })
   const aprobados = statsRamos.filter(c => c && (c.estado === 'aprobado' || c.estado === 'eximido')).length
   const conExamen = statsRamos.filter(c => c && c.estado === 'con_examen').length
-  const enCurso = statsRamos.filter(c => !c || c.estado === null).length
-
-  // Clases de hoy
-  const DIAS_ES = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
-  const diaHoy = DIAS_ES[new Date().getDay()]
-  const clasesHoy = (horario || []).filter(h => h.dia === diaHoy).sort((a,b) => (a.hora_inicio||'').localeCompare(b.hora_inicio||''))
-  const ahoraStr = new Date().toTimeString().slice(0,5)
-  const claseActual = clasesHoy.find(h => h.hora_inicio <= ahoraStr && h.hora_fin > ahoraStr)
-  const proximaClase = clasesHoy.find(h => h.hora_inicio > ahoraStr)
+  const enCurso = ramos.length - aprobados - conExamen
 
   // Próximas evaluaciones (todas las evaluaciones con fecha, ordenadas)
   const proximas = ramos.flatMap(r =>
     (r.evaluaciones || [])
       .filter(e => e.fecha && (e.nota === null || e.nota === undefined || e.nota === ''))
       .map(e => ({ ...e, ramoNombre: r.nombre, ramoId: r.id }))
-  ).sort((a, b) => new Date(a.fecha) - new Date(b.fecha)).slice(0, 5)
-
-  // Badge notificaciones (evaluaciones en los próximos 3 días)
-  const evalProximas3dias = proximas.filter(e => {
-    const dias = Math.ceil((new Date(e.fecha) - new Date()) / 86400000)
-    return dias >= 0 && dias <= 3
-  }).length
+  ).sort((a, b) => new Date(a.fecha) - new Date(b.fecha)).slice(0, 8)
 
   const hoy = new Date()
-  const diasRestantes = (fecha) => {
-    const diff = Math.ceil((new Date(fecha) - hoy) / (1000 * 60 * 60 * 24))
-    return diff
+  const diasRest = (fecha) => Math.ceil((new Date(fecha) - hoy) / (1000 * 60 * 60 * 24))
+
+  // Info para cada card de ramo (mismo patrón que el Home)
+  const getRamoInfo = (r) => {
+    const evs = (r.evaluaciones || []).map(e => ({ ...e, ponderacion: parseFloat(e.ponderacion) || 0 }))
+    const calc = evs.length > 0 ? calcular(evs, r.min_aprobacion, r) : null
+    const completadas = evs.filter(e => e.nota !== null && e.nota !== undefined && e.nota !== '').length
+    const total = evs.length
+    const progreso = total > 0 ? Math.round((completadas / total) * 100) : 0
+    let notaPrincipal = '--', notaTipo = 'Promedio', notaVariante = '', badge = null
+    if (calc) {
+      if (calc.estado === 'eximido') {
+        notaPrincipal = calc.promedio != null ? calc.promedio.toFixed(1) : '--'
+        notaTipo = 'Final'; notaVariante = 'nota-ok'
+        badge = { texto: '🎓 Eximido', clase: 'ok' }
+      } else if (calc.estado === 'aprobado') {
+        notaPrincipal = calc.promedio != null ? calc.promedio.toFixed(1) : '--'
+        notaTipo = 'Final'; notaVariante = 'nota-ok'
+        badge = { texto: '✅ Aprobado', clase: 'ok' }
+      } else if (calc.estado === 'reprobado_sin_examen' || calc.estado === 'reprobado_imposible' || calc.estado === 'imposible') {
+        notaPrincipal = calc.promedio != null ? calc.promedio.toFixed(1) : '--'
+        notaVariante = 'nota-risk'
+        badge = { texto: '⚠️ En riesgo', clase: 'risk' }
+      } else if (calc.estado === 'con_examen') {
+        notaPrincipal = calc.promedio != null ? calc.promedio.toFixed(1) : '--'
+        notaVariante = 'nota-warn'
+        badge = { texto: '📝 Examen', clase: 'warn' }
+      } else if (calc.promedio != null) {
+        notaPrincipal = calc.promedio.toFixed(1)
+        if (calc.necesaria != null && calc.necesaria > 6) notaVariante = 'nota-risk'
+      } else if (calc.necesaria != null) {
+        notaPrincipal = calc.necesaria > 7 ? '✗' : calc.necesaria.toFixed(1)
+        notaTipo = 'Necesitas'
+        notaVariante = calc.necesaria > 6 ? 'nota-risk' : calc.necesaria > 5 ? 'nota-warn' : 'nota-ok'
+      }
+    }
+    if (!badge) {
+      const proxEv = evs.filter(e => e.fecha && (e.nota === null || e.nota === undefined || e.nota === ''))
+        .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))[0]
+      if (proxEv) {
+        const d = diasRest(proxEv.fecha)
+        if (d != null && d >= 0) {
+          const clase = d <= 2 ? 'risk' : d <= 5 ? 'warn' : ''
+          const txt = d === 0 ? '¡Hoy!' : d === 1 ? 'Mañana' : `En ${d}d`
+          badge = { texto: `📅 ${txt}`, clase }
+        }
+      }
+    }
+    return { notaPrincipal, notaTipo, notaVariante, badge, progreso, completadas, total }
   }
+
+  const subLinea = ramos.length === 0
+    ? 'Aún no tienes ramos cargados'
+    : <>{ramos.length} {ramos.length === 1 ? 'ramo' : 'ramos'} este semestre · <strong>{aprobados}</strong> {aprobados === 1 ? 'aprobado' : 'aprobados'}</>
 
   return (
     <>
-    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', padding: '52px 0 100px' }}>
-      <BackgroundOrbs />
-          <BannerInstalar />
-      <div style={{ position: 'relative', zIndex: 1 }}>
-        <div style={{ padding: '16px 20px 8px' }}>
-          <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--color-text)', margin: '0 0 4px' }}>📚 Mis Ramos</h2>
+      <style>{RAMOS_CSS}</style>
+      <div className="ramos-root">
+        <BannerInstalar />
+
+        {/* HERO */}
+        <div className="ramos-hero">
+          <h1><span className="ramos-emoji">📚</span> Mis Ramos</h1>
+          <p className="ramos-hero-sub">{subLinea}</p>
         </div>
-        <div style={{ padding: '0 16px' }}>
-          <TipInteligente ramos={ramos} />
-          {/* Mini stats */}
-          {ramos.length > 0 && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
-              {[
-                { label: 'En curso', value: enCurso, color: 'var(--color-secondary)', bg: 'rgba(167,139,250,0.1)' },
-                { label: 'Con examen', value: conExamen, color: '#fbbf24', bg: 'rgba(251,191,36,0.1)' },
-                { label: 'Aprobados', value: aprobados, color: '#4ade80', bg: 'rgba(74,222,128,0.1)' },
-              ].map((s, i) => (
-                <motion.div key={s.label}
-                  initial={{ opacity: 0, scale: 0.85 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: i * 0.08, duration: 0.3, ease: 'backOut' }}
-                  style={{ background: s.bg, border: `1px solid ${s.color}30`, borderRadius: 16, padding: '12px 10px', textAlign: 'center' }}>
-                  <p style={{ fontSize: 24, fontWeight: 800, color: s.color, margin: 0 }}>{s.value}</p>
-                  <p style={{ fontSize: 10, color: 'var(--color-text-secondary)', margin: 0 }}>{s.label}</p>
-                </motion.div>
-              ))}
-            </div>
-          )}
 
-          {proximas.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.15, ease: 'easeOut' }}
-              style={{ marginBottom: 20 }}>
-              <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-secondary)', letterSpacing: 1, margin: '0 0 10px', textTransform: 'uppercase' }}>📅 Próximas evaluaciones</p>
-              <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
-                {proximas.map((ev, i) => {
-                  const dias = diasRestantes(ev.fecha)
-                  const urgente = dias <= 3
-                  const pronto = dias <= 7
-                  const borderColor = urgente ? '#f87171' : pronto ? '#fbbf24' : 'rgba(255,255,255,0.08)'
-                  const diasColor = urgente ? '#f87171' : pronto ? '#fbbf24' : 'rgba(255,255,255,0.4)'
-                  return (
-                    <div key={i} onClick={() => onIrAEval && onIrAEval(ev.ramoId, ev.id)} style={{ background: 'var(--bg-card)', borderRadius: 14, padding: '12px 14px', border: `1px solid ${borderColor}`, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', flexShrink: 0, minWidth: 140, maxWidth: 160, cursor: 'pointer' }}>
-                      <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text)', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.nombre}</p>
-                      <span style={{ fontSize: 10, color: 'var(--color-text-secondary)', background: 'var(--bg-secondary)', padding: '2px 7px', borderRadius: 20, display: 'inline-block', marginBottom: 8, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.ramoNombre}</span>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <p style={{ fontSize: 12, fontWeight: 700, color: diasColor, margin: 0 }}>
-                          {dias === 0 ? '¡Hoy!' : dias === 1 ? 'Mañana' : dias < 0 ? 'Vencida' : `${dias}d`}
-                        </p>
-                        <p style={{ fontSize: 10, color: 'var(--color-text-secondary)', margin: 0, fontWeight: 600 }}>{ev.ponderacion}%</p>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </motion.div>
-          )}
+        {/* STATS GLASS */}
+        {ramos.length > 0 && (
+          <div className="ramos-stats">
+            <div className="ramos-stat">
+              <div className="ramos-stat-val">{enCurso}</div>
+              <div className="ramos-stat-lbl">En curso</div>
+            </div>
+            <div className="ramos-stat warn">
+              <div className="ramos-stat-val">{conExamen}</div>
+              <div className="ramos-stat-lbl">Con examen</div>
+            </div>
+            <div className="ramos-stat ok">
+              <div className="ramos-stat-val">{aprobados}</div>
+              <div className="ramos-stat-lbl">Aprobados</div>
+            </div>
+          </div>
+        )}
 
-          {/* Grid de ramos */}
-          {ramos.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px 20px', animation: 'fadeIn 0.5s ease' }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>🎓</div>
-              <p style={{ color: 'var(--color-text-secondary)', fontSize: 14 }}>Aún no tienes ramos.<br/>¡Agrega tu primer ramo!</p>
-            </div>
-          ) : (
-            <div>
-              <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-secondary)', letterSpacing: 1, margin: '0 0 10px', textTransform: 'uppercase' }}>📚 Ramos</p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
-                {ramos.map((r, i) => {
-                  const evs = (r.evaluaciones || []).map(e => ({ ...e, ponderacion: parseFloat(e.ponderacion) || 0 }))
-                  const calc = evs.length > 0 ? calcular(evs, r.min_aprobacion, r) : null
-                  const completadas = evs.filter(e => e.nota !== null && e.nota !== undefined && e.nota !== '').length
-                  const total = evs.length
-                  const progreso = total > 0 ? (completadas / total) * 100 : 0
-                  const estadoColor = !calc ? 'var(--color-primary)' : calc.estado === 'eximido' ? 'var(--color-secondary)' : calc.estado === 'aprobado' ? '#4ade80' : calc.estado === 'con_examen' ? '#fbbf24' : calc.estado === 'reprobado_sin_examen' || calc.estado === 'reprobado_imposible' || calc.estado === 'imposible' ? '#f87171' : 'var(--color-primary)'
-                  const estadoLabel = !calc ? null : calc.estado === 'eximido' ? '🎓 Eximido' : calc.estado === 'aprobado' ? '✓ Aprobado' : calc.estado === 'con_examen' ? '📝 Examen' : calc.estado === 'reprobado_sin_examen' ? '🚫 Sin examen' : calc.estado === 'reprobado_imposible' || calc.estado === 'imposible' ? '✗ Reprobado' : null
-                  return (
-                    <div key={r.id} onClick={() => onSelect(r)}
-                      style={{ background: 'var(--bg-card)', borderRadius: 20, padding: '16px', cursor: 'pointer', border: `1px solid ${estadoColor}25`, boxShadow: '0 2px 10px rgba(0,0,0,0.07)', animation: `slideUp 0.4s ${i * 0.07}s ease both`, transition: 'transform 0.15s, box-shadow 0.15s', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 140 }}
-                      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = `0 8px 24px ${estadoColor}20` }}
-                      onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
-                        <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text)', margin: 0, lineHeight: 1.3 }}>{r.nombre}</p>
-                        {estadoLabel && (
-                          <span style={{ fontSize: 10, fontWeight: 700, color: estadoColor, background: `${estadoColor}18`, padding: '3px 7px', borderRadius: 20, whiteSpace: 'nowrap', flexShrink: 0 }}>{estadoLabel}</span>
-                        )}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        {calc?.promedio !== null && calc?.promedio !== undefined ? (
-                          <div>
-                            <p style={{ fontSize: 10, color: 'var(--color-text-secondary)', margin: '0 0 2px' }}>Promedio</p>
-                            <p style={{ fontSize: 28, fontWeight: 800, color: notaColor(calc.promedio), margin: 0, lineHeight: 1 }}>{calc.promedio.toFixed(1)}</p>
-                          </div>
-                        ) : calc?.necesaria !== null && calc?.necesaria !== undefined ? (
-                          <div>
-                            <p style={{ fontSize: 10, color: 'var(--color-text-secondary)', margin: '0 0 2px' }}>Necesitas</p>
-                            <p style={{ fontSize: 28, fontWeight: 800, color: calc.necesaria > 6 ? '#f87171' : calc.necesaria > 5 ? '#fbbf24' : '#4ade80', margin: 0, lineHeight: 1 }}>{calc.necesaria > 7 ? '✗' : calc.necesaria.toFixed(1)}</p>
-                          </div>
-                        ) : (
-                          <p style={{ fontSize: 12, color: 'var(--color-text-muted)', margin: 0 }}>Sin notas aún</p>
-                        )}
-                      </div>
-                      <div>
-                        <p style={{ fontSize: 10, color: 'var(--color-text-muted)', margin: '0 0 5px' }}>{completadas}/{total} evaluaciones</p>
-                        {total > 0 && (
-                          <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 99, height: 3, overflow: 'hidden' }}>
-                            <div style={{ height: '100%', width: `${progreso}%`, background: `linear-gradient(90deg, ${estadoColor}, ${estadoColor}aa)`, borderRadius: 99, transition: 'width 0.5s ease' }} />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-          {ramos.length > 0 && !mostrando && (
-            <button onClick={onBorrarRamos} style={{ width: '100%', marginBottom: 10, padding: '12px', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.25)', borderRadius: 14, color: '#f87171', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-              🗑️ Eliminar todos los ramos
-            </button>
-          )}
-          {mostrando ? (
-            <div style={{ background: 'var(--bg-secondary)', borderRadius: 20, padding: '20px', border: '1.5px solid rgba(108,99,255,0.3)', animation: 'slideUp 0.3s ease' }}>
-              <p style={{ fontSize: 14, fontWeight: 700, color: 'white', margin: '0 0 16px' }}>Nuevo ramo</p>
-              <input value={nuevo} onChange={e => setNuevo(e.target.value)} placeholder="Nombre del ramo" onKeyDown={e => e.key === 'Enter' && agregar()}
-                style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 10, boxSizing: 'border-box' }} />
-              <div style={{ marginBottom: 14 }}>
-                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Nota mínima de aprobación</p>
-                <input type="number" min="1" max="7" step="0.1" value={min} onChange={e => setMin(e.target.value)}
-                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', boxSizing: 'border-box' }} />
-              </div>
-              <div style={{ marginBottom: 14 }}>
-                <button onClick={() => setMostrarExim(!mostrarExim)} style={{ background: 'none', border: 'none', color: 'rgba(167,139,250,0.8)', fontSize: 12, cursor: 'pointer', padding: 0, marginBottom: 8 }}>
-                  {mostrarExim ? '▼' : '▶'} Configurar eximición (opcional)
-                </button>
-                {mostrarExim && (
-                  <div>
-                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Nota mínima para eximirse</p>
-                    <input type="number" min="1" max="7" step="0.1" value={exim} onChange={e => setExim(e.target.value)} placeholder="Ej: 5.0"
-                      style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 10, boxSizing: 'border-box' }} />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => setCondExim(condExim === 'sin_rojos' ? '' : 'sin_rojos')}>
-                      <div style={{ width: 20, height: 20, borderRadius: 6, border: '2px solid rgba(167,139,250,0.5)', background: condExim === 'sin_rojos' ? 'var(--color-accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        {condExim === 'sin_rojos' && <span style={{ color: 'white', fontSize: 12 }}>✓</span>}
-                      </div>
-                      <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Requiere sin notas rojas (bajo 4.0)</span>
+        {/* TIP */}
+        {ramos.length > 0 && (
+          <div className="ramos-section ramos-section-tight">
+            <TipInteligente ramos={ramos} />
+          </div>
+        )}
+
+        {/* PRÓXIMAS EVALUACIONES */}
+        {proximas.length > 0 && (
+          <div className="ramos-section">
+            <div className="ramos-section-title"><h4>📅 Próximas evaluaciones</h4></div>
+            <div className="ramos-proxs-scroll">
+              {proximas.map((ev, i) => {
+                const d = diasRest(ev.fecha)
+                const urgClase = d <= 2 ? 'urg-risk' : d <= 7 ? 'urg-warn' : 'urg-ok'
+                const diasTxt = d === 0 ? '¡Hoy!' : d === 1 ? 'Mañana' : d < 0 ? 'Vencida' : `${d}d`
+                return (
+                  <div key={i} className={`ramos-proxs-card ${urgClase}`} onClick={() => onIrAEval && onIrAEval(ev.ramoId, ev.id)}>
+                    <div className="ramos-proxs-name">{ev.nombre}</div>
+                    <div className="ramos-proxs-ramo">{ev.ramoNombre}</div>
+                    <div className="ramos-proxs-foot">
+                      <div className="ramos-proxs-dias">{diasTxt}</div>
+                      <div className="ramos-proxs-pond">{ev.ponderacion}%</div>
                     </div>
                   </div>
-                )}
-              </div>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button onClick={() => setMostrando(false)} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px', color: 'rgba(255,255,255,0.5)', fontSize: 14, cursor: 'pointer' }}>Cancelar</button>
-                <button onClick={agregar} style={{ flex: 2, background: 'var(--color-primary)', border: 'none', borderRadius: 12, padding: '12px', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Agregar</button>
-              </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* GRID DE RAMOS */}
+        <div className="ramos-section">
+          <div className="ramos-section-title"><h4>📚 Todos tus ramos</h4></div>
+          {ramos.length === 0 ? (
+            <div className="ramos-empty">
+              <div className="ramos-empty-emoji">🎓</div>
+              <div className="ramos-empty-txt">Aún no tienes ramos</div>
+              <div className="ramos-empty-sub">Agrega tu primer ramo para empezar a organizar el semestre</div>
             </div>
           ) : (
-            <button onClick={() => setMostrando(true)} style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid var(--color-primary)', borderRadius: 16, padding: '16px', color: colorTextoSobreHeader(usuario?.universidad), fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
-              + Agregar ramo
-            </button>
+            <div className="ramos-grid">
+              {ramos.map((r, i) => {
+                const info = getRamoInfo(r)
+                const accentClass = RAMOS_ACCENTS[i % RAMOS_ACCENTS.length]
+                return (
+                  <div key={r.id} className={`ramos-card ${accentClass}`} style={{ animationDelay: `${i * 0.05}s` }} onClick={() => onSelect(r)}>
+                    <div className="ramos-card-title">{r.nombre}</div>
+                    <div className="ramos-card-nota-wrap">
+                      <div className={`ramos-card-nota ${info.notaVariante}`}>{info.notaPrincipal}</div>
+                      <div className="ramos-card-nota-lbl">{info.notaTipo}</div>
+                    </div>
+                    <div className="ramos-card-prog">
+                      <div className="ramos-card-prog-row">
+                        <span>{info.completadas}/{info.total} eval</span>
+                        <span>{info.progreso}%</span>
+                      </div>
+                      <div className="ramos-card-prog-track">
+                        <div className="ramos-card-prog-fill" style={{ width: `${info.progreso}%` }} />
+                      </div>
+                    </div>
+                    {info.badge && (
+                      <span className={`ramos-card-badge ${info.badge.clase || ''}`}>{info.badge.texto}</span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           )}
+
+          {/* ACCIONES */}
+          <div className="ramos-actions">
+            {mostrando ? (
+              <div className="ramos-form">
+                <div className="ramos-form-tag">⚡ Nuevo ramo</div>
+                <h3 className="ramos-form-h">Agrega un ramo a tu semestre</h3>
+                <div className="ramos-form-field">
+                  <label className="ramos-form-label">Nombre del ramo</label>
+                  <input className="ramos-form-input" value={nuevo} onChange={e => setNuevo(e.target.value)} placeholder="Ej: Cálculo I" onKeyDown={e => e.key === 'Enter' && agregar()} autoFocus />
+                </div>
+                <div className="ramos-form-field">
+                  <label className="ramos-form-label">Nota mínima de aprobación</label>
+                  <input className="ramos-form-input" type="number" min="1" max="7" step="0.1" value={min} onChange={e => setMin(e.target.value)} />
+                </div>
+                <div className="ramos-form-field">
+                  <button className="ramos-form-toggle" onClick={() => setMostrarExim(!mostrarExim)}>
+                    {mostrarExim ? '▼' : '▶'} Configurar eximición (opcional)
+                  </button>
+                  {mostrarExim && (
+                    <>
+                      <label className="ramos-form-label">Nota mínima para eximirse</label>
+                      <input className="ramos-form-input" type="number" min="1" max="7" step="0.1" value={exim} onChange={e => setExim(e.target.value)} placeholder="Ej: 5.0" style={{ marginBottom: 12 }} />
+                      <div className="ramos-form-check" onClick={() => setCondExim(condExim === 'sin_rojos' ? '' : 'sin_rojos')}>
+                        <div className={`ramos-form-check-box ${condExim === 'sin_rojos' ? 'on' : ''}`}></div>
+                        <span className="ramos-form-check-lbl">Requiere sin notas rojas (bajo 4.0)</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+                <div className="ramos-form-actions">
+                  <button className="ramos-form-cancel" onClick={() => setMostrando(false)}>Cancelar</button>
+                  <button className="ramos-form-submit" onClick={agregar}>Agregar ramo</button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <button className="ramos-btn-add" onClick={() => setMostrando(true)}>
+                  + Agregar ramo
+                </button>
+                {ramos.length > 0 && (
+                  <button className="ramos-btn-danger" onClick={onBorrarRamos}>
+                    🗑️ Eliminar todos los ramos
+                  </button>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
-    </div>
     </>
   )
 }
