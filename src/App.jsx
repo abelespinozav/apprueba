@@ -2877,17 +2877,41 @@ function AppContent() {
 
   useEffect(() => {
     const token = localStorage.getItem('token')
-    const user = localStorage.getItem('usuario')
-    if (token && user) {
-      const userData = JSON.parse(user)
-      setUsuario(userData)
-      cargarRamos(token)
-      cargarNovedades(token, userData.universidad || userData.user?.universidad)
-      cargarHorarioGlobal()
+    const usuarioRaw = localStorage.getItem('usuario')
+    let uniInicial = null
+    if (token && usuarioRaw) {
+      try {
+        const userData = JSON.parse(usuarioRaw)
+        setUsuario(userData)
+        uniInicial = userData.universidad || userData.user?.universidad || null
+        cargarRamos(token)
+        cargarNovedades(token, uniInicial)
+        cargarHorarioGlobal()
+      } catch { /* usuario corrupto en LS → lo ignoramos */ }
     } else {
       setLoadingRamos(false)
     }
     setLoadingAuth(false)
+
+    // Re-hidratar SIEMPRE desde /auth/me si hay token — así universidad,
+    // onboarding, es_fundador, etc. quedan frescos aunque el localStorage
+    // esté stale (p.ej. después de cambiar universidad en otra sesión).
+    if (token) {
+      fetch(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (!data?.user) return
+          const fresh = data.user
+          localStorage.setItem('usuario', JSON.stringify(fresh))
+          setUsuario(fresh)
+          // Si la universidad cambió vs lo que cargamos al inicio, re-fetch novedades
+          if (fresh.universidad && fresh.universidad !== uniInicial) {
+            cargarNovedades(token, fresh.universidad)
+          }
+        })
+        .catch(() => {})
+    }
+
     const handler = () => cargarRamos(localStorage.getItem('token'))
     window.addEventListener('ramos-actualizados', handler)
     return () => window.removeEventListener('ramos-actualizados', handler)
@@ -2952,6 +2976,7 @@ function AppContent() {
           navigate('/onboarding')
         } else {
           cargarRamos(token)
+          cargarNovedades(token, user.universidad)
           cargarHorarioGlobal()
           navigate('/home')
         }
