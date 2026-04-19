@@ -4,6 +4,7 @@ import PanelNotificaciones from './Notificaciones'
 import PlanEstudio from './PlanEstudio'
 import Quiz from './Quiz'
 import OnboardingScreen from './OnboardingScreen.jsx'
+import Admin from './Admin.jsx'
 import { useTheme } from './useTheme'
 import { colorTextoSobreHeader } from './theme'
 
@@ -1255,7 +1256,7 @@ const PERFIL_CSS = `
   .perfil-btn.logout:hover { background: rgba(239,68,68,0.14); border-color: rgba(239,68,68,0.4); }
 `
 
-function PerfilTab({ usuario, onLogout, onUniversidad, esFundador, numeroRegistro }) {
+function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, numeroRegistro }) {
   const uni = usuario?.universidad || ''
   const uniLabel = uni === 'ufro' ? 'UFRO' : uni === 'umayor' ? 'U. Mayor' : uni === 'uautonoma' ? 'U. Autónoma' : uni === 'inacap' ? 'INACAP' : uni === 'santotomas' ? 'Santo Tomás' : uni === 'uctemuco' ? 'UC Temuco' : uni ? uni.toUpperCase() : 'Sin universidad'
   const inicial = (usuario?.nombre || usuario?.name || 'U')[0].toUpperCase()
@@ -1307,6 +1308,13 @@ function PerfilTab({ usuario, onLogout, onUniversidad, esFundador, numeroRegistr
         {/* ACCIONES */}
         <div className="perfil-section">
           <h4 className="perfil-section-title">⚙️ Ajustes</h4>
+          {usuario?.email === 'abelespinozav@gmail.com' && (
+            <button className="perfil-btn" onClick={onAdmin} style={{ background: 'rgba(46,125,209,0.1)', borderColor: 'rgba(46,125,209,0.3)' }}>
+              <span className="perfil-btn-icon">🛠️</span>
+              <span>Panel Admin</span>
+              <span className="perfil-btn-arrow">→</span>
+            </button>
+          )}
           <button className="perfil-btn" onClick={() => onUniversidad('cambiar')}>
             <span className="perfil-btn-icon">🏫</span>
             <span>Cambiar universidad</span>
@@ -3671,7 +3679,7 @@ function AppContent() {
               }} />
             : <Navigate to="/" replace />
         } />
-        <Route path="/admin" element={esAdmin ? <AdminScreen usuario={usuario} onBack={() => navigate('/home')} /> : <Navigate to="/" replace />} />
+        <Route path="/admin" element={esAdmin ? <Admin usuario={usuario} /> : <Navigate to="/" replace />} />
         <Route path="/home" element={requireAuth(withBottomNav(
           <HomeScreen
             ramos={ramos}
@@ -3720,6 +3728,7 @@ function AppContent() {
             usuario={usuario}
             onLogout={handleLogout}
             onUniversidad={handleUniversidad}
+            onAdmin={() => navigate('/admin')}
             esFundador={usuario?.es_fundador}
             numeroRegistro={usuario?.numero_registro}
           />
