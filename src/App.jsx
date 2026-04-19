@@ -2395,9 +2395,15 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPatchEval, onPlan, eva
                 <div>
                   <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, margin: '0 0 8px' }}>Promedio semestre: <strong style={{ color: '#fbbf24' }}>{promedio?.toFixed(1)}</strong></p>
                   {tieneRojos && ramo.sin_rojos && <p style={{ color: '#f87171', fontSize: 12, margin: '0 0 6px' }}>⚠️ Tienes notas rojas — no cumples condición de eximición</p>}
-                  <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 15, margin: '0 0 12px' }}>
-                    Necesitas <strong style={{ color: necesariaExamen > 6 ? '#f87171' : necesariaExamen > 5 ? '#fbbf24' : '#4ade80', fontSize: 20 }}>{necesariaExamen?.toFixed(1)}</strong> en el examen ({ramo.ponderacion_examen || 25}%)
-                  </p>
+                  {necesariaExamen <= 1.0 ? (
+                    <p style={{ color: '#4ade80', fontSize: 15, fontWeight: 700, margin: '0 0 12px' }}>
+                      🎯 Con cualquier nota apruebas <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>(examen {ramo.ponderacion_examen || 25}%)</span>
+                    </p>
+                  ) : (
+                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 15, margin: '0 0 12px' }}>
+                      Necesitas <strong style={{ color: necesariaExamen > 6 ? '#f87171' : necesariaExamen > 5 ? '#fbbf24' : '#4ade80', fontSize: 20 }}>{necesariaExamen?.toFixed(1)}</strong> en el examen ({ramo.ponderacion_examen || 25}%)
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -2456,7 +2462,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPatchEval, onPlan, eva
                 </div>
               )}
 
-              {estado === 'reprobado_imposible' && <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, margin: 0 }}>Promedio semestre: <strong style={{ color: '#f87171' }}>{promedio?.toFixed(1)}</strong> — imposible aprobar con examen</p>}
+              {estado === 'reprobado_imposible' && <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, margin: 0 }}>Promedio semestre: <strong style={{ color: '#f87171' }}>{promedio?.toFixed(1)}</strong> — Reprobado · imposible aprobar con el examen</p>}
               {estado === 'reprobado_sin_examen' && !ramo.nota_examen && <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, margin: 0 }}>Promedio semestre: <strong style={{ color: '#f87171' }}>{promedio?.toFixed(1)}</strong> — no alcanzas el mínimo ({ramo.min_aprobacion}) para presentarte a examen</p>}
             </div>
           ) : (
