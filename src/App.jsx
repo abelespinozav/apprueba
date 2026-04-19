@@ -209,7 +209,8 @@ const HOME_CSS = `
   .home-dot:nth-child(8) { animation-delay: 0.54s; }
   @keyframes homeDotPop { from { transform: scale(0); opacity: 0; } }
   .home-dot.ok { background: #34d399; box-shadow: 0 0 10px rgba(52,211,153,0.7); }
-  .home-dot.critical { background: #f87171; box-shadow: 0 0 10px rgba(248,113,113,0.8); animation: homeDotPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) backwards, homeDotCritical 1.4s 0.6s ease-in-out infinite; }
+  .home-dot.critico { background: #f87171; box-shadow: 0 0 10px rgba(248,113,113,0.8); animation: homeDotPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) backwards, homeDotCritical 1.4s 0.6s ease-in-out infinite; }
+  .home-dot.reprobado { background: #dc2626; box-shadow: 0 0 10px rgba(220,38,38,0.7); }
   .home-dot.extra { background: rgba(255,255,255,0.28); box-shadow: 0 0 6px rgba(255,255,255,0.12); cursor: help; }
   @keyframes homeDotCritical { 0%, 100% { box-shadow: 0 0 10px rgba(248,113,113,0.8); transform: scale(1); } 50% { box-shadow: 0 0 20px rgba(248,113,113,1); transform: scale(1.18); } }
   .home-promedio-context { margin-top: 8px; font-size: 12px; color: var(--color-text-muted); font-weight: 700; }
@@ -314,24 +315,29 @@ function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVer
       }, 0) / ramosConNotas.length
     : null
 
-  // Estado por ramo: 3 categorías semánticas, pero solo 2 colores de dot.
+  // Estado por ramo — 4 categorías para los dots del promedio semestral:
   // - aprobado  → ramo cerrado con promedio ≥ min (o eximido). Dot verde.
-  // - en_curso  → evaluaciones pendientes sin alerta. Dot verde.
-  // - critical  → reprobado / imposible / necesita > 5. Dot rojo.
+  // - en_curso  → en progreso sin alerta, o necesita algo razonable (<5.5). Dot verde.
+  // - critico   → aún salvable pero necesita ≥5.5 en lo que queda. Dot rojo pulsante.
+  // - reprobado → matemáticamente imposible aprobar (estado reprobado / necesaria > 7). Dot rojo fijo.
   const getRamoEstado = (r) => {
     const evs = (r.evaluaciones || []).map(e => ({ ...e, ponderacion: parseFloat(e.ponderacion) || 0 }))
     if (evs.length === 0) return 'en_curso'
     const calc = calcular(evs, r.min_aprobacion, r)
     if (!calc) return 'en_curso'
     if (calc.estado === 'aprobado' || calc.estado === 'eximido') return 'aprobado'
-    if (calc.estado === 'reprobado_sin_examen' || calc.estado === 'reprobado_imposible' || calc.estado === 'imposible') return 'critical'
-    if (calc.necesaria != null && calc.necesaria > 5) return 'critical'
+    if (calc.estado === 'reprobado_sin_examen' || calc.estado === 'reprobado_imposible' || calc.estado === 'imposible') return 'reprobado'
+    if (calc.necesaria != null && calc.necesaria > 7) return 'reprobado'
+    if (calc.necesariaExamen != null && calc.necesariaExamen > 7) return 'reprobado'
+    if (calc.necesaria != null && calc.necesaria >= 5.5) return 'critico'
+    if (calc.estado === 'con_examen' && calc.necesariaExamen != null && calc.necesariaExamen >= 5.5) return 'critico'
     return 'en_curso'
   }
   const ramosEstados = ramos.map(getRamoEstado)
   const countAprobado = ramosEstados.filter(s => s === 'aprobado').length
   const countEnCurso = ramosEstados.filter(s => s === 'en_curso').length
-  const countCrit = ramosEstados.filter(s => s === 'critical').length
+  const countCritico = ramosEstados.filter(s => s === 'critico').length
+  const countReprobado = ramosEstados.filter(s => s === 'reprobado').length
 
   // Nivel del promedio → para el gradient
   const nivelPromedio = promedioGlobal == null ? 'none'
@@ -493,10 +499,11 @@ function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVer
 
   const esUrgentePronto = !!(proximaClase && proximaClase.esPronto)
 
-  // Texto contextual del promedio — 3 labels semánticos, 2 colores
+  // Texto contextual del promedio — 4 categorías, omite las con count 0
   const promedioContext = (() => {
     const parts = []
-    if (countCrit > 0) parts.push(<span key="c" className="c-crit">{countCrit} {countCrit === 1 ? 'crítico' : 'críticos'}</span>)
+    if (countReprobado > 0) parts.push(<span key="r" className="c-crit">{countReprobado} {countReprobado === 1 ? 'reprobado' : 'reprobados'}</span>)
+    if (countCritico > 0) parts.push(<span key="c" className="c-crit">{countCritico} {countCritico === 1 ? 'crítico' : 'críticos'}</span>)
     if (countEnCurso > 0) parts.push(<span key="i" className="c-ok">{countEnCurso} en curso</span>)
     if (countAprobado > 0) parts.push(<span key="a" className="c-ok">{countAprobado} {countAprobado === 1 ? 'aprobado' : 'aprobados'}</span>)
     if (parts.length === 0) return null
@@ -547,7 +554,7 @@ function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVer
               <>
                 <div><div className="home-promedio-dots">
                   {ramosEstados.slice(0, 6).map((s, i) => (
-                    <span key={i} className={`home-dot ${s === 'critical' ? 'critical' : 'ok'}`} />
+                    <span key={i} className={`home-dot ${s === 'reprobado' ? 'reprobado' : s === 'critico' ? 'critico' : 'ok'}`} />
                   ))}
                   {ramosEstados.length > 6 && (
                     <span className="home-dot extra" title={`y ${ramosEstados.length - 6} más`} />
@@ -2125,6 +2132,8 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPatchEval, onPlan, eva
   const [flashedNotaId, setFlashedNotaId] = useState(null)      // flash verde tras guardar
   const [editingMeta, setEditingMeta] = useState(null)          // { id, nombre, fecha, ponderacion }
   const [editandoExamen, setEditandoExamen] = useState(false)   // re-editar nota_examen ya guardada
+  const [evalAddError, setEvalAddError] = useState(null)        // error inline en form agregar eval
+  const [evalMetaError, setEvalMetaError] = useState(null)      // error inline en modal editar eval
   const [nuevaEv, setNuevaEv] = useState({ nombre: '', ponderacion: '', fecha: '' })
   const [mostrando, setMostrando] = useState(false)
   const [confetti, setConfetti] = useState(false)
@@ -2191,23 +2200,36 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPatchEval, onPlan, eva
   }
 
   const guardarMeta = async () => {
+    setEvalMetaError(null)
     if (!editingMeta) return
     const nombre = editingMeta.nombre.trim()
-    if (!nombre) return
+    if (!nombre) { setEvalMetaError('Nombre requerido'); return }
     const pond = parseFloat(editingMeta.ponderacion)
-    if (isNaN(pond) || pond <= 0 || pond > 100) return
+    if (isNaN(pond) || pond <= 0 || pond > 100) { setEvalMetaError('Ponderación inválida'); return }
+    // Validar: la nueva ponderación + suma de las otras evals no puede pasar 100%
+    const sumaOtras = evs.filter(e => e.id !== editingMeta.id).reduce((acc, e) => acc + e.ponderacion, 0)
+    const dispEdit = Math.round((100 - sumaOtras) * 10) / 10
+    if (pond > dispEdit + 0.01) {
+      setEvalMetaError(`Solo quedan ${dispEdit}% disponibles`)
+      return
+    }
     const changes = { nombre, fecha: editingMeta.fecha || null, ponderacion: pond }
     const ok = await onPatchEval(ramo.id, editingMeta.id, changes)
-    if (ok) setEditingMeta(null)
+    if (ok) { setEditingMeta(null); setEvalMetaError(null) }
+    else setEvalMetaError('El servidor rechazó el cambio')
   }
 
   const agregarEv = () => {
-    if (!nuevaEv.nombre.trim() || !nuevaEv.ponderacion) return
+    setEvalAddError(null)
+    if (!nuevaEv.nombre.trim()) { setEvalAddError('Nombre requerido'); return }
+    if (!nuevaEv.ponderacion) { setEvalAddError('Ponderación requerida'); return }
     const pond = parseFloat(nuevaEv.ponderacion)
-    if (isNaN(pond) || pond <= 0 || pond > pesoDisponible) return
+    if (isNaN(pond) || pond <= 0) { setEvalAddError('Ponderación inválida'); return }
+    if (pond > pesoDisponible + 0.01) { setEvalAddError(`Solo quedan ${pesoDisponible}% disponibles`); return }
     const ev = { id: Date.now(), nombre: nuevaEv.nombre.trim(), ponderacion: pond, fecha: nuevaEv.fecha || null, nota: null }
     onUpdate({ ...ramo, evaluaciones: [...evs, ev] })
-    setNuevaEv({ nombre: '', ponderacion: '', fecha: '' }); setMostrando(false)
+    setNuevaEv({ nombre: '', ponderacion: '', fecha: '' })
+    setMostrando(false)
   }
 
   const eliminarEv = (id) => onUpdate({ ...ramo, evaluaciones: evs.filter(e => e.id !== id) })
@@ -2447,7 +2469,9 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPatchEval, onPlan, eva
         </div>
 
         <div style={{ padding: '16px 16px 0' }}>
-          <p style={{ fontSize: 11, fontWeight: 600, color: '#4a4a6a', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Evaluaciones · {pesoUsado}% usado</p>
+          <p style={{ fontSize: 11, fontWeight: pesoUsado > 100 ? 800 : 600, color: pesoUsado > 100 ? '#f87171' : '#4a4a6a', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            {pesoUsado > 100 ? '⚠️ ' : ''}Evaluaciones · {pesoUsado}% usado{pesoUsado > 100 ? ' (supera 100%)' : ''}
+          </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
             {evs.map((ev, idx) => {
               const tieneNota = ev.nota !== null && ev.nota !== undefined && ev.nota !== ''
@@ -2505,26 +2529,44 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPatchEval, onPlan, eva
             })}
           </div>
 
-          {pesoDisponible > 0 && (
-            mostrando ? (
-              <div style={{ background: 'var(--bg-secondary)', borderRadius: 20, padding: '20px', border: '1.5px solid rgba(108,99,255,0.3)', animation: 'slideUp 0.3s ease' }}>
-                <p style={{ fontSize: 14, fontWeight: 700, color: 'white', margin: '0 0 16px' }}>Nueva evaluación <span style={{ fontSize: 12, color: 'var(--color-primary)', fontWeight: 400 }}>({pesoDisponible}% disponible)</span></p>
-                <input value={nuevaEv.nombre} onChange={e => setNuevaEv({ ...nuevaEv, nombre: e.target.value })} placeholder="Nombre (ej: Solemne 1)"
-                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 10, boxSizing: 'border-box' }} />
-                <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-                  <input type="number" min="1" max={pesoDisponible} value={nuevaEv.ponderacion} onChange={e => setNuevaEv({ ...nuevaEv, ponderacion: e.target.value })} placeholder={`Ponderación % (máx ${pesoDisponible})`}
-                    style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', boxSizing: 'border-box' }} />
-                  <input type="date" value={nuevaEv.fecha} onChange={e => setNuevaEv({ ...nuevaEv, fecha: e.target.value })}
-                    style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', boxSizing: 'border-box', colorScheme: 'dark' }} />
+          {mostrando ? (
+            <div style={{ background: 'var(--bg-secondary)', borderRadius: 20, padding: '20px', border: '1.5px solid rgba(108,99,255,0.3)', animation: 'slideUp 0.3s ease' }}>
+              <p style={{ fontSize: 14, fontWeight: 700, color: 'white', margin: '0 0 16px' }}>Nueva evaluación <span style={{ fontSize: 12, color: 'var(--color-primary)', fontWeight: 400 }}>({pesoDisponible}% disponible)</span></p>
+              <input value={nuevaEv.nombre} onChange={e => setNuevaEv({ ...nuevaEv, nombre: e.target.value })} placeholder="Nombre (ej: Solemne 1)"
+                style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 10, boxSizing: 'border-box' }} />
+              <div style={{ display: 'flex', gap: 10, marginBottom: 4 }}>
+                <div style={{ flex: 1 }}>
+                  <input type="number" min="1" max={pesoDisponible} step="0.1" value={nuevaEv.ponderacion} onChange={e => setNuevaEv({ ...nuevaEv, ponderacion: e.target.value })} placeholder="Ponderación %"
+                    style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', boxSizing: 'border-box' }} />
+                  {(() => {
+                    const curr = parseFloat(nuevaEv.ponderacion)
+                    const excede = !isNaN(curr) && curr > pesoDisponible + 0.01
+                    return <p style={{ fontSize: 10, color: excede ? '#f87171' : 'rgba(255,255,255,0.4)', margin: '4px 2px 0', fontWeight: 600 }}>
+                      {excede ? `⚠️ Excede en ${(curr - pesoDisponible).toFixed(1)}%` : `Disponible: ${pesoDisponible}%`}
+                    </p>
+                  })()}
                 </div>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button onClick={() => setMostrando(false)} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px', color: 'rgba(255,255,255,0.5)', fontSize: 14, cursor: 'pointer' }}>Cancelar</button>
-                  <button onClick={agregarEv} style={{ flex: 2, background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', border: 'none', borderRadius: 12, padding: '12px', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Agregar</button>
-                </div>
+                <input type="date" value={nuevaEv.fecha} onChange={e => setNuevaEv({ ...nuevaEv, fecha: e.target.value })}
+                  style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', boxSizing: 'border-box', colorScheme: 'dark', alignSelf: 'flex-start' }} />
               </div>
-            ) : (
+              {evalAddError && (
+                <div style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.25)', borderRadius: 10, padding: '8px 12px', color: '#f87171', fontSize: 12, fontWeight: 600, marginBottom: 10, marginTop: 8 }}>
+                  {evalAddError}
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+                <button onClick={() => { setMostrando(false); setEvalAddError(null); setNuevaEv({ nombre: '', ponderacion: '', fecha: '' }) }} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px', color: 'rgba(255,255,255,0.5)', fontSize: 14, cursor: 'pointer' }}>Cancelar</button>
+                <button onClick={agregarEv} style={{ flex: 2, background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', border: 'none', borderRadius: 12, padding: '12px', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Agregar</button>
+              </div>
+            </div>
+          ) : (
+            pesoDisponible > 0 ? (
               <button onClick={() => setMostrando(true)} style={{ width: '100%', background: 'var(--shadow-color)', border: '1.5px dashed rgba(108,99,255,0.3)', borderRadius: 16, padding: '14px', color: 'var(--color-secondary)', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
                 + Agregar evaluación ({pesoDisponible}% disponible)
+              </button>
+            ) : (
+              <button disabled style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1.5px dashed rgba(255,255,255,0.12)', borderRadius: 16, padding: '14px', color: 'rgba(255,255,255,0.35)', fontSize: 13, fontWeight: 600, cursor: 'not-allowed' }}>
+                ✅ 100% de ponderación usado
               </button>
             )
           )}
@@ -2550,12 +2592,26 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPatchEval, onPlan, eva
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 10, fontWeight: 900, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--color-text-muted)', margin: '0 0 6px' }}>Ponderación (%)</label>
-                <input type="number" min="1" max="100" step="1" value={editingMeta.ponderacion} onChange={e => setEditingMeta({ ...editingMeta, ponderacion: e.target.value })}
+                <input type="number" min="1" max="100" step="0.1" value={editingMeta.ponderacion} onChange={e => setEditingMeta({ ...editingMeta, ponderacion: e.target.value })}
                   style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '11px 13px', fontSize: 14, color: 'white', outline: 'none', boxSizing: 'border-box' }} />
+                {(() => {
+                  const sumaOtras = evs.filter(e => e.id !== editingMeta.id).reduce((acc, e) => acc + e.ponderacion, 0)
+                  const dispEdit = Math.round((100 - sumaOtras) * 10) / 10
+                  const curr = parseFloat(editingMeta.ponderacion)
+                  const excede = !isNaN(curr) && curr > dispEdit + 0.01
+                  return <p style={{ fontSize: 10, color: excede ? '#f87171' : 'var(--color-text-muted)', margin: '4px 2px 0', fontWeight: 600 }}>
+                    {excede ? `⚠️ Excede en ${(curr - dispEdit).toFixed(1)}%` : `Disponible: ${dispEdit}%`}
+                  </p>
+                })()}
               </div>
             </div>
+            {evalMetaError && (
+              <div style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.25)', borderRadius: 10, padding: '8px 12px', color: '#f87171', fontSize: 12, fontWeight: 600, marginTop: 12 }}>
+                {evalMetaError}
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-              <button onClick={() => setEditingMeta(null)} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: 11, color: 'var(--color-text-muted)', fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}>Cancelar</button>
+              <button onClick={() => { setEditingMeta(null); setEvalMetaError(null) }} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: 11, color: 'var(--color-text-muted)', fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}>Cancelar</button>
               <button onClick={guardarMeta} style={{ flex: 2, background: 'var(--color-primary)', color: '#1a1a1a', border: 'none', borderRadius: 12, padding: 11, fontSize: 14, fontWeight: 900, cursor: 'pointer', fontFamily: 'inherit' }}>💾 Guardar</button>
             </div>
           </div>
