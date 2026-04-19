@@ -3,4 +3,6 @@ builder = "nixpacks"
 buildCommand = "npm run build"
 
 [deploy]
-startCommand = "npx serve dist -p $PORT"
+# Flag -s crítica: SPA fallback → cualquier ruta desconocida devuelve
+# index.html. Sin ella, /home /ramos /perfil dan 404 en refresh/direct nav.
+startCommand = "npx serve -s dist -p $PORT"
