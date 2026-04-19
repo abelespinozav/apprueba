@@ -2931,27 +2931,32 @@ function AppContent() {
   const handleLogin = () => { window.location.href = `${API}/auth/google` }
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('auth') === 'success') {
-      window.history.replaceState({}, '', '/')
-      fetch(`${API}/auth/exchange`, { method: 'POST', credentials: 'include' })
-        .then(r => r.json())
-        .then(data => {
-          if (!data.token) return
-          localStorage.setItem('token', data.token)
-          const user = data.usuario
-          localStorage.setItem('usuario', JSON.stringify(user))
-          setUsuario(user)
-          if (!user.onboarding_v2) {
-            navigate('/onboarding')
-          } else {
-            cargarRamos(data.token)
-            cargarHorarioGlobal()
-            navigate('/home')
-          }
-        })
-        .catch(e => console.error('Error auth/exchange:', e))
-    }
+    // El backend redirige con el JWT en el fragment (#auth_token=...) para
+    // evitar el bloqueo de third-party cookies entre subdominios de railway.app.
+    const hash = window.location.hash || ''
+    const match = hash.match(/^#auth_token=(.+)$/)
+    if (!match) return
+    const token = decodeURIComponent(match[1])
+    // Limpiamos el hash del URL (el fragment nunca viaja al server pero queda
+    // visible en history/clipboard — mejor borrarlo apenas lo consumimos)
+    window.history.replaceState({}, '', window.location.pathname)
+    localStorage.setItem('token', token)
+    fetch(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(data => {
+        if (!data.user) return
+        const user = data.user
+        localStorage.setItem('usuario', JSON.stringify(user))
+        setUsuario(user)
+        if (!user.onboarding_v2) {
+          navigate('/onboarding')
+        } else {
+          cargarRamos(token)
+          cargarHorarioGlobal()
+          navigate('/home')
+        }
+      })
+      .catch(e => console.error('Error auth/me:', e))
   }, [])
 
   const handleUniversidad = async (universidad) => {
