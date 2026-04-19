@@ -12,41 +12,191 @@ const getToken = () => localStorage.getItem('token')
 const authHeaders = (extra = {}) => ({ ...extra, 'Authorization': `Bearer ${getToken()}` })
 
 
-function BannerInstalar() {
-  const [mostrar, setMostrar] = useState(false)
-  const [esIOS, setEsIOS] = useState(false)
+const INSTALL_CSS = `
+  .inst-back { position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 9999; display: flex; align-items: flex-end; justify-content: center; animation: instFade 0.2s ease; }
+  @keyframes instFade { from { opacity: 0; } }
+  .inst-sheet { width: 100%; max-width: 480px; background: var(--bg-secondary); border-radius: 24px 24px 0 0; padding: 12px 20px calc(24px + env(safe-area-inset-bottom, 0px)); box-sizing: border-box; animation: instSlide 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); max-height: 85vh; overflow-y: auto; }
+  @keyframes instSlide { from { transform: translateY(100%); } }
+  .inst-handle { width: 40px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 999px; margin: 0 auto 14px; }
+  .inst-title { color: #fff; font-size: 18px; font-weight: 900; letter-spacing: -0.02em; margin: 0 0 4px; text-align: center; }
+  .inst-sub { color: rgba(255,255,255,0.5); font-size: 13px; margin: 0 0 18px; text-align: center; }
+  .inst-tabs { display: flex; gap: 4px; background: rgba(255,255,255,0.04); border-radius: 12px; padding: 4px; margin-bottom: 16px; }
+  .inst-tab { flex: 1; background: none; border: none; border-radius: 8px; padding: 10px; color: rgba(255,255,255,0.5); font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; transition: background 0.2s, color 0.2s; }
+  .inst-tab.on { background: rgba(46,125,209,0.15); color: #60a5fa; }
+  .inst-steps { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+  .inst-step { display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 10px 14px; }
+  .inst-step-n { width: 26px; height: 26px; border-radius: 50%; background: rgba(46,125,209,0.2); color: #60a5fa; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; flex-shrink: 0; }
+  .inst-step-txt { flex: 1; font-size: 13px; color: rgba(255,255,255,0.85); font-weight: 500; line-height: 1.4; }
+  .inst-step-txt strong { color: #fff; font-weight: 700; }
+  .inst-close { width: 100%; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 13px; color: rgba(255,255,255,0.65); font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; transition: background 0.2s; }
+  .inst-close:hover { background: rgba(255,255,255,0.1); }
+`
 
+function InstallPrompt() {
+  const [mostrar, setMostrar] = useState(false)
+  const [tab, setTab] = useState('ios')
   useEffect(() => {
-    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent)
-    const standalone = window.navigator.standalone
-    const yaVisto = localStorage.getItem('banner_instalar_visto')
-    setEsIOS(ios)
-    if (!standalone && !yaVisto) setMostrar(true)
+    // Activar solo si: autenticado + mobile + no-standalone + no-mostrado antes
+    const token = localStorage.getItem('token')
+    if (!token) return
+    const isAndroid = /Android/.test(navigator.userAgent)
+    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
+    if (!isAndroid && !isIOS) return
+    const isStandalone = window.navigator.standalone === true
+      || window.matchMedia('(display-mode: standalone)').matches
+      || (isAndroid && document.referrer.includes('android-app://'))
+    if (isStandalone) return
+    if (localStorage.getItem('install_prompt_shown')) return
+    setTab(isAndroid ? 'android' : 'ios')
+    // Delay 60s para no interrumpir el primer uso del usuario
+    const timer = setTimeout(() => setMostrar(true), 60_000)
+    return () => clearTimeout(timer)
   }, [])
 
-  if (!mostrar) return null
+  // Permite que otros componentes fuercen la apertura del sheet
+  // (usado por NotificationsPrompt en iOS-Safari sin PWA).
+  useEffect(() => {
+    const handler = () => {
+      const isAndroid = /Android/.test(navigator.userAgent)
+      const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
+      if (!isAndroid && !isIOS) return
+      const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches
+      if (isStandalone) return
+      setTab(isAndroid ? 'android' : 'ios')
+      setMostrar(true)
+    }
+    window.addEventListener('force-install-prompt', handler)
+    return () => window.removeEventListener('force-install-prompt', handler)
+  }, [])
 
+  const cerrar = () => {
+    localStorage.setItem('install_prompt_shown', String(Date.now()))
+    setMostrar(false)
+  }
+  if (!mostrar) return null
+  const pasosIOS = [
+    { t: <>Toca el botón <strong>Compartir</strong> ⎋ en la barra inferior del browser</> },
+    { t: <>Selecciona <strong>"Agregar a pantalla de inicio"</strong></> },
+    { t: <>Toca <strong>"Agregar"</strong> arriba a la derecha ✓</> },
+  ]
+  const pasosAndroid = [
+    { t: <>Abre esta página en <strong>Chrome</strong></> },
+    { t: <>Toca el menú <strong>⋮</strong> (arriba derecha)</> },
+    { t: <>Selecciona <strong>"Agregar a pantalla de inicio"</strong></> },
+    { t: <>Toca <strong>"Instalar"</strong> ✓</> },
+  ]
+  const pasos = tab === 'ios' ? pasosIOS : pasosAndroid
   return (
-    <div style={{
-      position: 'fixed', bottom: 90, left: 16, right: 16, zIndex: 9999,
-      background: 'linear-gradient(135deg, #1e1b4b, #2d1b69)',
-      border: '1px solid var(--shadow-color)',
-      borderRadius: 18, padding: '14px 16px',
-      boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-      display: 'flex', alignItems: 'center', gap: 12
-    }}>
-      <img src="/icon-192.png" style={{ width: 44, height: 44, borderRadius: 10 }} />
-      <div style={{ flex: 1 }}>
-        <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: 'white' }}>Instala APPrueba 📲</p>
-        <p style={{ margin: '2px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>
-          {esIOS ? 'Toca Compartir → "Agregar a inicio"' : 'Agrega la app a tu pantalla de inicio'}
-        </p>
+    <>
+      <style>{INSTALL_CSS}</style>
+      <div className="inst-back" onClick={cerrar}>
+        <div className="inst-sheet" onClick={e => e.stopPropagation()}>
+          <div className="inst-handle" />
+          <p className="inst-title">📲 Instala APPrueba en tu celular</p>
+          <p className="inst-sub">Accede más rápido, recibe notificaciones y úsala sin abrir el navegador.</p>
+          <div className="inst-tabs">
+            <button className={`inst-tab ${tab === 'ios' ? 'on' : ''}`} onClick={() => setTab('ios')}>🍎 iPhone</button>
+            <button className={`inst-tab ${tab === 'android' ? 'on' : ''}`} onClick={() => setTab('android')}>🤖 Android</button>
+          </div>
+          <div className="inst-steps">
+            {pasos.map((p, i) => (
+              <div key={i} className="inst-step">
+                <div className="inst-step-n">{i + 1}</div>
+                <div className="inst-step-txt">{p.t}</div>
+              </div>
+            ))}
+          </div>
+          <button className="inst-close" onClick={cerrar}>Ahora no, gracias</button>
+        </div>
       </div>
-      <button onClick={() => { setMostrar(false); localStorage.setItem('banner_instalar_visto', '1') }}
-        style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 20, cursor: 'pointer', padding: 4 }}>✕</button>
-    </div>
+    </>
   )
 }
+
+// ── NotificationsPrompt ─────────────────────────────────────────
+// Sheet que pide permiso de notificaciones tras el onboarding.
+// Manejo iOS edge: si el user está en iOS Safari sin PWA, el permiso
+// Web de notifs no funciona → redirigimos a InstallPrompt.
+const NOTIF_PROMPT_CSS = `
+  .nf-back { position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 9998; display: flex; align-items: flex-end; justify-content: center; animation: nfFade 0.2s ease; }
+  @keyframes nfFade { from { opacity: 0; } }
+  .nf-sheet { width: 100%; max-width: 480px; background: var(--bg-secondary); border-radius: 24px 24px 0 0; padding: 16px 22px calc(28px + env(safe-area-inset-bottom, 0px)); box-sizing: border-box; animation: nfSlide 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); max-height: 88vh; overflow-y: auto; text-align: center; }
+  @keyframes nfSlide { from { transform: translateY(100%); } }
+  .nf-handle { width: 40px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 999px; margin: 0 auto 18px; }
+  .nf-icon { font-size: 60px; display: inline-block; margin: 8px 0 16px; animation: nfGlow 2.5s ease-in-out infinite; }
+  @keyframes nfGlow { 0%, 100% { filter: drop-shadow(0 0 18px rgba(96,165,250,0.3)); transform: scale(1); } 50% { filter: drop-shadow(0 0 36px rgba(96,165,250,0.7)); transform: scale(1.08); } }
+  .nf-title { color: #fff; font-size: 22px; font-weight: 900; letter-spacing: -0.02em; margin: 0 0 22px; }
+  .nf-benefits { display: flex; flex-direction: column; gap: 10px; margin: 0 0 24px; text-align: left; }
+  .nf-benefit { display: flex; align-items: center; gap: 14px; padding: 12px 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; }
+  .nf-benefit-icon { font-size: 22px; flex-shrink: 0; }
+  .nf-benefit-txt { flex: 1; font-size: 14px; color: rgba(255,255,255,0.85); font-weight: 600; line-height: 1.35; }
+  .nf-primary { width: 100%; background: linear-gradient(135deg, #2e7dd1, #5ba3e8); color: #fff; border: none; border-radius: 16px; padding: 15px; font-size: 15px; font-weight: 800; cursor: pointer; font-family: inherit; margin-bottom: 6px; transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.2s; box-shadow: 0 10px 28px rgba(46,125,209,0.35); display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .nf-primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
+  .nf-primary:active { transform: scale(0.98); }
+  .nf-secondary { width: 100%; background: none; border: none; color: rgba(255,255,255,0.5); font-size: 14px; font-weight: 600; cursor: pointer; padding: 12px; font-family: inherit; transition: color 0.2s; }
+  .nf-secondary:hover { color: rgba(255,255,255,0.85); }
+`
+
+function NotificationsPrompt({ onDone }) {
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
+  const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches
+  const needsPwaFirst = isIOS && !isStandalone
+
+  const activar = async () => {
+    if (needsPwaFirst) {
+      // iOS-Safari sin PWA → no puede recibir notifs web. Lo mandamos al InstallPrompt.
+      // Marcamos 'needs_install' para poder re-preguntar tras la instalación.
+      localStorage.setItem('notifications_prompted', 'needs_install')
+      window.dispatchEvent(new Event('force-install-prompt'))
+      onDone()
+      return
+    }
+    try {
+      const perm = await Notification.requestPermission()
+      if (perm === 'granted') {
+        localStorage.setItem('notifications_prompted', 'granted')
+      } else {
+        localStorage.setItem('notifications_prompted', 'denied')
+        localStorage.setItem('notifications_dismissed_at', String(Date.now()))
+      }
+    } catch {
+      localStorage.setItem('notifications_prompted', 'denied')
+      localStorage.setItem('notifications_dismissed_at', String(Date.now()))
+    }
+    onDone()
+  }
+
+  const rechazar = () => {
+    localStorage.setItem('notifications_prompted', 'dismissed')
+    localStorage.setItem('notifications_dismissed_at', String(Date.now()))
+    onDone()
+  }
+
+  return (
+    <>
+      <style>{NOTIF_PROMPT_CSS}</style>
+      <div className="nf-back">
+        <div className="nf-sheet">
+          <div className="nf-handle" />
+          <div className="nf-icon">🔔</div>
+          <h2 className="nf-title">No te pierdas nada</h2>
+          <div className="nf-benefits">
+            <div className="nf-benefit"><span className="nf-benefit-icon">⏰</span><span className="nf-benefit-txt">Te avisamos antes de cada prueba</span></div>
+            <div className="nf-benefit"><span className="nf-benefit-icon">📊</span><span className="nf-benefit-txt">Alertas cuando tu promedio baja</span></div>
+            <div className="nf-benefit"><span className="nf-benefit-icon">🎓</span><span className="nf-benefit-txt">Recordatorio de clases próximas</span></div>
+          </div>
+          <button className="nf-primary" onClick={activar}>
+            {needsPwaFirst ? '📲 Instalar app para activar' : '🔔 Activar notificaciones'}
+          </button>
+          <button className="nf-secondary" onClick={rechazar}>Ahora no</button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+// Alias para compat — el código antiguo llamaba `<BannerInstalar />`
+const BannerInstalar = InstallPrompt
 
 const FRASES = [
   "El éxito es la suma de pequeños esfuerzos repetidos cada día 💪",
@@ -294,6 +444,26 @@ const HOME_CSS = `
   .home-novedad-desc { font-size: 12px; color: var(--color-text-muted); line-height: 1.4; }
 
   .home-fundador-badge { display: inline-flex; align-items: center; gap: 4px; background: rgba(201,168,76,0.25); border: 1px solid rgba(201,168,76,0.5); border-radius: 20px; padding: 2px 10px; font-size: 11px; color: #C9A84C; font-weight: 700; margin-top: 6px; }
+
+  .home-banners { padding: 20px 20px 0; display: flex; flex-direction: column; gap: 10px; animation: homeBannerIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  @keyframes homeBannerIn { from { opacity: 0; transform: translateY(-6px); } }
+  .home-banner { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 22px; backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); cursor: pointer; transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .home-banner:hover { transform: translateX(2px); }
+  .home-banner.blue { background: rgba(46,125,209,0.08); border: 1px solid rgba(46,125,209,0.25); }
+  .home-banner.green { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25); }
+  .home-banner.amber { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25); }
+  .home-banner.purple { background: rgba(167,139,250,0.08); border: 1px solid rgba(167,139,250,0.25); }
+  .home-banner-icon { font-size: 28px; line-height: 1; flex-shrink: 0; }
+  .home-banner-body { flex: 1; min-width: 0; }
+  .home-banner-title { font-size: 14px; font-weight: 800; color: var(--color-text); margin: 0 0 2px; letter-spacing: -0.01em; }
+  .home-banner-sub { font-size: 11px; color: var(--color-text-muted); margin: 0 0 4px; font-weight: 600; line-height: 1.35; }
+  .home-banner-cta { font-size: 11px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+  .home-banner.blue .home-banner-cta { color: #60a5fa; }
+  .home-banner.green .home-banner-cta { color: #34d399; }
+  .home-banner.amber .home-banner-cta { color: #fbbf24; }
+  .home-banner.purple .home-banner-cta { color: #a78bfa; }
+  .home-banner-close { background: none; border: none; color: rgba(255,255,255,0.35); font-size: 18px; cursor: pointer; padding: 4px 6px; line-height: 1; font-family: inherit; flex-shrink: 0; transition: color 0.2s; }
+  .home-banner-close:hover { color: rgba(255,255,255,0.85); }
 `
 
 const HOME_ACCENTS = ['accent-cyan', 'accent-purple', 'accent-pink', 'accent-orange', 'accent-emerald', 'accent-yellow']
@@ -499,6 +669,58 @@ function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVer
 
   const esUrgentePronto = !!(proximaClase && proximaClase.esPronto)
 
+  // Banners contextuales — dismissal persiste SOLO por hoy (YYYY-MM-DD)
+  const todayKey = `banners_dismissed_${new Date().toISOString().slice(0, 10)}`
+  const [bannersDismissed, setBannersDismissed] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem(todayKey) || '[]')) }
+    catch { return new Set() }
+  })
+  const dismissBanner = (id) => {
+    const next = new Set([...bannersDismissed, id])
+    setBannersDismissed(next)
+    localStorage.setItem(todayKey, JSON.stringify([...next]))
+  }
+  // first_seen_home_ts se setea la primera vez que el usuario ve el Home.
+  // Se usa para gatear el banner de ramos: si después de 2 días aún no tiene
+  // ramos, significa que el horario no le fue suficiente o prefirió manual.
+  if (!localStorage.getItem('first_seen_home_ts')) {
+    localStorage.setItem('first_seen_home_ts', String(Date.now()))
+  }
+  const firstSeenTs = parseInt(localStorage.getItem('first_seen_home_ts') || Date.now(), 10)
+  const diasDesdeFirstSeen = (Date.now() - firstSeenTs) / (1000 * 60 * 60 * 24)
+
+  const banners = []
+  // 1. Horario — prioridad. La IA detecta ramos desde la foto.
+  if ((!horario || horario.length === 0) && !bannersDismissed.has('horario_vacio')) {
+    banners.push({
+      id: 'horario_vacio', clase: 'green', icon: '🗓️',
+      title: 'Sube tu horario',
+      sub: 'La IA detecta tus ramos automáticamente desde una foto de tu horario.',
+      cta: 'Subir horario', to: '/horario'
+    })
+  }
+  // 2. Ramos — secundario, solo si pasaron 2 días y aún no hay ramos.
+  if (ramos.length === 0 && diasDesdeFirstSeen >= 2 && !bannersDismissed.has('ramos_vacio')) {
+    banners.push({
+      id: 'ramos_vacio', clase: 'blue', icon: '📚',
+      title: 'Agrega tus ramos',
+      sub: 'Organiza tu semestre desde el inicio',
+      cta: 'Ir a ramos', to: '/ramos'
+    })
+  }
+  // 3. Recordatorio notifs — si el user las rechazó y pasaron ≥ 2 días.
+  const notifStatus = localStorage.getItem('notifications_prompted')
+  const notifDismissedAt = parseInt(localStorage.getItem('notifications_dismissed_at') || '0', 10)
+  const diasDesdeNotifDismiss = notifDismissedAt > 0 ? (Date.now() - notifDismissedAt) / (1000 * 60 * 60 * 24) : 0
+  if ((notifStatus === 'dismissed' || notifStatus === 'denied') && diasDesdeNotifDismiss >= 2 && !bannersDismissed.has('notif_off')) {
+    banners.push({
+      id: 'notif_off', clase: 'purple', icon: '🔔',
+      title: 'Activa las notificaciones',
+      sub: 'No te pierdas recordatorios de pruebas ni alertas de promedio bajo — actívalas desde Perfil.',
+      cta: 'Ir a perfil', to: '/perfil'
+    })
+  }
+
   // Texto contextual del promedio — 4 categorías, omite las con count 0
   const promedioContext = (() => {
     const parts = []
@@ -524,7 +746,9 @@ function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVer
           <div className="home-hero-top">
             <div>
               <div className="home-saludo">Hola, {nombreCorto} <span className="home-wave">👋</span></div>
-              {esFundador && (
+              {(usuario?.badge === 'CEO' || usuario?.email === 'abelespinozav@gmail.com') ? (
+                <div className="home-fundador-badge">👑 CEO</div>
+              ) : esFundador && (
                 <div className="home-fundador-badge">🏅 Fundador #{numeroRegistro}</div>
               )}
             </div>
@@ -565,6 +789,23 @@ function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVer
             )}
           </div>
         </div>
+
+        {/* Banners contextuales (dismissables por día) */}
+        {banners.length > 0 && (
+          <div className="home-banners">
+            {banners.map(b => (
+              <div key={b.id} className={`home-banner ${b.clase}`} onClick={() => navigate(b.to)}>
+                <div className="home-banner-icon">{b.icon}</div>
+                <div className="home-banner-body">
+                  <div className="home-banner-title">{b.title}</div>
+                  <div className="home-banner-sub">{b.sub}</div>
+                  <div className="home-banner-cta">{b.cta} →</div>
+                </div>
+                <button className="home-banner-close" onClick={e => { e.stopPropagation(); dismissBanner(b.id) }}>✕</button>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Próxima clase URGENTE va antes de sugerida */}
         {esUrgentePronto && seccionProximaClase('⏰ Tu clase empieza pronto', true)}
@@ -979,7 +1220,7 @@ function QuizTab({ ramos, onIniciarQuiz }) {
 // PERFIL TAB
 // ============================================================
 const PERFIL_CSS = `
-  .perfil-root { background: transparent; padding: 0 0 120px; min-height: 100vh; }
+  .perfil-root { background: transparent; padding: 0 0 120px; height: 100vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
   .perfil-hero { padding: 56px 20px 8px; text-align: center; }
   .perfil-hero-emoji { display: inline-block; font-size: 40px; animation: perfilBounce 3.2s ease-in-out infinite; transform-origin: center bottom; margin-bottom: 6px; filter: drop-shadow(0 4px 12px var(--shadow-color)); }
   @keyframes perfilBounce { 0%, 70%, 100% { transform: translateY(0) scale(1); } 15% { transform: translateY(-8px) scale(1.05); } 30% { transform: translateY(0) scale(1); } 45% { transform: translateY(-4px) scale(1.02); } 55% { transform: translateY(0) scale(1); } }
@@ -1035,7 +1276,9 @@ function PerfilTab({ usuario, onLogout, onUniversidad, esFundador, numeroRegistr
           <div className="perfil-avatar">{inicial}</div>
           <div className="perfil-nombre">{usuario?.nombre || usuario?.name || 'Estudiante'}</div>
           <div className="perfil-email">{usuario?.email}</div>
-          {esFundador && (
+          {(usuario?.badge === 'CEO' || usuario?.email === 'abelespinozav@gmail.com') ? (
+            <div className="perfil-fundador">👑 CEO</div>
+          ) : esFundador && (
             <div className="perfil-fundador">🏅 Fundador #{numeroRegistro}</div>
           )}
         </div>
@@ -1150,7 +1393,11 @@ function AppHeader({ usuario, esFundador, numeroRegistro, evalProximas3dias, onN
           <p style={{ margin: '2px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>
             Hola, {usuario?.nombre?.split(' ')[0] || usuario?.name?.split(' ')[0] || 'estudiante'} 👋
           </p>
-          {esFundador && (
+          {(usuario?.badge === 'CEO' || usuario?.email === 'abelespinozav@gmail.com') ? (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(167,139,250,0.25)', border: '1px solid rgba(167,139,250,0.5)', borderRadius: 20, padding: '2px 10px', fontSize: 11, color: '#a78bfa', fontWeight: 700, marginTop: 4 }}>
+              👑 CEO
+            </div>
+          ) : esFundador && (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(201,168,76,0.25)', border: '1px solid rgba(201,168,76,0.5)', borderRadius: 20, padding: '2px 10px', fontSize: 11, color: '#C9A84C', fontWeight: 700, marginTop: 4 }}>
               🏅 Fundador #{numeroRegistro}
             </div>
@@ -1191,9 +1438,11 @@ function calcular(evaluaciones, min, ramo) {
   const sinRojos = ramo?.sin_rojos || false
   const notaExamenGuardada = (ramo?.nota_examen !== null && ramo?.nota_examen !== undefined && ramo?.nota_examen !== '') ? parseFloat(ramo.nota_examen) : null
 
-  if (pendientes.length === 0) {
-    // Promedio ponderado real: sum(nota*pond) / sum(pond). Robusto aunque
-    // pesoTotal != 100 (ponderaciones mal cargadas o incompletas).
+  // Semestre "cerrado": todas las evals cargadas Y ponderaciones suman 100%.
+  // Si pesoTotal < 100 (faltan evals por cargar), no declaramos el ramo como
+  // reprobado/eximido/aprobado — caemos al branch de "en progreso" más abajo.
+  if (pendientes.length === 0 && pesoCompleto) {
+    // Promedio ponderado real: sum(nota*pond) / sum(pond).
     const promedio = pesoCompletado > 0 ? completadas.reduce((acc, e) => acc + e.nota * e.ponderacion, 0) / pesoCompletado : 0
     const tieneRojos = completadas.some(e => e.nota < 4.0)
 
@@ -1228,15 +1477,25 @@ function calcular(evaluaciones, min, ramo) {
     return { promedio, necesaria: null, necesariaExamen, estado: estadoFinal, pendientesCount: 0, pesoCompleto, pesoTotal, eximido: false, tieneRojos }
   }
 
-  const pesoPendiente = pendientes.reduce((acc, e) => acc + e.ponderacion, 0)
+  // Branch "en progreso": hay pendientes explícitas O faltan ponds por cargar.
+  // El "peso restante" incluye AMBOS: evals pendientes (con pond cargada pero
+  // sin nota) Y las evals que aún no se han agregado (pesoTotal < 100).
+  // Tratamos todo como ponderación que todavía puede recibir nota.
+  const pesoPendiente = Math.max(0, 100 - pesoCompletado)
   const puntajeActual = completadas.reduce((acc, e) => acc + e.nota * (e.ponderacion / 100), 0)
   const promedioActual = pesoCompletado > 0 ? (puntajeActual / (pesoCompletado / 100)) : null
-  const necesariaRaw = pesoPendiente > 0 ? ((parseFloat(min) * pesoTotal / 100 - puntajeActual) / (pesoPendiente / 100)) : null
-  const necesaria = necesariaRaw
-  const estadoPendiente = pesoCompleto && necesariaRaw !== null && necesariaRaw > 7 ? 'imposible'
-                        : pesoCompleto && necesariaRaw !== null && necesariaRaw < 0 ? 'aprobado'
+  // Promedio máximo posible: 7.0 en todo lo restante (completar + futuras)
+  const promedioMaxPosible = pesoPendiente > 0
+    ? puntajeActual + 7.0 * (pesoPendiente / 100)
+    : puntajeActual
+  // 'reprobado' definitivo sólo cuando el máximo posible no alcanza el mínimo
+  const imposible = Math.round(promedioMaxPosible * 10) / 10 < parseFloat(min)
+  // Nota promedio necesaria en lo restante para alcanzar el mínimo
+  const necesariaRaw = pesoPendiente > 0 ? ((parseFloat(min) - puntajeActual) / (pesoPendiente / 100)) : null
+  const estadoPendiente = imposible ? 'imposible'
+                        : (necesariaRaw !== null && necesariaRaw < 0) ? 'aprobado'
                         : null
-  return { promedio: promedioActual, necesaria, necesariaExamen: null, estado: estadoPendiente, pendientesCount: pendientes.length, pesoCompleto, pesoTotal, eximido: false }
+  return { promedio: promedioActual, necesaria: necesariaRaw, necesariaExamen: null, estado: estadoPendiente, pendientesCount: pendientes.length, pesoCompleto, pesoTotal, eximido: false, promedioMaxPosible }
 }
 
 function notaColor(nota) {
@@ -1246,6 +1505,24 @@ function notaColor(nota) {
   return '#f87171'
 }
 
+const LOGIN_CSS = `
+  .login-root { min-height: 100vh; background: radial-gradient(circle at 50% 20%, rgba(46,125,209,0.18) 0%, var(--bg-primary) 60%); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px 100px; box-sizing: border-box; position: relative; }
+  .login-logo-img { width: 100px; height: 100px; border-radius: 22px; margin: 0 0 20px; display: block; animation: loginFloat 3s ease-in-out infinite; filter: drop-shadow(0 10px 30px rgba(46,125,209,0.35)); }
+  @keyframes loginFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+  .login-logo { font-size: 40px; font-weight: 900; letter-spacing: -0.04em; margin: 0 0 6px; background: linear-gradient(135deg, #60a5fa, #a78bfa); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; line-height: 1; }
+  .login-tagline { color: rgba(255,255,255,0.4); font-size: 13px; margin: 0 0 36px; font-weight: 500; letter-spacing: 0.01em; }
+  .login-title { color: #fff; font-size: 26px; font-weight: 900; letter-spacing: -0.025em; margin: 0 0 12px; text-align: center; line-height: 1.2; max-width: 320px; }
+  .login-sub { color: rgba(255,255,255,0.55); font-size: 14px; line-height: 1.5; margin: 0 0 36px; text-align: center; max-width: 300px; font-weight: 500; }
+  .login-btn { width: 100%; max-width: 320px; background: #fff; color: #1a1a2e; border: none; border-radius: 16px; padding: 15px 24px; font-size: 15px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 12px; font-family: inherit; transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+  .login-btn:hover { transform: translateY(-2px); box-shadow: 0 14px 40px rgba(0,0,0,0.4); }
+  .login-btn:active { transform: scale(0.98); }
+  .login-hint { color: rgba(255,255,255,0.35); font-size: 12px; margin: 16px 0 0; text-align: center; font-weight: 500; }
+  .login-alert { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 14px; padding: 12px 16px; margin: 0 0 20px; text-align: center; max-width: 320px; }
+  .login-alert-title { color: #fca5a5; font-size: 14px; font-weight: 700; margin: 0 0 4px; }
+  .login-alert-sub { color: rgba(255,255,255,0.4); font-size: 12px; margin: 0; }
+  .login-spots { background: rgba(46,125,209,0.15); border: 1px solid rgba(46,125,209,0.4); border-radius: 999px; padding: 6px 14px; font-size: 12px; color: #60a5fa; font-weight: 700; margin: 0 0 24px; letter-spacing: 0.02em; }
+`
+
 function LoginScreen({ onLogin }) {
   const urlParams = new URLSearchParams(window.location.search)
   const errorParam = urlParams.get('error')
@@ -1254,39 +1531,44 @@ function LoginScreen({ onLogin }) {
     fetch(API + '/fundadores/spots').then(r => r.json()).then(d => setSpots(d)).catch(() => {})
   }, [])
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <BackgroundOrbs />
-      <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', animation: 'slideUp 0.6s ease' }}>
-        <img src="/icon-512.png" alt="APPrueba" style={{ width: 80, height: 80, borderRadius: 20, marginBottom: 16, display: 'block', margin: '0 auto 16px', animation: 'float 1.2s cubic-bezier(0.36,0.07,0.19,0.97) infinite' }} />
-        <h1 style={{ fontSize: 36, fontWeight: 800, color: 'white', margin: '0 0 8px', background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>APPrueba</h1>
-        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 15, margin: '0 0 48px' }}>Estudia Inteligente</p>
+    <>
+      <style>{LOGIN_CSS}</style>
+      <div className="login-root">
+        <img className="login-logo-img" src="/icon-192.png" alt="APPrueba" />
+        <h1 className="login-logo">APPrueba</h1>
+        <p className="login-tagline">Tu semestre, bajo control</p>
+        <h2 className="login-title">Aprueba con inteligencia</h2>
+        <p className="login-sub">Controla tus notas, planifica con IA y nunca te pierdas una prueba.</p>
+
         {errorParam === 'lista_espera' && (
-        <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 12, padding: '12px 16px', marginBottom: 16, textAlign: 'center' }}>
-          <p style={{ color: '#fca5a5', fontSize: 14, fontWeight: 600, margin: '0 0 4px' }}>😔 Los 50 cupos fundadores están ocupados</p>
-          <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, margin: 0 }}>Pronto abriremos nuevos puestos. ¡Vuelve pronto!</p>
-        </div>
-      )}
-      {spots && !spots.lleno && (
-        <div style={{ textAlign: 'center', marginBottom: 16 }}>
-          <span style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 20, padding: '6px 16px', fontSize: 13, color: '#a5b4fc', fontWeight: 600 }}>
-            🏅 {spots.quedan} de 50 fundadores disponibles
-          </span>
-        </div>
-      )}
-      <button onClick={onLogin} style={{ background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', color: 'white', border: 'none', borderRadius: 16, padding: '16px 32px', fontSize: 16, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, margin: '0 auto', boxShadow: '0 8px 32px var(--shadow-color)' }}>
-          <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3C33.6 33.1 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34.1 6.5 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c11 0 20-8 20-20 0-1.3-.1-2.7-.4-4z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 15.1 18.9 12 24 12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34.1 6.5 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-1.9 13.5-5l-6.2-5.2C29.5 35.6 26.9 36 24 36c-5.2 0-9.6-2.9-11.3-7.1l-6.6 4.9C9.8 39.8 16.4 44 24 44z"/><path fill="#1976D2" d="M43.6 20H24v8h11.3c-.9 2.5-2.6 4.6-4.8 6l6.2 5.2C40.5 35.5 44 30.2 44 24c0-1.3-.1-2.7-.4-4z"/></svg>
+          <div className="login-alert">
+            <p className="login-alert-title">😔 Los 50 cupos fundadores están ocupados</p>
+            <p className="login-alert-sub">Pronto abriremos nuevos puestos. ¡Vuelve pronto!</p>
+          </div>
+        )}
+        {spots && !spots.lleno && (
+          <div className="login-spots">🏅 {spots.quedan} de 50 fundadores disponibles</div>
+        )}
+
+        <button className="login-btn" onClick={onLogin}>
+          <svg width="20" height="20" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+          </svg>
           Continuar con Google
         </button>
-        <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: 12, marginTop: 24 }}>Guarda tu progreso académico de forma segura</p>
+        <p className="login-hint">¿Primera vez? Te creamos la cuenta automáticamente</p>
       </div>
-    </div>
+    </>
   )
 }
 
 
 
 const HORARIO_CSS = `
-  .hor-root { background: transparent; padding: 0 0 120px; min-height: 100vh; }
+  .hor-root { background: transparent; padding: 0 0 120px; height: 100vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
   .hor-hero { padding: 56px 20px 8px; max-width: 700px; margin: 0 auto; }
   .hor-hero h1 { font-size: 32px; font-weight: 900; letter-spacing: -0.035em; line-height: 1; margin: 0 0 6px; color: var(--color-text); }
   .hor-hero-sub { font-size: 13px; color: var(--color-text-muted); font-weight: 600; margin: 0; }
@@ -2274,7 +2556,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPatchEval, onPlan, eva
         return (
           <div style={{ background: necesaria > 6 ? 'rgba(239,68,68,0.1)' : necesaria > 5 ? 'rgba(245,158,11,0.1)' : 'rgba(34,197,94,0.1)', border: `1px solid ${necesaria > 6 ? 'rgba(239,68,68,0.25)' : necesaria > 5 ? 'rgba(245,158,11,0.25)' : 'rgba(34,197,94,0.25)'}`, borderRadius: 14, padding: '12px 16px' }}>
             <p style={{ fontSize: 13, color: 'white', margin: '0 0 4px', lineHeight: 1.5 }}>
-              📌 Estimado: necesitas <strong style={{ color: colorNecesaria }}>{necesaria.toFixed(1)}</strong> en {pendientesCount === 1 ? 'la evaluación restante' : `las ${pendientesCount} evaluaciones restantes`}
+              📌 Necesitas <strong style={{ color: colorNecesaria }}>{necesaria.toFixed(1)}</strong> en {pendientesCount === 1 ? 'la evaluación restante' : `las ${pendientesCount} evaluaciones restantes`}
             </p>
             <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', margin: 0 }}>
               ⚠️ Tus ponderaciones suman {pesoTotal}% — agrega las que faltan para un cálculo exacto
@@ -2317,7 +2599,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPatchEval, onPlan, eva
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', paddingBottom: 100 }}>
+    <div style={{ minHeight: '100vh', background: 'transparent', paddingBottom: 120 }}>
       <Confetti active={confetti} />
       {editandoRamo && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 100 }} onClick={() => setEditandoRamo(false)}>
@@ -2348,46 +2630,58 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPatchEval, onPlan, eva
           </div>
         </div>
       )}
-      <BackgroundOrbs />
-      <div style={{ position: 'relative', zIndex: 1 }}>
-        <div style={{ background: 'linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%)', padding: '20px 20px 24px' }}>
-          <button onClick={onBack} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 12, padding: '8px 14px', color: 'rgba(255,255,255,0.6)', fontSize: 13, cursor: 'pointer', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 6 }}>← Volver</button>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-            <div>
-              <h1 style={{ fontSize: 26, fontWeight: 800, color: 'white', margin: '0 0 4px' }}>{ramo.nombre}</h1>
-              <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', margin: 0 }}>Mínimo para aprobar: {ramo.min_aprobacion}</p>
-              {ramo.nota_eximicion && (
-                <p style={{ fontSize: 12, color: 'rgba(167,139,250,0.6)', margin: '2px 0 0' }}>
-                  🎓 Eximición: {ramo.nota_eximicion}{ramo.condiciones_eximicion ? ` · ${ramo.condiciones_eximicion}` : ''}
-                </p>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setEditandoRamo(true)} style={{ background: 'rgba(108,99,255,0.1)', border: '1px solid var(--shadow-color)', borderRadius: 12, padding: '8px 12px', color: 'var(--color-secondary)', fontSize: 12, cursor: 'pointer' }}>✏️</button>
-              <button onClick={() => { if(window.confirm('¿Eliminar este ramo?')) onDelete(ramo.id) }} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 12, padding: '8px 12px', color: '#f87171', fontSize: 12, cursor: 'pointer' }}>🗑</button>
-            </div>
-          </div>
-
-          {proximaEv && (
-            <div style={{ marginBottom: 20, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 14, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 20 }}>⏰</span>
-              <div>
-                <p style={{ fontSize: 11, color: '#fbbf24', margin: 0, fontWeight: 600 }}>Próxima evaluación</p>
-                <p style={{ fontSize: 13, color: 'white', margin: 0 }}>{proximaEv.nombre} · <BadgeFecha fecha={proximaEv.fecha} /></p>
+      {/* Header con gradient sutil según estado */}
+      {(() => {
+        const hdrGrad = estado === 'eximido' ? 'linear-gradient(180deg, rgba(96,165,250,0.14), transparent)'
+          : estado === 'aprobado' ? 'linear-gradient(180deg, rgba(16,185,129,0.14), transparent)'
+          : estado === 'con_examen' ? 'linear-gradient(180deg, rgba(245,158,11,0.14), transparent)'
+          : (estado === 'reprobado_sin_examen' || estado === 'reprobado_imposible' || estado === 'imposible') ? 'linear-gradient(180deg, rgba(239,68,68,0.14), transparent)'
+          : 'linear-gradient(180deg, rgba(167,139,250,0.08), transparent)'
+        return (
+          <div style={{ background: hdrGrad, padding: '20px 20px 24px', position: 'relative' }}>
+            <button onClick={onBack} style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: 'none', borderRadius: 12, padding: '8px 14px', color: 'rgba(255,255,255,0.7)', fontSize: 13, cursor: 'pointer', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit', fontWeight: 700 }}>← Volver</button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h1 style={{ fontSize: 22, fontWeight: 900, color: '#fff', margin: '0 0 6px', letterSpacing: '0.02em', textTransform: 'uppercase', lineHeight: 1.15, wordBreak: 'break-word' }}>{ramo.nombre}</h1>
+                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: 0, fontWeight: 600, letterSpacing: '0.04em' }}>Mínimo para aprobar: {ramo.min_aprobacion}</p>
+                {ramo.nota_eximicion && (
+                  <p style={{ fontSize: 11, color: 'rgba(96,165,250,0.7)', margin: '3px 0 0', fontWeight: 600 }}>
+                    🎓 Eximición: {ramo.nota_eximicion}{ramo.condiciones_eximicion ? ` · ${ramo.condiciones_eximicion}` : ''}
+                  </p>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                <button onClick={() => setEditandoRamo(true)} style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '8px 12px', color: 'rgba(255,255,255,0.85)', fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>✏️</button>
+                <button onClick={() => { if(window.confirm('¿Eliminar este ramo?')) onDelete(ramo.id) }} style={{ background: 'rgba(239,68,68,0.1)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 10, padding: '8px 12px', color: '#f87171', fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>🗑</button>
               </div>
             </div>
-          )}
 
-          {estado ? (
-            <div style={{
-              background: estado === 'eximido' ? 'rgba(167,139,250,0.15)' : estado === 'aprobado' ? 'rgba(34,197,94,0.15)' : estado === 'con_examen' ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)',
-              borderRadius: 20, padding: '20px',
-              border: `1px solid ${estado === 'eximido' ? 'rgba(167,139,250,0.3)' : estado === 'aprobado' ? 'rgba(34,197,94,0.3)' : estado === 'con_examen' ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.3)'}`,
-              textAlign: 'center', animation: 'slideUp 0.4s ease' }}>
-              <p style={{ fontSize: 32 }}>{estado === 'eximido' ? '🎓' : estado === 'aprobado' ? '🎉' : estado === 'con_examen' ? '📝' : '😔'}</p>
-              <p style={{ color: 'white', fontSize: 20, fontWeight: 800, margin: '0 0 6px' }}>
-                {estado === 'eximido' ? '¡Estás eximido!' : estado === 'aprobado' ? '¡Ramo aprobado!' : estado === 'con_examen' ? 'Debes rendir examen' : 'Ramo reprobado'}
-              </p>
+            {proximaEv && (
+              <div style={{ background: 'rgba(245,158,11,0.08)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 14, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 20 }}>⏰</span>
+                <div>
+                  <p style={{ fontSize: 10, color: '#fbbf24', margin: 0, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Próxima evaluación</p>
+                  <p style={{ fontSize: 13, color: '#fff', margin: '2px 0 0', fontWeight: 600 }}>{proximaEv.nombre} · <BadgeFecha fecha={proximaEv.fecha} /></p>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
+      {/* Status card o stats card unificada */}
+      <div style={{ padding: '0 16px' }}>
+        {estado ? (
+          <div style={{
+            background: estado === 'eximido' ? 'rgba(96,165,250,0.1)' : estado === 'aprobado' ? 'rgba(16,185,129,0.1)' : estado === 'con_examen' ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)',
+            backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
+            border: `1px solid ${estado === 'eximido' ? 'rgba(96,165,250,0.3)' : estado === 'aprobado' ? 'rgba(16,185,129,0.3)' : estado === 'con_examen' ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.3)'}`,
+            borderRadius: 20, padding: '22px 20px',
+            textAlign: 'center', animation: 'slideUp 0.4s ease' }}>
+            <p style={{ fontSize: 34, margin: '0 0 6px' }}>{estado === 'eximido' ? '🎓' : estado === 'aprobado' ? '🎉' : estado === 'con_examen' ? '📝' : '😔'}</p>
+            <p style={{ color: '#fff', fontSize: 20, fontWeight: 900, margin: '0 0 8px', letterSpacing: '-0.02em' }}>
+              {estado === 'eximido' ? '¡Estás eximido!' : estado === 'aprobado' ? '¡Ramo aprobado!' : estado === 'con_examen' ? 'Debes rendir examen' : 'Ramo reprobado'}
+            </p>
               {estado === 'eximido' && <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, margin: 0 }}>Promedio semestre: <strong style={{ color: 'var(--color-secondary)' }}>{promedio?.toFixed(1)}</strong></p>}
               {estado === 'aprobado' && !ramo.nota_examen && <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, margin: 0 }}>Promedio final: <strong style={{ color: '#4ade80' }}>{promedio?.toFixed(1)}</strong></p>}
 
@@ -2467,41 +2761,39 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPatchEval, onPlan, eva
             </div>
           ) : (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 14 }}>
-                <div style={{ background: 'var(--shadow-color)', borderRadius: 16, padding: '14px 10px', border: '1px solid var(--shadow-color)', textAlign: 'center' }}>
-                  <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px', lineHeight: 1.4 }}>Promedio{'\n'}actual</p>
-                  <p style={{ fontSize: 24, fontWeight: 800, color: promedio ? notaColor(promedio) : 'rgba(255,255,255,0.3)', margin: 0 }}>{promedio ? promedio.toFixed(1) : '—'}</p>
+              <div style={{ background: 'rgba(255,255,255,0.04)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: 20, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, animation: 'slideUp 0.4s ease' }}>
+                <div style={{ textAlign: 'center', borderRight: '1px solid rgba(255,255,255,0.08)', paddingRight: 6 }}>
+                  <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.45)', margin: '0 0 8px', lineHeight: 1.25, fontWeight: 900, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Promedio<br/>actual</p>
+                  <p style={{ fontSize: 26, fontWeight: 900, color: promedio ? notaColor(promedio) : 'rgba(255,255,255,0.3)', margin: 0, letterSpacing: '-0.03em', lineHeight: 1 }}>{promedio ? promedio.toFixed(1) : '—'}</p>
                 </div>
-                <div style={{ background: 'var(--shadow-color)', borderRadius: 16, padding: '14px 10px', border: '1px solid var(--shadow-color)', textAlign: 'center' }}>
-                  <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px', lineHeight: 1.4 }}>Nota{'\n'}necesaria</p>
-                  <p style={{ fontSize: 24, fontWeight: 800, color: colorNecesaria, margin: 0 }}>
-                    {necesaria === null ? '—' : necesaria.toFixed(1)}
-                  </p>
+                <div style={{ textAlign: 'center', borderRight: '1px solid rgba(255,255,255,0.08)', paddingRight: 6, paddingLeft: 6 }}>
+                  <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.45)', margin: '0 0 8px', lineHeight: 1.25, fontWeight: 900, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Nota<br/>necesaria</p>
+                  <p style={{ fontSize: 26, fontWeight: 900, color: colorNecesaria, margin: 0, letterSpacing: '-0.03em', lineHeight: 1 }}>{necesaria === null ? '—' : necesaria.toFixed(1)}</p>
                 </div>
-                <div style={{ background: 'var(--shadow-color)', borderRadius: 16, padding: '14px 10px', border: '1px solid var(--shadow-color)', textAlign: 'center' }}>
-                  <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px', lineHeight: 1.4 }}>Evaluaciones{'\n'}pendientes</p>
-                  <p style={{ fontSize: 24, fontWeight: 800, color: pendientesCount === 0 ? '#4ade80' : 'var(--color-secondary)', margin: 0 }}>{pendientesCount}</p>
+                <div style={{ textAlign: 'center', paddingLeft: 6 }}>
+                  <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.45)', margin: '0 0 8px', lineHeight: 1.25, fontWeight: 900, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Evals<br/>pendientes</p>
+                  <p style={{ fontSize: 26, fontWeight: 900, color: pendientesCount === 0 ? '#4ade80' : '#fbbf24', margin: 0, letterSpacing: '-0.03em', lineHeight: 1 }}>{pendientesCount}</p>
                 </div>
               </div>
-              <MensajeResumen />
+              <div style={{ marginTop: 12 }}><MensajeResumen /></div>
             </>
           )}
         </div>
 
-        <div style={{ padding: '16px 16px 0' }}>
-          <p style={{ fontSize: 11, fontWeight: pesoUsado > 100 ? 800 : 600, color: pesoUsado > 100 ? '#f87171' : '#4a4a6a', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+        <div style={{ padding: '24px 16px 0' }}>
+          <p style={{ fontSize: 10, fontWeight: 900, color: pesoUsado > 100 ? '#f87171' : 'rgba(255,255,255,0.45)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.2em' }}>
             {pesoUsado > 100 ? '⚠️ ' : ''}Evaluaciones · {pesoUsado}% usado{pesoUsado > 100 ? ' (supera 100%)' : ''}
           </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
             {evs.map((ev, idx) => {
               const tieneNota = ev.nota !== null && ev.nota !== undefined && ev.nota !== ''
               const notaVal = tieneNota ? parseFloat(ev.nota) : null
               const estaEditandoNota = notaEditingId === ev.id
               const flashing = flashedNotaId === ev.id
-              const notaBorderColor = flashing ? '#4ade80' : (tieneNota ? `${notaColor(notaVal)}44` : 'var(--shadow-color)')
+              const notaBorderColor = flashing ? '#4ade80' : (tieneNota ? `${notaColor(notaVal)}55` : 'rgba(255,255,255,0.12)')
               const notaBoxShadow = flashing ? '0 0 0 3px rgba(74,222,128,0.35)' : 'none'
               return (
-                <div key={ev.id} id={'eval-' + ev.id} style={{ background: 'var(--bg-secondary)', borderRadius: 16, padding: '14px 16px', border: tieneNota ? '1px solid var(--shadow-color)' : '1.5px dashed rgba(108,99,255,0.3)', animation: `slideUp 0.3s ${idx * 0.05}s ease both` }}>
+                <div key={ev.id} id={'eval-' + ev.id} style={{ background: 'rgba(255,255,255,0.04)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', borderRadius: 14, padding: '12px 14px', border: '1px solid rgba(255,255,255,0.08)', animation: `slideUp 0.3s ${idx * 0.05}s ease both` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     {/* Cuadrito nota — tap para editar inline */}
                     {estaEditandoNota ? (
@@ -2550,8 +2842,9 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPatchEval, onPlan, eva
           </div>
 
           {mostrando ? (
-            <div style={{ background: 'var(--bg-secondary)', borderRadius: 20, padding: '20px', border: '1.5px solid rgba(108,99,255,0.3)', animation: 'slideUp 0.3s ease' }}>
-              <p style={{ fontSize: 14, fontWeight: 700, color: 'white', margin: '0 0 16px' }}>Nueva evaluación <span style={{ fontSize: 12, color: 'var(--color-primary)', fontWeight: 400 }}>({pesoDisponible}% disponible)</span></p>
+            <div style={{ background: 'rgba(255,255,255,0.04)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', borderRadius: 20, padding: '20px', border: '1px solid rgba(255,255,255,0.08)', borderLeft: '3px solid var(--color-primary)', animation: 'slideUp 0.3s ease' }}>
+              <p style={{ fontSize: 10, fontWeight: 900, color: 'var(--color-primary)', margin: '0 0 4px', letterSpacing: '0.2em', textTransform: 'uppercase' }}>⚡ Nueva evaluación</p>
+              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', margin: '0 0 16px', fontWeight: 600 }}>{pesoDisponible}% disponible</p>
               <input value={nuevaEv.nombre} onChange={e => setNuevaEv({ ...nuevaEv, nombre: e.target.value })} placeholder="Nombre (ej: Solemne 1)"
                 style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 10, boxSizing: 'border-box' }} />
               <div style={{ display: 'flex', gap: 10, marginBottom: 4 }}>
@@ -2581,17 +2874,16 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPatchEval, onPlan, eva
             </div>
           ) : (
             pesoDisponible > 0 ? (
-              <button onClick={() => setMostrando(true)} style={{ width: '100%', background: 'var(--shadow-color)', border: '1.5px dashed rgba(108,99,255,0.3)', borderRadius: 16, padding: '14px', color: 'var(--color-secondary)', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+              <button onClick={() => setMostrando(true)} style={{ width: '100%', background: 'color-mix(in srgb, var(--color-primary) 8%, transparent)', border: '1.5px dashed color-mix(in srgb, var(--color-primary) 40%, transparent)', borderRadius: 16, padding: '14px', color: 'var(--color-primary)', fontSize: 14, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.2s, border-color 0.2s' }}>
                 + Agregar evaluación ({pesoDisponible}% disponible)
               </button>
             ) : (
-              <button disabled style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1.5px dashed rgba(255,255,255,0.12)', borderRadius: 16, padding: '14px', color: 'rgba(255,255,255,0.35)', fontSize: 13, fontWeight: 600, cursor: 'not-allowed' }}>
+              <button disabled style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1.5px dashed rgba(255,255,255,0.12)', borderRadius: 16, padding: '14px', color: 'rgba(255,255,255,0.35)', fontSize: 13, fontWeight: 700, cursor: 'not-allowed', fontFamily: 'inherit' }}>
                 ✅ 100% de ponderación usado
               </button>
             )
           )}
         </div>
-      </div>
 
       {/* Modal editar metadata de evaluación */}
       {editingMeta && (
@@ -2772,7 +3064,7 @@ function AdminScreen({ usuario, onBack }) {
   ]
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', padding: 24, color: 'white' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', padding: '24px 24px 120px', color: 'white' }}>
       <BackgroundOrbs />
       <BannerInstalar />
       <div style={{ position: 'relative', zIndex: 1, maxWidth: 750, margin: '0 auto' }}>
@@ -3090,8 +3382,10 @@ function AppContent() {
   const [novedades, setNovedades] = useState([])
   const [horarioGlobal, setHorarioGlobal] = useState([])
   const [mostrarNotif, setMostrarNotif] = useState(false)
+  const [showNotifPrompt, setShowNotifPrompt] = useState(false)
   const [evalDestacada, setEvalDestacada] = useState(null)
   const navigate = useNavigate()
+  const location = useLocation()
 
   useTheme(usuario?.universidad)
 
@@ -3132,6 +3426,7 @@ function AppContent() {
           if (!data?.user) return
           const fresh = data.user
           localStorage.setItem('usuario', JSON.stringify(fresh))
+          if (fresh.onboarding_v2) localStorage.setItem('onboarding_completo', 'true')
           setUsuario(fresh)
           // Si la universidad cambió vs lo que cargamos al inicio, re-fetch novedades
           if (fresh.universidad && fresh.universidad !== uniInicial) {
@@ -3141,10 +3436,32 @@ function AppContent() {
         .catch(() => {})
     }
 
-    const handler = () => cargarRamos(localStorage.getItem('token'))
+    // Evento 'ramos-actualizados' — lo emite HorarioScreen al confirmar
+    // bloques (que auto-crea ramos) y cualquier flow que modifique ramos.
+    // Refresca ramos + horario + novedades para mantener todo sincronizado.
+    const handler = () => {
+      const t = localStorage.getItem('token')
+      const uni = JSON.parse(localStorage.getItem('usuario') || '{}').universidad
+      cargarRamos(t)
+      cargarHorarioGlobal()
+      if (uni) cargarNovedades(t, uni)
+    }
     window.addEventListener('ramos-actualizados', handler)
     return () => window.removeEventListener('ramos-actualizados', handler)
   }, [])
+
+  // Re-fetch de ramos/horario/novedades cada vez que el user vuelve a /home.
+  // Resuelve el caso: user agrega ramos en /ramos, navega al home → ve datos
+  // frescos sin F5. Skip si no hay token (no logueado aún).
+  useEffect(() => {
+    if (location.pathname !== '/home') return
+    const token = localStorage.getItem('token')
+    if (!token) return
+    cargarRamos(token)
+    cargarHorarioGlobal()
+    const uni = usuario?.universidad
+    if (uni) cargarNovedades(token, uni)
+  }, [location.pathname])
 
   // Re-fetch novedades cada 60s + cuando el tab del browser vuelve a estar
   // activo. Así las novedades publicadas vía bot Telegram (casino, descuentos)
@@ -3220,6 +3537,8 @@ function AppContent() {
         if (!user.onboarding_v2) {
           navigate('/onboarding')
         } else {
+          // Sincroniza flag local que usan InstallPrompt y otros
+          localStorage.setItem('onboarding_completo', 'true')
           cargarRamos(token)
           cargarNovedades(token, user.universidad)
           cargarHorarioGlobal()
@@ -3321,10 +3640,35 @@ function AppContent() {
   return (
     <>
       <Routes>
-        <Route path="/" element={!usuario ? <LoginScreen onLogin={handleLogin} /> : <Navigate to="/home" replace />} />
+        <Route path="/" element={(() => {
+          // Decisión basada en localStorage (síncrono, sin race con /auth/me pendiente).
+          // Sin token → splash de login. Con token pero usuario aún no hidratado → loading
+          // breve para evitar parpadeo. Con token y onboarding listo → home; sino → onboarding.
+          const hasToken = !!localStorage.getItem('token')
+          if (!hasToken) return <LoginScreen onLogin={handleLogin} />
+          if (!usuario) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)', color: 'rgba(255,255,255,0.5)' }}>Cargando...</div>
+          if (localStorage.getItem('onboarding_completo') === 'true' || usuario.onboarding_v2) return <Navigate to="/home" replace />
+          return <Navigate to="/onboarding" replace />
+        })()} />
         <Route path="/onboarding" element={
           usuario
-            ? <OnboardingScreen user={usuario} API={API} onComplete={(u) => { if (!u) return; setUsuario({ ...usuario, ...u, name: u.nombre || u.name || '' }); const token = localStorage.getItem('token'); cargarRamos(token); navigate('/home') }} />
+            ? <OnboardingScreen user={usuario} API={API} onComplete={(u) => {
+                if (!u) return
+                setUsuario({ ...usuario, ...u, name: u.nombre || u.name || '' })
+                const token = localStorage.getItem('token')
+                cargarRamos(token)
+                cargarNovedades(token, u.universidad)
+                cargarHorarioGlobal()
+                // Prompt de notificaciones si aplica (solo una vez, browser capaz, no concedido aún)
+                const shouldPrompt = !localStorage.getItem('notifications_prompted')
+                  && 'Notification' in window
+                  && Notification.permission !== 'granted'
+                if (shouldPrompt) {
+                  setShowNotifPrompt(true)  // el modal cierra via onDone → navigate
+                } else {
+                  navigate('/home')
+                }
+              }} />
             : <Navigate to="/" replace />
         } />
         <Route path="/admin" element={esAdmin ? <AdminScreen usuario={usuario} onBack={() => navigate('/home')} /> : <Navigate to="/" replace />} />
@@ -3410,6 +3754,12 @@ function AppContent() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       {mostrarNotif && <PanelNotificaciones onClose={() => setMostrarNotif(false)} proximas={ramos.flatMap(r => (r.evaluaciones||[]).filter(e => e.fecha && !e.nota).map(e => ({...e, ramoNombre: r.nombre})))} />}
+      {showNotifPrompt && (
+        <NotificationsPrompt onDone={() => {
+          setShowNotifPrompt(false)
+          navigate('/home')
+        }} />
+      )}
     </>
   )
 }
