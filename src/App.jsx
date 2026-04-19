@@ -1875,12 +1875,20 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
   const [exim, setExim] = useState('')
   const [condExim, setCondExim] = useState('')
   const [mostrarExim, setMostrarExim] = useState(false)
+  const [pondEx, setPondEx] = useState('25')
   const [mostrando, setMostrando] = useState(false)
 
   const agregar = () => {
     if (!nuevo.trim()) return
-    onAdd({ nombre: nuevo.trim(), min_aprobacion: parseFloat(min) || 4.0, nota_eximicion: exim ? parseFloat(exim) : null, condiciones_eximicion: condExim === 'sin_rojos' ? 'sin_rojos' : null, sin_rojos: condExim === 'sin_rojos' })
-    setNuevo(''); setMin('4.0'); setExim(''); setCondExim(''); setMostrarExim(false); setMostrando(false)
+    onAdd({
+      nombre: nuevo.trim(),
+      min_aprobacion: parseFloat(min) || 4.0,
+      nota_eximicion: exim ? parseFloat(exim) : null,
+      condiciones_eximicion: condExim === 'sin_rojos' ? 'sin_rojos' : null,
+      sin_rojos: condExim === 'sin_rojos',
+      ponderacion_examen: parseFloat(pondEx) || 25
+    })
+    setNuevo(''); setMin('4.0'); setExim(''); setCondExim(''); setMostrarExim(false); setPondEx('25'); setMostrando(false)
   }
 
   // Stats globales
@@ -2070,6 +2078,10 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
                   <input className="ramos-form-input" type="number" min="1" max="7" step="0.1" value={min} onChange={e => setMin(e.target.value)} />
                 </div>
                 <div className="ramos-form-field">
+                  <label className="ramos-form-label">% del examen (sobre la nota final)</label>
+                  <input className="ramos-form-input" type="number" min="1" max="60" step="1" value={pondEx} onChange={e => setPondEx(e.target.value)} placeholder="25" />
+                </div>
+                <div className="ramos-form-field">
                   <button className="ramos-form-toggle" onClick={() => setMostrarExim(!mostrarExim)}>
                     {mostrarExim ? '▼' : '▶'} Configurar eximición (opcional)
                   </button>
@@ -2112,6 +2124,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPatchEval, onPlan, eva
   const [notaEditingId, setNotaEditingId] = useState(null)     // qué eval está con input inline
   const [flashedNotaId, setFlashedNotaId] = useState(null)      // flash verde tras guardar
   const [editingMeta, setEditingMeta] = useState(null)          // { id, nombre, fecha, ponderacion }
+  const [editandoExamen, setEditandoExamen] = useState(false)   // re-editar nota_examen ya guardada
   const [nuevaEv, setNuevaEv] = useState({ nombre: '', ponderacion: '', fecha: '' })
   const [mostrando, setMostrando] = useState(false)
   const [confetti, setConfetti] = useState(false)
@@ -2270,6 +2283,9 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPatchEval, onPlan, eva
             <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>Nota de eximición (opcional)</p>
             <input type="number" min="1" max="7" step="0.1" value={editExim} onChange={e => setEditExim(e.target.value)} placeholder="Ej: 5.0"
               style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 14, boxSizing: 'border-box' }} />
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>% del examen (sobre la nota final)</p>
+            <input type="number" min="1" max="60" step="1" value={editPondExamen} onChange={e => setEditPondExamen(e.target.value)} placeholder="25"
+              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'white', outline: 'none', marginBottom: 14, boxSizing: 'border-box' }} />
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, cursor: 'pointer' }} onClick={() => setEditSinRojos(!editSinRojos)}>
               <div style={{ width: 20, height: 20, borderRadius: 6, border: '2px solid rgba(167,139,250,0.5)', background: editSinRojos ? 'var(--color-accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 {editSinRojos && <span style={{ color: 'white', fontSize: 12 }}>✓</span>}
@@ -2324,62 +2340,88 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPatchEval, onPlan, eva
                 {estado === 'eximido' ? '¡Estás eximido!' : estado === 'aprobado' ? '¡Ramo aprobado!' : estado === 'con_examen' ? 'Debes rendir examen' : 'Ramo reprobado'}
               </p>
               {estado === 'eximido' && <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, margin: 0 }}>Promedio semestre: <strong style={{ color: 'var(--color-secondary)' }}>{promedio?.toFixed(1)}</strong></p>}
-              {estado === 'aprobado' && <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, margin: 0 }}>Promedio final: <strong style={{ color: '#4ade80' }}>{promedio?.toFixed(1)}</strong></p>}
-              {estado === 'con_examen' && (
+              {estado === 'aprobado' && !ramo.nota_examen && <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, margin: 0 }}>Promedio final: <strong style={{ color: '#4ade80' }}>{promedio?.toFixed(1)}</strong></p>}
+
+              {estado === 'con_examen' && !editandoExamen && (
                 <div>
                   <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, margin: '0 0 8px' }}>Promedio semestre: <strong style={{ color: '#fbbf24' }}>{promedio?.toFixed(1)}</strong></p>
                   {tieneRojos && ramo.sin_rojos && <p style={{ color: '#f87171', fontSize: 12, margin: '0 0 6px' }}>⚠️ Tienes notas rojas — no cumples condición de eximición</p>}
                   <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 15, margin: '0 0 12px' }}>
                     Necesitas <strong style={{ color: necesariaExamen > 6 ? '#f87171' : necesariaExamen > 5 ? '#fbbf24' : '#4ade80', fontSize: 20 }}>{necesariaExamen?.toFixed(1)}</strong> en el examen ({ramo.ponderacion_examen || 25}%)
                   </p>
-                  {/* Recuadro para ingresar nota del examen */}
-                  <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 14, padding: '14px 16px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', margin: '0 0 10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>📋 ¿Ya rendiste el examen?</p>
-                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                      <input
-                        type="number" min="1" max="7" step="0.1"
-                        placeholder="Nota examen"
-                        value={notaExamen}
-                        onChange={e => setNotaExamen(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') {
-                            const nota = parseFloat(notaExamen)
-                            if (isNaN(nota) || nota < 1 || nota > 7) return
-                            const pondEx = (ramo.ponderacion_examen || 25) / 100
-                            const pondSem = 1 - pondEx
-                            const notaFinal = promedio * pondSem + nota * pondEx
-                            onUpdate({ ...ramo, nota_examen: nota, nota_final: parseFloat(notaFinal.toFixed(1)), estado_final: parseFloat(notaFinal.toFixed(1)) >= ramo.min_aprobacion ? 'aprobado' : 'reprobado' })
-                          }
-                        }}
-                        style={{ flex: 1, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, padding: '10px 14px', color: 'white', fontSize: 16, fontWeight: 700, outline: 'none' }}
-                      />
+                </div>
+              )}
+
+              {/* Input de nota examen — visible cuando aún no se rindió O cuando se está re-editando */}
+              {(estado === 'con_examen' || editandoExamen) && (
+                <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 14, padding: '14px 16px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', margin: '0 0 10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
+                    {editandoExamen ? '✏️ Modificar nota del examen' : '📋 ¿Ya rendiste el examen?'}
+                  </p>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <input
+                      type="number" min="1" max="7" step="0.1"
+                      placeholder="Nota examen"
+                      value={notaExamen}
+                      onChange={e => setNotaExamen(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          const nota = parseFloat(notaExamen)
+                          if (isNaN(nota) || nota < 1 || nota > 7) return
+                          const pondEx = (ramo.ponderacion_examen || 25) / 100
+                          const pondSem = 1 - pondEx
+                          const notaFinal = promedio * pondSem + nota * pondEx
+                          onUpdate({ ...ramo, nota_examen: nota, nota_final: parseFloat(notaFinal.toFixed(1)), estado_final: parseFloat(notaFinal.toFixed(1)) >= ramo.min_aprobacion ? 'aprobado' : 'reprobado' })
+                          setEditandoExamen(false)
+                        }
+                      }}
+                      style={{ flex: 1, minWidth: 120, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, padding: '10px 14px', color: 'white', fontSize: 16, fontWeight: 700, outline: 'none' }}
+                    />
+                    <button onClick={() => {
+                      const nota = parseFloat(notaExamen)
+                      if (isNaN(nota) || nota < 1 || nota > 7) return
+                      const pondEx = (ramo.ponderacion_examen || 25) / 100
+                      const pondSem = 1 - pondEx
+                      const notaFinal = promedio * pondSem + nota * pondEx
+                      onUpdate({ ...ramo, nota_examen: nota, nota_final: parseFloat(notaFinal.toFixed(1)), estado_final: parseFloat(notaFinal.toFixed(1)) >= ramo.min_aprobacion ? 'aprobado' : 'reprobado' })
+                      setEditandoExamen(false)
+                    }} style={{ background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', border: 'none', borderRadius: 10, padding: '10px 18px', color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+                      Guardar
+                    </button>
+                    {editandoExamen && (
                       <button onClick={() => {
-                        const nota = parseFloat(notaExamen)
-                        if (isNaN(nota) || nota < 1 || nota > 7) return
-                        const pondEx = (ramo.ponderacion_examen || 25) / 100
-                        const pondSem = 1 - pondEx
-                        const notaFinal = promedio * pondSem + nota * pondEx
-                        console.log('DEBUG examen:', { promedio, pondEx, pondSem, nota, notaFinal, min: ramo.min_aprobacion })
-                        onUpdate({ ...ramo, nota_examen: nota, nota_final: parseFloat(notaFinal.toFixed(1)), estado_final: parseFloat(notaFinal.toFixed(1)) >= ramo.min_aprobacion ? 'aprobado' : 'reprobado' })
-                      }} style={{ background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', border: 'none', borderRadius: 10, padding: '10px 18px', color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
-                        Guardar
+                        setNotaExamen(ramo.nota_examen || '')
+                        setEditandoExamen(false)
+                      }} style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '10px 14px', color: 'rgba(255,255,255,0.6)', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
+                        Cancelar
                       </button>
-                    </div>
-                    {ramo.nota_examen && ramo.nota_final && (
-                      <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 12, background: ramo.estado_final === 'aprobado' ? 'rgba(74,222,128,0.1)' : 'rgba(248,113,113,0.1)', border: `1px solid ${ramo.estado_final === 'aprobado' ? 'rgba(74,222,128,0.3)' : 'rgba(248,113,113,0.3)'}` }}>
-                        <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
-                          Nota examen: <strong style={{ color: 'white' }}>{ramo.nota_examen}</strong> · Nota final: <strong style={{ color: ramo.estado_final === 'aprobado' ? '#4ade80' : '#f87171', fontSize: 18 }}>{ramo.nota_final}</strong>
-                        </p>
-                        <p style={{ margin: '6px 0 0', fontSize: 14, fontWeight: 700, color: ramo.estado_final === 'aprobado' ? '#4ade80' : '#f87171' }}>
-                          {ramo.estado_final === 'aprobado' ? '🎉 ¡Ramo aprobado!' : '😔 Ramo reprobado'}
-                        </p>
-                      </div>
                     )}
                   </div>
                 </div>
               )}
+
+              {/* Resumen nota_examen guardada (post-save) con botón para re-editar */}
+              {ramo.nota_examen && ramo.nota_final && !editandoExamen && (estado === 'aprobado' || estado === 'reprobado_sin_examen') && (
+                <div style={{ marginTop: 12, padding: '14px 16px', borderRadius: 14, background: estado === 'aprobado' ? 'rgba(74,222,128,0.08)' : 'rgba(248,113,113,0.08)', border: `1px solid ${estado === 'aprobado' ? 'rgba(74,222,128,0.25)' : 'rgba(248,113,113,0.25)'}` }}>
+                  <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>
+                    Nota examen: <strong style={{ color: 'white' }}>{parseFloat(ramo.nota_examen).toFixed(1)}</strong> · Nota final: <strong style={{ color: estado === 'aprobado' ? '#4ade80' : '#f87171', fontSize: 18 }}>{promedio?.toFixed(1)}</strong>
+                  </p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, gap: 10 }}>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: estado === 'aprobado' ? '#4ade80' : '#f87171' }}>
+                      {estado === 'aprobado' ? '🎉 ¡Ramo aprobado!' : '😔 Ramo reprobado'}
+                    </p>
+                    <button onClick={() => {
+                      setNotaExamen(String(ramo.nota_examen))
+                      setEditandoExamen(true)
+                    }} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '6px 10px', color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                      ✏️ Editar nota examen
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {estado === 'reprobado_imposible' && <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, margin: 0 }}>Promedio semestre: <strong style={{ color: '#f87171' }}>{promedio?.toFixed(1)}</strong> — imposible aprobar con examen</p>}
-              {estado === 'reprobado_sin_examen' && <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, margin: 0 }}>Promedio semestre: <strong style={{ color: '#f87171' }}>{promedio?.toFixed(1)}</strong> — no alcanzas el mínimo ({ramo.min_aprobacion}) para presentarte a examen</p>}
+              {estado === 'reprobado_sin_examen' && !ramo.nota_examen && <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, margin: 0 }}>Promedio semestre: <strong style={{ color: '#f87171' }}>{promedio?.toFixed(1)}</strong> — no alcanzas el mínimo ({ramo.min_aprobacion}) para presentarte a examen</p>}
             </div>
           ) : (
             <>
