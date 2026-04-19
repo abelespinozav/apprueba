@@ -2235,6 +2235,33 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPatchEval, onPlan, eva
   const eliminarEv = (id) => onUpdate({ ...ramo, evaluaciones: evs.filter(e => e.id !== id) })
   const borrarNota = (id) => onUpdate({ ...ramo, evaluaciones: evs.map(e => e.id === id ? { ...e, nota: null } : e) })
 
+  // Guarda o limpia la nota del examen. Valor vacío → null en DB (aún no rendido).
+  const guardarExamen = () => {
+    const trimmed = notaExamen == null ? '' : String(notaExamen).trim()
+    if (trimmed === '') {
+      borrarExamen()
+      return
+    }
+    const nota = parseFloat(trimmed)
+    if (isNaN(nota) || nota < 1 || nota > 7) return
+    const pondEx = (ramo.ponderacion_examen || 25) / 100
+    const pondSem = 1 - pondEx
+    const notaFinal = promedio * pondSem + nota * pondEx
+    onUpdate({
+      ...ramo,
+      nota_examen: nota,
+      nota_final: parseFloat(notaFinal.toFixed(1)),
+      estado_final: parseFloat(notaFinal.toFixed(1)) >= ramo.min_aprobacion ? 'aprobado' : 'reprobado'
+    })
+    setEditandoExamen(false)
+  }
+
+  const borrarExamen = () => {
+    onUpdate({ ...ramo, nota_examen: null, nota_final: null, estado_final: null })
+    setNotaExamen('')
+    setEditandoExamen(false)
+  }
+
   const proximaEv = evs.filter(e => (e.nota === null || e.nota === undefined || e.nota === '') && e.fecha)
     .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))[0]
 
@@ -2383,40 +2410,27 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPatchEval, onPlan, eva
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                     <input
                       type="number" min="1" max="7" step="0.1"
-                      placeholder="Nota examen"
+                      placeholder="Nota examen (vacío = no rendido)"
                       value={notaExamen}
                       onChange={e => setNotaExamen(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') {
-                          const nota = parseFloat(notaExamen)
-                          if (isNaN(nota) || nota < 1 || nota > 7) return
-                          const pondEx = (ramo.ponderacion_examen || 25) / 100
-                          const pondSem = 1 - pondEx
-                          const notaFinal = promedio * pondSem + nota * pondEx
-                          onUpdate({ ...ramo, nota_examen: nota, nota_final: parseFloat(notaFinal.toFixed(1)), estado_final: parseFloat(notaFinal.toFixed(1)) >= ramo.min_aprobacion ? 'aprobado' : 'reprobado' })
-                          setEditandoExamen(false)
-                        }
-                      }}
+                      onKeyDown={e => { if (e.key === 'Enter') guardarExamen() }}
                       style={{ flex: 1, minWidth: 120, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, padding: '10px 14px', color: 'white', fontSize: 16, fontWeight: 700, outline: 'none' }}
                     />
-                    <button onClick={() => {
-                      const nota = parseFloat(notaExamen)
-                      if (isNaN(nota) || nota < 1 || nota > 7) return
-                      const pondEx = (ramo.ponderacion_examen || 25) / 100
-                      const pondSem = 1 - pondEx
-                      const notaFinal = promedio * pondSem + nota * pondEx
-                      onUpdate({ ...ramo, nota_examen: nota, nota_final: parseFloat(notaFinal.toFixed(1)), estado_final: parseFloat(notaFinal.toFixed(1)) >= ramo.min_aprobacion ? 'aprobado' : 'reprobado' })
-                      setEditandoExamen(false)
-                    }} style={{ background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', border: 'none', borderRadius: 10, padding: '10px 18px', color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+                    <button onClick={guardarExamen} style={{ background: 'linear-gradient(135deg, var(--gradient-from), var(--gradient-to))', border: 'none', borderRadius: 10, padding: '10px 18px', color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
                       Guardar
                     </button>
                     {editandoExamen && (
-                      <button onClick={() => {
-                        setNotaExamen(ramo.nota_examen || '')
-                        setEditandoExamen(false)
-                      }} style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '10px 14px', color: 'rgba(255,255,255,0.6)', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
-                        Cancelar
-                      </button>
+                      <>
+                        <button onClick={borrarExamen} style={{ background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 10, padding: '10px 14px', color: '#f87171', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                          🗑️ Aún no rendido
+                        </button>
+                        <button onClick={() => {
+                          setNotaExamen(ramo.nota_examen ? String(ramo.nota_examen) : '')
+                          setEditandoExamen(false)
+                        }} style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '10px 14px', color: 'rgba(255,255,255,0.6)', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
+                          Cancelar
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
