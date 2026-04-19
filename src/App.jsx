@@ -2101,9 +2101,10 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
   )
 }
 
-function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan, evalDestacada, onClearEval }) {
-  const [notas, setNotas] = useState({})
-  const [editando, setEditando] = useState({})
+function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPatchEval, onPlan, evalDestacada, onClearEval }) {
+  const [notaEditingId, setNotaEditingId] = useState(null)     // qué eval está con input inline
+  const [flashedNotaId, setFlashedNotaId] = useState(null)      // flash verde tras guardar
+  const [editingMeta, setEditingMeta] = useState(null)          // { id, nombre, fecha, ponderacion }
   const [nuevaEv, setNuevaEv] = useState({ nombre: '', ponderacion: '', fecha: '' })
   const [mostrando, setMostrando] = useState(false)
   const [confetti, setConfetti] = useState(false)
@@ -2142,22 +2143,42 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan, evalDestacada, o
     setEditandoRamo(false)
   }
 
-  const guardarNota = (ev) => {
-    if (!notas[ev.id] || notas[ev.id] === '') {
-      borrarNota(ev.id)
-      setEditando({ ...editando, [ev.id]: false })
-      return
-    }
-    const nota = notas[ev.id]
-    if (nota === undefined || nota === '') return
-    const nueva = parseFloat(nota)
-    if (isNaN(nueva) || nueva < 1 || nueva > 7) return
+  const guardarNota = async (ev, rawValor) => {
+    setNotaEditingId(null)
+    const trimmed = (rawValor ?? '').trim()
+    if (trimmed === '') return  // vacío → revertir sin guardar
+    const nueva = parseFloat(trimmed)
+    if (isNaN(nueva) || nueva < 1 || nueva > 7) return  // fuera de rango → revertir
+    const actual = ev.nota !== null && ev.nota !== undefined && ev.nota !== '' ? parseFloat(ev.nota) : null
+    if (actual !== null && Math.abs(actual - nueva) < 0.001) return  // sin cambios reales
+    const ok = await onPatchEval(ramo.id, ev.id, { nota: nueva })
+    if (!ok) return
+    setFlashedNotaId(ev.id)
+    setTimeout(() => setFlashedNotaId(null), 900)
+    // Confetti si al guardar el ramo queda aprobado
     const nuevasEvs = evs.map(e => e.id === ev.id ? { ...e, nota: nueva } : e)
-    onUpdate({ ...ramo, evaluaciones: nuevasEvs })
-    setEditando({ ...editando, [ev.id]: false })
-    setNotas({ ...notas, [ev.id]: undefined })
     const calc = calcular(nuevasEvs, ramo.min_aprobacion, ramo)
     if (calc.estado === 'aprobado') { setConfetti(true); setTimeout(() => setConfetti(false), 4000) }
+  }
+
+  const abrirModalMeta = (ev) => {
+    setEditingMeta({
+      id: ev.id,
+      nombre: ev.nombre || '',
+      fecha: ev.fecha ? String(ev.fecha).slice(0, 10) : '',
+      ponderacion: ev.ponderacion ?? ''
+    })
+  }
+
+  const guardarMeta = async () => {
+    if (!editingMeta) return
+    const nombre = editingMeta.nombre.trim()
+    if (!nombre) return
+    const pond = parseFloat(editingMeta.ponderacion)
+    if (isNaN(pond) || pond <= 0 || pond > 100) return
+    const changes = { nombre, fecha: editingMeta.fecha || null, ponderacion: pond }
+    const ok = await onPatchEval(ramo.id, editingMeta.id, changes)
+    if (ok) setEditingMeta(null)
   }
 
   const agregarEv = () => {
@@ -2382,13 +2403,37 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan, evalDestacada, o
             {evs.map((ev, idx) => {
               const tieneNota = ev.nota !== null && ev.nota !== undefined && ev.nota !== ''
               const notaVal = tieneNota ? parseFloat(ev.nota) : null
-              const estaEditando = editando[ev.id]
+              const estaEditandoNota = notaEditingId === ev.id
+              const flashing = flashedNotaId === ev.id
+              const notaBorderColor = flashing ? '#4ade80' : (tieneNota ? `${notaColor(notaVal)}44` : 'var(--shadow-color)')
+              const notaBoxShadow = flashing ? '0 0 0 3px rgba(74,222,128,0.35)' : 'none'
               return (
-                <div key={ev.id} id={'eval-' + ev.id} style={{ background: 'var(--bg-secondary)', borderRadius: 16, padding: '14px 16px', border: tieneNota && !estaEditando ? '1px solid var(--shadow-color)' : '1.5px dashed rgba(108,99,255,0.3)', animation: `slideUp 0.3s ${idx * 0.05}s ease both` }}>
+                <div key={ev.id} id={'eval-' + ev.id} style={{ background: 'var(--bg-secondary)', borderRadius: 16, padding: '14px 16px', border: tieneNota ? '1px solid var(--shadow-color)' : '1.5px dashed rgba(108,99,255,0.3)', animation: `slideUp 0.3s ${idx * 0.05}s ease both` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ width: 48, height: 48, background: tieneNota && !estaEditando ? `${notaColor(notaVal)}22` : 'var(--shadow-color)', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: tieneNota && !estaEditando ? 15 : 18, fontWeight: 800, color: tieneNota && !estaEditando ? notaColor(notaVal) : 'var(--color-primary)', flexShrink: 0, border: tieneNota && !estaEditando ? `1.5px solid ${notaColor(notaVal)}44` : '1.5px solid var(--shadow-color)' }}>
-                      {tieneNota && !estaEditando ? notaVal.toFixed(1) : '?'}
-                    </div>
+                    {/* Cuadrito nota — tap para editar inline */}
+                    {estaEditandoNota ? (
+                      <input
+                        type="number" min="1" max="7" step="0.1"
+                        defaultValue={tieneNota ? notaVal.toFixed(1) : ''}
+                        placeholder="?"
+                        autoFocus
+                        onFocus={e => e.target.select()}
+                        onBlur={e => guardarNota(ev, e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') e.target.blur()
+                          if (e.key === 'Escape') { e.target.value = ''; setNotaEditingId(null) }
+                        }}
+                        style={{ width: 48, height: 48, background: 'var(--shadow-color)', borderRadius: 14, border: '1.5px solid var(--color-primary)', textAlign: 'center', fontSize: 16, fontWeight: 800, color: 'white', outline: 'none', flexShrink: 0, boxSizing: 'border-box', MozAppearance: 'textfield' }}
+                      />
+                    ) : (
+                      <div
+                        onClick={() => setNotaEditingId(ev.id)}
+                        title="Tap para editar la nota"
+                        style={{ width: 48, height: 48, background: tieneNota ? `${notaColor(notaVal)}22` : 'var(--shadow-color)', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: tieneNota ? 15 : 18, fontWeight: 800, color: tieneNota ? notaColor(notaVal) : 'var(--color-primary)', flexShrink: 0, border: `1.5px solid ${notaBorderColor}`, boxShadow: notaBoxShadow, cursor: 'pointer', transition: 'box-shadow 0.3s, border-color 0.3s' }}
+                      >
+                        {tieneNota ? notaVal.toFixed(1) : '?'}
+                      </div>
+                    )}
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: 14, fontWeight: 600, color: '#e2e8f0', margin: 0 }}>{ev.nombre}</p>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
@@ -2396,28 +2441,15 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan, evalDestacada, o
                         {ev.fecha && <BadgeFecha fecha={ev.fecha} />}
                       </div>
                     </div>
-                    {estaEditando ? (
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                        <input type="number" min="1" max="7" step="0.1" placeholder="Nota"
-                          value={notas[ev.id] ?? ''}
-                          onChange={e => setNotas({ ...notas, [ev.id]: e.target.value })}
-                          autoFocus
-                          onKeyDown={e => e.key === 'Enter' && guardarNota(ev)}
-                          style={{ width: 64, border: '1.5px solid #6c63ff', borderRadius: 10, padding: '8px', fontSize: 13, textAlign: 'center', outline: 'none', background: '#0d0d1f', color: 'white' }} />
-                        <button onClick={() => guardarNota(ev)} style={{ background: 'var(--color-primary)', border: 'none', borderRadius: 10, padding: '8px 12px', color: 'white', fontSize: 13, cursor: 'pointer', fontWeight: 700 }}>✓</button>
-                        <button onClick={() => setEditando({ ...editando, [ev.id]: false })} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 10, padding: '8px 10px', color: 'rgba(255,255,255,0.4)', fontSize: 13, cursor: 'pointer' }}>✕</button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                      <div style={{ display: 'flex', gap: 5 }}>
+                        <button onClick={() => abrirModalMeta(ev)} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 10, padding: '7px 12px', color: 'rgba(255,255,255,0.85)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
+                          ✏️ Editar
+                        </button>
+                        <button onClick={() => eliminarEv(ev.id)} style={{ background: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: 10, padding: '7px 10px', color: '#f87171', fontSize: 12, cursor: 'pointer' }}>🗑</button>
                       </div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                        <div style={{ display: 'flex', gap: 5 }}>
-                          <button onClick={() => setEditando({ ...editando, [ev.id]: true })} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 10, padding: '7px 12px', color: 'rgba(255,255,255,0.85)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
-                            {tieneNota ? '✏️ Editar' : '+ Nota'}
-                          </button>
-                          <button onClick={() => eliminarEv(ev.id)} style={{ background: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: 10, padding: '7px 10px', color: '#f87171', fontSize: 12, cursor: 'pointer' }}>🗑</button>
-                        </div>
-                        <button onClick={(e) => { e.stopPropagation(); onPlan(ev) }} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 10, padding: '7px 12px', color: 'rgba(255,255,255,0.85)', fontSize: 12, cursor: 'pointer', fontWeight: 600, width: '100%' }}>🤖 Plan IA</button>
-                      </div>
-                    )}
+                      <button onClick={(e) => { e.stopPropagation(); onPlan(ev) }} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 10, padding: '7px 12px', color: 'rgba(255,255,255,0.85)', fontSize: 12, cursor: 'pointer', fontWeight: 600, width: '100%' }}>🤖 Plan IA</button>
+                    </div>
                   </div>
                 </div>
               )
@@ -2449,6 +2481,37 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPlan, evalDestacada, o
           )}
         </div>
       </div>
+
+      {/* Modal editar metadata de evaluación */}
+      {editingMeta && (
+        <div onClick={() => setEditingMeta(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'rgba(22,22,34,0.95)', backdropFilter: 'blur(30px)', WebkitBackdropFilter: 'blur(30px)', border: '1px solid rgba(255,255,255,0.1)', borderLeft: '3px solid var(--color-primary)', borderRadius: 22, padding: 24, width: '100%', maxWidth: 380, boxSizing: 'border-box' }}>
+            <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--color-primary)', margin: '0 0 4px' }}>✏️ Editar</div>
+            <h3 style={{ fontSize: 18, fontWeight: 900, color: 'var(--color-text)', margin: '0 0 16px', letterSpacing: '-0.02em' }}>Datos de la evaluación</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 10, fontWeight: 900, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--color-text-muted)', margin: '0 0 6px' }}>Nombre</label>
+                <input value={editingMeta.nombre} onChange={e => setEditingMeta({ ...editingMeta, nombre: e.target.value })} autoFocus
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '11px 13px', fontSize: 14, color: 'white', outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 10, fontWeight: 900, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--color-text-muted)', margin: '0 0 6px' }}>Fecha</label>
+                <input type="date" value={editingMeta.fecha} onChange={e => setEditingMeta({ ...editingMeta, fecha: e.target.value })}
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '11px 13px', fontSize: 14, color: 'white', outline: 'none', colorScheme: 'dark', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 10, fontWeight: 900, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--color-text-muted)', margin: '0 0 6px' }}>Ponderación (%)</label>
+                <input type="number" min="1" max="100" step="1" value={editingMeta.ponderacion} onChange={e => setEditingMeta({ ...editingMeta, ponderacion: e.target.value })}
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '11px 13px', fontSize: 14, color: 'white', outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+              <button onClick={() => setEditingMeta(null)} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: 11, color: 'var(--color-text-muted)', fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}>Cancelar</button>
+              <button onClick={guardarMeta} style={{ flex: 2, background: 'var(--color-primary)', color: '#1a1a1a', border: 'none', borderRadius: 12, padding: 11, fontSize: 14, fontWeight: 900, cursor: 'pointer', fontFamily: 'inherit' }}>💾 Guardar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -2782,7 +2845,7 @@ function AdminScreen({ usuario, onBack }) {
   )
 }
 
-function RamoRouteWrapper({ ramos, loadingRamos, usuario, onUpdate, onDelete, evalDestacada, onClearEval }) {
+function RamoRouteWrapper({ ramos, loadingRamos, usuario, onUpdate, onDelete, onPatchEval, evalDestacada, onClearEval }) {
   const { ramoId } = useParams()
   const navigate = useNavigate()
   if (!usuario) return <Navigate to="/" replace />
@@ -2796,6 +2859,7 @@ function RamoRouteWrapper({ ramos, loadingRamos, usuario, onUpdate, onDelete, ev
         onBack={() => navigate('/ramos')}
         onUpdate={onUpdate}
         onDelete={onDelete}
+        onPatchEval={onPatchEval}
         evalDestacada={evalDestacada}
         onClearEval={onClearEval}
         onPlan={(ev) => { if (!ev || !ev.id) { alert('Error: evaluación inválida'); return; } navigate(`/ramos/${ramo.id}/plan/${ev.id}`) }}
@@ -3041,6 +3105,29 @@ function AppContent() {
     } catch (e) { console.error(e) }
   }
 
+  // PATCH granular por evaluación (nota, nombre, fecha, ponderacion).
+  // Update optimista del state local; si el server rechaza revierte.
+  const handlePatchEval = async (ramoId, evalId, changes) => {
+    const prevRamos = ramos
+    setRamos(rs => rs.map(r => r.id === ramoId
+      ? { ...r, evaluaciones: (r.evaluaciones || []).map(e => e.id === evalId ? { ...e, ...changes } : e) }
+      : r
+    ))
+    try {
+      const res = await fetch(`${API}/ramos/${ramoId}/evaluaciones/${evalId}`, {
+        method: 'PATCH',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(changes)
+      })
+      if (!res.ok) { setRamos(prevRamos); return false }
+      return true
+    } catch (e) {
+      console.error('PATCH evaluación falló:', e)
+      setRamos(prevRamos)
+      return false
+    }
+  }
+
   const handleDeleteRamo = async (id) => {
     try {
       const res = await fetch(`${API}/ramos/${id}`, { method: 'DELETE', headers: authHeaders() })
@@ -3134,6 +3221,7 @@ function AppContent() {
             loadingRamos={loadingRamos}
             usuario={usuario}
             onUpdate={handleUpdateRamo}
+            onPatchEval={handlePatchEval}
             onDelete={handleDeleteRamo}
             evalDestacada={evalDestacada}
             onClearEval={() => setEvalDestacada(null)}
