@@ -706,12 +706,35 @@ const inputStyle = {
 // TELEGRAM BOT
 // ═══════════════════════════════════════════════════════════════
 function TelegramBot() {
-  const [status, setStatus] = useState(null)
-  const [novs, setNovs] = useState([])
+  // Valores por defecto SEGUROS — todos los tipos que el render espera
+  // existen desde el primer frame (object con campos base, arrays vacíos).
+  const [telegramStats, setTelegramStats] = useState({ activo: false, username: '', total_publicaciones: 0 })
+  const [allowlist, setAllowlist] = useState([])
+  const [ultimasPublicaciones, setUltimasPublicaciones] = useState([])
+
   useEffect(() => {
-    authFetch('/admin/telegram/status').then(r => r.json()).then(setStatus).catch(() => {})
-    authFetch('/admin/novedades').then(r => r.json()).then(d => setNovs(Array.isArray(d) ? d.filter(n => n.origen === 'telegram').slice(0, 5) : [])).catch(() => {})
+    authFetch('/admin/telegram/status')
+      .then(r => r.json())
+      .then(data => {
+        const d = data || {}
+        setTelegramStats({
+          activo: !!d.activo,
+          username: d.username || 'apprueba_bot',
+          total_publicaciones: d.total_publicaciones || 0
+        })
+        setAllowlist(Array.isArray(d.allowlist) ? d.allowlist : [])
+        setUltimasPublicaciones(Array.isArray(d.ultimas_publicaciones) ? d.ultimas_publicaciones : [])
+      })
+      .catch(() => {
+        setTelegramStats({ activo: false, username: 'apprueba_bot', total_publicaciones: 0 })
+        setAllowlist([])
+        setUltimasPublicaciones([])
+      })
   }, [])
+
+  const activo = telegramStats.activo
+  const lista = allowlist || []
+  const pubs = ultimasPublicaciones || []
 
   return (
     <>
@@ -722,29 +745,29 @@ function TelegramBot() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
         <Panel title="🤖 Estado del bot">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', background: status?.activo ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)', border: `1px solid ${status?.activo ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}`, borderRadius: 12, marginBottom: 16 }}>
-            <div className="admin-tg-dot" style={{ background: status?.activo ? '#34d399' : '#f87171', boxShadow: `0 0 8px ${status?.activo ? '#34d399' : '#f87171'}` }} />
-            <div style={{ fontSize: 13, fontWeight: 600, color: status?.activo ? '#34d399' : '#f87171' }}>{status?.activo ? 'Bot activo' : 'Bot inactivo'}</div>
-            <div style={{ fontSize: 11, color: T.textMuted, marginLeft: 'auto' }}>{status?.username ? `@${status.username}` : 'apprueba_bot'}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', background: activo ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)', border: `1px solid ${activo ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}`, borderRadius: 12, marginBottom: 16 }}>
+            <div className="admin-tg-dot" style={{ background: activo ? '#34d399' : '#f87171', boxShadow: `0 0 8px ${activo ? '#34d399' : '#f87171'}` }} />
+            <div style={{ fontSize: 13, fontWeight: 600, color: activo ? '#34d399' : '#f87171' }}>{activo ? 'Bot activo' : 'Bot inactivo'}</div>
+            <div style={{ fontSize: 11, color: T.textMuted, marginLeft: 'auto' }}>@{telegramStats.username || 'apprueba_bot'}</div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
             <div style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border}`, borderRadius: 12, padding: 14, textAlign: 'center' }}>
-              <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: '-0.03em', color: '#34d399' }}>{status?.total_publicaciones ?? '—'}</div>
+              <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: '-0.03em', color: '#34d399' }}>{telegramStats.total_publicaciones}</div>
               <div style={{ fontSize: 10, color: T.textMuted, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Publicaciones</div>
             </div>
             <div style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border}`, borderRadius: 12, padding: 14, textAlign: 'center' }}>
-              <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: '-0.03em', color: T.secondary }}>{status?.allowlist?.length ?? '—'}</div>
+              <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: '-0.03em', color: T.secondary }}>{lista.length}</div>
               <div style={{ fontSize: 10, color: T.textMuted, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Autorizados</div>
             </div>
           </div>
 
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textMuted, marginBottom: 8 }}>Allowlist</div>
-          {(status?.allowlist || []).length === 0 ? (
+          {lista.length === 0 ? (
             <p style={{ fontSize: 12, color: T.textMuted }}>Sin usuarios autorizados</p>
           ) : (
-            status.allowlist.map((id, i) => (
-              <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+            lista.map((id, i) => (
+              <div key={id || i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                 <span>{i === 0 ? '👑' : '👤'}</span>
                 <div style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>{i === 0 ? 'Owner' : `Editor ${i}`}</div>
                 <div style={{ fontSize: 11, color: T.textMuted, fontFamily: 'monospace' }}>ID: {id}</div>
@@ -754,17 +777,19 @@ function TelegramBot() {
         </Panel>
 
         <Panel title="📰 Últimas publicaciones">
-          {novs.length === 0 ? (
+          {pubs.length === 0 ? (
             <p style={{ color: T.textMuted, fontSize: 13, textAlign: 'center', padding: '30px 0' }}>Sin publicaciones aún</p>
-          ) : novs.map(n => (
-            <div key={n.id} style={{ display: 'flex', gap: 12, padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, background: 'rgba(245,158,11,0.15)', flexShrink: 0 }}>{n.emoji || '📢'}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{n.titulo}</div>
-                <div style={{ fontSize: 11, color: T.textMuted }}>{relativeTime(n.creada_en)}</div>
+          ) : (
+            pubs.map((n, i) => (
+              <div key={n.id || i} style={{ display: 'flex', gap: 12, padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, background: 'rgba(245,158,11,0.15)', flexShrink: 0 }}>{n.emoji || '📢'}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{n.titulo || '(sin título)'}</div>
+                  <div style={{ fontSize: 11, color: T.textMuted }}>{relativeTime(n.creada_en)}</div>
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </Panel>
       </div>
     </>
