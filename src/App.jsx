@@ -1169,15 +1169,11 @@ function AppHeader({ usuario, esFundador, numeroRegistro, evalProximas3dias, onN
 }
 
 function calcular(evaluaciones, min, ramo) {
-  // Si ya tiene nota de examen guardada, usar estado_final directamente
-  if (ramo?.nota_examen && ramo?.nota_final) {
-    const aprobado = ramo.estado_final === 'aprobado' || parseFloat(ramo.nota_final) >= parseFloat(ramo.min_aprobacion || 4.0)
-    return { promedio: parseFloat(ramo.nota_final), necesaria: null, necesariaExamen: null, estado: aprobado ? 'aprobado' : 'reprobado_sin_examen', pendientesCount: 0, pesoCompleto: true, pesoTotal: 100, eximido: false }
-  }
   const evs = evaluaciones.map(e => ({ ...e, ponderacion: parseFloat(e.ponderacion) || 0, nota: (e.nota !== null && e.nota !== undefined && e.nota !== '') ? parseFloat(e.nota) : null }))
   const pendientes = evs.filter(e => e.nota === null)
   const completadas = evs.filter(e => e.nota !== null)
   const pesoTotal = evs.reduce((acc, e) => acc + e.ponderacion, 0)
+  const pesoCompletado = completadas.reduce((acc, e) => acc + e.ponderacion, 0)
   const pesoCompleto = Math.abs(pesoTotal - 100) < 0.01
 
   if (pendientes.length === 0 && completadas.length === 0) return { promedio: null, necesaria: null, necesariaExamen: null, estado: null, pendientesCount: 0, pesoCompleto: false, pesoTotal, eximido: false }
@@ -1186,10 +1182,22 @@ function calcular(evaluaciones, min, ramo) {
   const ponderacionSemestre = 1 - ponderacionExamen
   const notaEximicion = ramo?.nota_eximicion ? parseFloat(ramo.nota_eximicion) : null
   const sinRojos = ramo?.sin_rojos || false
+  const notaExamenGuardada = (ramo?.nota_examen !== null && ramo?.nota_examen !== undefined && ramo?.nota_examen !== '') ? parseFloat(ramo.nota_examen) : null
 
   if (pendientes.length === 0) {
-    const promedio = completadas.reduce((acc, e) => acc + e.nota * (e.ponderacion / 100), 0)
+    // Promedio ponderado real: sum(nota*pond) / sum(pond). Robusto aunque
+    // pesoTotal != 100 (ponderaciones mal cargadas o incompletas).
+    const promedio = pesoCompletado > 0 ? completadas.reduce((acc, e) => acc + e.nota * e.ponderacion, 0) / pesoCompletado : 0
     const tieneRojos = completadas.some(e => e.nota < 4.0)
+
+    // Si hay nota_examen guardada → recompute nota final fresh (no cacheada).
+    // Esto corrige el bug donde editar notas después de rendir examen dejaba
+    // el promedio stale en el ramo.nota_final del INSERT anterior.
+    if (notaExamenGuardada !== null) {
+      const notaFinal = promedio * ponderacionSemestre + notaExamenGuardada * ponderacionExamen
+      const aprobado = notaFinal >= parseFloat(min)
+      return { promedio: notaFinal, necesaria: null, necesariaExamen: null, estado: aprobado ? 'aprobado' : 'reprobado_sin_examen', pendientesCount: 0, pesoCompleto, pesoTotal, eximido: false, tieneRojos }
+    }
 
     // Verificar eximición
     if (notaEximicion && promedio >= notaEximicion && !(sinRojos && tieneRojos)) {
@@ -1213,7 +1221,6 @@ function calcular(evaluaciones, min, ramo) {
     return { promedio, necesaria: null, necesariaExamen, estado: estadoFinal, pendientesCount: 0, pesoCompleto, pesoTotal, eximido: false, tieneRojos }
   }
 
-  const pesoCompletado = completadas.reduce((acc, e) => acc + e.ponderacion, 0)
   const pesoPendiente = pendientes.reduce((acc, e) => acc + e.ponderacion, 0)
   const puntajeActual = completadas.reduce((acc, e) => acc + e.nota * (e.ponderacion / 100), 0)
   const promedioActual = pesoCompletado > 0 ? (puntajeActual / (pesoCompletado / 100)) : null
