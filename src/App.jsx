@@ -3367,7 +3367,8 @@ function DesktopFrame({ children }) {
       <style>{`
         html, body { margin: 0; overflow: hidden; background: #0a0a0f; }
         .df-wrap { position: fixed; inset: 0; background: #0a0a0f; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 20px; box-sizing: border-box; }
-        .df-phone { width: 390px; height: min(844px, calc(100vh - 110px)); border-radius: 44px; box-shadow: 0 0 0 12px #1a1a2e, 0 0 0 14px #2a2a3e, 0 30px 80px rgba(0,0,0,0.8); overflow: hidden; position: relative; background: var(--bg-primary); transform: translateZ(0); }
+        .df-phone { width: 390px; height: min(844px, calc(100vh - 110px)); border-radius: 44px; box-shadow: 0 0 0 12px #1a1a2e, 0 0 0 14px #2a2a3e, 0 30px 80px rgba(0,0,0,0.8); overflow-y: auto; overflow-x: hidden; position: relative; background: var(--bg-primary); transform: translateZ(0); }
+        .df-phone::-webkit-scrollbar { display: none; }
         .df-notch { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 120px; height: 30px; background: #000; border-radius: 0 0 20px 20px; z-index: 10000; pointer-events: none; }
         .df-hint { color: rgba(255,255,255,0.45); font-size: 13px; margin: 0; text-align: center; font-weight: 500; letter-spacing: 0.01em; }
         /* Los roots scrollables usan 100vh (viewport completo); dentro del frame
