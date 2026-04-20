@@ -351,6 +351,7 @@ function Usuarios() {
   const [usuarios, setUsuarios] = useState([])
   const [filter, setFilter] = useState('todos')
   const [search, setSearch] = useState('')
+  const [sortBy, setSortBy] = useState('created_desc') // created_desc|created_asc|login_desc|login_asc|ramos_desc|ramos_asc
   const [page, setPage] = useState(0)
   const [detalle, setDetalle] = useState(null)
   const PAGE_SIZE = 20
@@ -367,8 +368,17 @@ function Usuarios() {
     if (filter === 'fundadores') list = list.filter(u => u.es_fundador)
     if (filter === 'activos') list = list.filter(u => u.last_login && (Date.now() - new Date(u.last_login).getTime()) < 24 * 3600_000)
     if (filter === 'sin_onboarding') list = list.filter(u => !u.universidad)
-    return list
-  }, [usuarios, search, filter])
+    const ts = v => v ? new Date(v).getTime() : 0
+    const sorters = {
+      created_desc: (a, b) => ts(b.created_at) - ts(a.created_at),
+      created_asc:  (a, b) => ts(a.created_at) - ts(b.created_at),
+      login_desc:   (a, b) => ts(b.last_login) - ts(a.last_login),
+      login_asc:    (a, b) => ts(a.last_login) - ts(b.last_login),
+      ramos_desc:   (a, b) => (b.ramos_count || 0) - (a.ramos_count || 0),
+      ramos_asc:    (a, b) => (a.ramos_count || 0) - (b.ramos_count || 0),
+    }
+    return [...list].sort(sorters[sortBy] || sorters.created_desc)
+  }, [usuarios, search, filter, sortBy])
 
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
@@ -409,13 +419,23 @@ function Usuarios() {
             />
             <span style={{ fontSize: 11, color: T.textMuted }}>{filtered.length} resultados</span>
           </div>
-          <div style={{ display: 'flex', gap: 4, marginBottom: 20 }}>
-            {[['todos', 'Todos'], ['fundadores', 'Fundadores'], ['activos', 'Activos hoy'], ['sin_onboarding', 'Sin onboarding']].map(([k, l]) => {
-              const active = filter === k
-              return (
-                <div key={k} onClick={() => { setFilter(k); setPage(0) }} style={{ padding: '8px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', color: active ? T.secondary : T.textMuted, border: `1px solid ${active ? 'rgba(46,125,209,0.3)' : 'transparent'}`, background: active ? 'rgba(46,125,209,0.15)' : 'transparent' }}>{l}</div>
-              )
-            })}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 20, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {[['todos', 'Todos'], ['fundadores', 'Fundadores'], ['activos', 'Activos hoy'], ['sin_onboarding', 'Sin onboarding']].map(([k, l]) => {
+                const active = filter === k
+                return (
+                  <div key={k} onClick={() => { setFilter(k); setPage(0) }} style={{ padding: '8px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', color: active ? T.secondary : T.textMuted, border: `1px solid ${active ? 'rgba(46,125,209,0.3)' : 'transparent'}`, background: active ? 'rgba(46,125,209,0.15)' : 'transparent' }}>{l}</div>
+                )
+              })}
+            </div>
+            <select value={sortBy} onChange={e => { setSortBy(e.target.value); setPage(0) }} style={{ ...inputStyle, width: 'auto', padding: '7px 12px', fontSize: 12, marginLeft: 'auto' }}>
+              <option value="created_desc" style={{ background: '#0f1424' }}>Registro: más reciente</option>
+              <option value="created_asc"  style={{ background: '#0f1424' }}>Registro: más antiguo</option>
+              <option value="login_desc"   style={{ background: '#0f1424' }}>Último acceso: más reciente</option>
+              <option value="login_asc"    style={{ background: '#0f1424' }}>Último acceso: más antiguo</option>
+              <option value="ramos_desc"   style={{ background: '#0f1424' }}>Ramos: más a menos</option>
+              <option value="ramos_asc"    style={{ background: '#0f1424' }}>Ramos: menos a más</option>
+            </select>
           </div>
         </div>
 
