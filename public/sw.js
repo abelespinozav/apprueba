@@ -1,4 +1,4 @@
-// v2026-04-20 — bump para forzar update del SW en dispositivos activos.
+// v2026-04-20-b — bump para forzar update del SW en dispositivos activos.
 // Logs activos para diagnosticar por qué notificaciones "enviadas" desde el
 // backend no aparecen en el dispositivo. Verlos en chrome://serviceworker-
 // internals o DevTools → Application → Service Workers → pushsw (o filtrar
@@ -41,16 +41,22 @@ self.addEventListener('push', function(event) {
   // pero mantenemos los defaults por defensa (SWs viejos del usuario o
   // payloads de fuentes externas).
   const title = data.title || 'APPrueba'
+  // Removemos `actions`: iOS Safari rechaza silenciosamente notifs con
+  // actions, el browser recibe el push pero showNotification() tira y la
+  // notif nunca aparece en pantalla. En Android no son críticos — el
+  // tap default abre la app vía notificationclick.
+  // Iconos en URL absoluta: si el SW queda con scope raro o deployamos en
+  // otro dominio, `/icon-192.png` relativo puede 404 y algunos browsers
+  // abortan el render de la notif.
+  // `tag` singleton: sin tag, cada push crea una notif nueva y se stackean;
+  // con tag común, la nueva reemplaza a la vieja.
   const options = {
     body: data.body || '',
-    icon: data.icon || '/icon-192.png',
-    badge: data.badge || '/icon-192.png',
+    icon: data.icon || 'https://apprueba.com/icon-192.png',
+    badge: data.badge || 'https://apprueba.com/icon-192.png',
     vibrate: [200, 100, 200],
-    data: { url: data.url || 'https://apprueba.com' },
-    actions: [
-      { action: 'open', title: '📚 Ver app' },
-      { action: 'close', title: 'Cerrar' }
-    ]
+    tag: 'apprueba-notif',
+    data: { url: data.url || 'https://apprueba.com' }
   }
   event.waitUntil(
     self.registration.showNotification(title, options)
