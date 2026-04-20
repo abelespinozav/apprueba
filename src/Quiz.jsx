@@ -245,12 +245,33 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
     </div>
   )
 
-  if (estado === 'cargando' && !mostrarModal) return (
-    <div style={{ maxWidth: 700, margin: '0 auto', paddingTop: 80, textAlign: 'center' }}>
-      <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
-      <p style={{ color: 'var(--color-secondary)', fontSize: 16 }}>{progresoMsg || 'Generando 20 preguntas con IA...'}</p>
-      <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>Esto puede tomar unos minutos si hay videos largos</p>
-    </div>
+  // Loader full-screen durante toda la generación. Antes tenía la condición
+  // extra `&& !mostrarModal`, pero el evento SSE 'iniciado' setea
+  // mostrarModal=true → ningún branch renderizaba → pantalla negra por varios
+  // segundos hasta que llegaba el evento 'quiz'. Ahora siempre cubre el caso.
+  if (estado === 'cargando') return (
+    <>
+      <style>{`
+        @keyframes quizSpin { to { transform: rotate(360deg) } }
+        @keyframes quizDotPulse { 0%, 80%, 100% { opacity: 0.3; transform: scale(0.8) } 40% { opacity: 1; transform: scale(1) } }
+        .quiz-loader-spinner { width: 64px; height: 64px; border: 4px solid rgba(255,255,255,0.08); border-top-color: var(--color-primary, #2e7dd1); border-right-color: var(--color-secondary, #a78bfa); border-radius: 50%; animation: quizSpin 0.9s linear infinite; margin-bottom: 28px; }
+        .quiz-loader-dots { display: inline-flex; gap: 6px; margin-top: 14px; }
+        .quiz-loader-dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--color-secondary, #a78bfa); animation: quizDotPulse 1.2s ease-in-out infinite; }
+        .quiz-loader-dots span:nth-child(2) { animation-delay: 0.15s }
+        .quiz-loader-dots span:nth-child(3) { animation-delay: 0.3s }
+      `}</style>
+      <div style={{ minHeight: '100vh', background: 'var(--bg-primary, #0a1628)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 20px 40px', textAlign: 'center', boxSizing: 'border-box' }}>
+        <div className="quiz-loader-spinner" />
+        <h2 style={{ color: '#fff', fontSize: 20, fontWeight: 800, margin: '0 0 10px', letterSpacing: '-0.01em' }}>🧠 Generando tu quiz</h2>
+        <p style={{ color: 'var(--color-secondary, #a78bfa)', fontSize: 14, margin: '0 0 6px', maxWidth: 420, lineHeight: 1.5 }}>
+          {progresoMsg || 'Analizando tu material de estudio…'}
+        </p>
+        <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: 12, margin: 0, maxWidth: 340, lineHeight: 1.5 }}>
+          Puedes cerrar esta pantalla — te avisamos cuando esté listo.
+        </p>
+        <div className="quiz-loader-dots"><span/><span/><span/></div>
+      </div>
+    </>
   )
 
   if (estado === 'quiz' && preguntas.length === 0) return (
