@@ -2417,7 +2417,7 @@ function RamosScreen({ ramos, onSelect, onAdd, onLogout, onAdmin, onHorario, usu
   )
 }
 
-function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPatchEval, onPlan, evalDestacada, onClearEval }) {
+function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPatchEval, onDeleteEval, onPlan, evalDestacada, onClearEval }) {
   const [notaEditingId, setNotaEditingId] = useState(null)     // qué eval está con input inline
   const [flashedNotaId, setFlashedNotaId] = useState(null)      // flash verde tras guardar
   const [editingMeta, setEditingMeta] = useState(null)          // { id, nombre, fecha, ponderacion }
@@ -2522,7 +2522,14 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPatchEval, onPlan, eva
     setMostrando(false)
   }
 
-  const eliminarEv = (id) => onUpdate({ ...ramo, evaluaciones: evs.filter(e => e.id !== id) })
+  const eliminarEv = async (id) => {
+    const ev = evs.find(e => e.id === id)
+    const nombre = ev?.nombre || 'esta evaluación'
+    if (!window.confirm(`¿Eliminar "${nombre}"? Esta acción no se puede deshacer.`)) return
+    if (!onDeleteEval) { alert('Error: no hay handler de eliminación'); return }
+    const ok = await onDeleteEval(ramo.id, id)
+    if (!ok) alert('No se pudo eliminar la evaluación. Intenta de nuevo.')
+  }
   const borrarNota = (id) => onUpdate({ ...ramo, evaluaciones: evs.map(e => e.id === id ? { ...e, nota: null } : e) })
 
   // Guarda o limpia la nota del examen. Valor vacío → null en DB (aún no rendido).
@@ -3270,7 +3277,7 @@ function AdminScreen({ usuario, onBack }) {
   )
 }
 
-function RamoRouteWrapper({ ramos, loadingRamos, usuario, onUpdate, onDelete, onPatchEval, evalDestacada, onClearEval }) {
+function RamoRouteWrapper({ ramos, loadingRamos, usuario, onUpdate, onDelete, onPatchEval, onDeleteEval, evalDestacada, onClearEval }) {
   const { ramoId } = useParams()
   const navigate = useNavigate()
   if (!usuario) return <Navigate to="/" replace />
@@ -3285,6 +3292,7 @@ function RamoRouteWrapper({ ramos, loadingRamos, usuario, onUpdate, onDelete, on
         onUpdate={onUpdate}
         onDelete={onDelete}
         onPatchEval={onPatchEval}
+        onDeleteEval={onDeleteEval}
         evalDestacada={evalDestacada}
         onClearEval={onClearEval}
         onPlan={(ev) => { if (!ev || !ev.id) { alert('Error: evaluación inválida'); return; } navigate(`/ramos/${ramo.id}/plan/${ev.id}`) }}
@@ -3631,6 +3639,26 @@ function AppContent() {
     } catch (e) { console.error(e) }
   }
 
+  const handleDeleteEval = async (ramoId, evalId) => {
+    const prevRamos = ramos
+    setRamos(rs => rs.map(r => r.id === ramoId
+      ? { ...r, evaluaciones: (r.evaluaciones || []).filter(e => e.id !== evalId) }
+      : r
+    ))
+    try {
+      const res = await fetch(`${API}/ramos/${ramoId}/evaluaciones/${evalId}`, {
+        method: 'DELETE',
+        headers: authHeaders()
+      })
+      if (!res.ok) { setRamos(prevRamos); return false }
+      return true
+    } catch (e) {
+      console.error('DELETE evaluación falló:', e)
+      setRamos(prevRamos)
+      return false
+    }
+  }
+
   if (loadingAuth) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)', color: 'var(--color-text-secondary)' }}>
       Cargando...
@@ -3745,6 +3773,7 @@ function AppContent() {
             onUpdate={handleUpdateRamo}
             onPatchEval={handlePatchEval}
             onDelete={handleDeleteRamo}
+            onDeleteEval={handleDeleteEval}
             evalDestacada={evalDestacada}
             onClearEval={() => setEvalDestacada(null)}
           />
