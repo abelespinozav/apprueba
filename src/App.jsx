@@ -397,14 +397,16 @@ const HOME_CSS = `
   .home-clase-card.urgencia-rojo { --urgency-color: #ef4444; background: rgba(239,68,68,0.11); border-color: rgba(239,68,68,0.45); animation: homePulseRed 1.4s ease-in-out infinite; }
   @keyframes homePulseRed { 0%, 100% { box-shadow: 0 0 0 1px rgba(239,68,68,0.3), 0 8px 32px -8px rgba(239,68,68,0.35); border-color: rgba(239,68,68,0.45); } 50% { box-shadow: 0 0 0 4px rgba(239,68,68,0.5), 0 16px 48px -8px rgba(239,68,68,0.5); border-color: rgba(239,68,68,0.9); } }
 
-  /* Tarjeta compacta "EN CLASES AHORA" — ~mitad de altura, sin padding vertical
-     grande, una sola fila, dot animado. Aparece encima de la tarjeta próxima. */
-  .home-clase-encurso { display: flex; align-items: center; gap: 10px; padding: 10px 14px; margin-bottom: 10px; background: rgba(16,185,129,0.11); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(16,185,129,0.3); border-left: 3px solid #10b981; border-radius: 14px; cursor: pointer; flex-wrap: wrap; }
-  .home-encurso-dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 0 0 rgba(16,185,129,0.7); animation: homeEncursoPulse 1.6s ease-in-out infinite; flex-shrink: 0; }
-  @keyframes homeEncursoPulse { 0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.7); } 70% { box-shadow: 0 0 0 8px rgba(16,185,129,0); } 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); } }
-  .home-encurso-tag { font-size: 10px; font-weight: 900; letter-spacing: 0.16em; color: #10b981; text-transform: uppercase; }
-  .home-encurso-ramo { font-size: 13px; font-weight: 800; color: var(--color-text); letter-spacing: -0.01em; }
-  .home-encurso-meta { font-size: 11px; color: var(--color-text-muted); margin-left: auto; font-weight: 600; }
+  /* Tarjeta compacta "EN CLASES AHORA" — layout vertical: label + ramo + meta.
+     Dot animado a la izquierda alineado al tag. Borde izquierdo 4px como
+     indicador activo, fondo verde sutil (rgba 0.08). */
+  .home-clase-encurso { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; margin-bottom: 10px; background: rgba(34,197,94,0.08); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(34,197,94,0.22); border-left: 4px solid #22c55e; border-radius: 14px; cursor: pointer; }
+  .home-encurso-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 0 rgba(34,197,94,0.7); animation: homeEncursoPulse 1.6s ease-in-out infinite; flex-shrink: 0; margin-top: 4px; }
+  @keyframes homeEncursoPulse { 0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.7); } 70% { box-shadow: 0 0 0 8px rgba(34,197,94,0); } 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); } }
+  .home-encurso-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+  .home-encurso-tag { font-size: 9.5px; font-weight: 900; letter-spacing: 0.18em; color: #22c55e; text-transform: uppercase; line-height: 1.2; }
+  .home-encurso-ramo { font-size: 15px; font-weight: 800; color: var(--color-text); letter-spacing: -0.01em; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .home-encurso-meta { font-size: 11px; color: var(--color-text-muted); font-weight: 600; line-height: 1.3; }
 
   .home-clase-empty { text-align: center; padding: 28px 16px; background: rgba(255,255,255,0.03); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px dashed rgba(255,255,255,0.12); border-radius: 22px; }
   .home-clase-empty .home-empty-emoji { font-size: 44px; margin-bottom: 8px; display: inline-block; animation: homeFloaty 3s ease-in-out infinite; }
@@ -664,14 +666,21 @@ function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVer
 
   const renderClaseEnCurso = () => {
     if (!claseEnCurso) return null
+    // minutos entre ahora y hora_fin — puede salir 0/1 si la clase está por
+    // terminar. Guard por si hora_fin viene vacía o malformada.
+    const finMin = toMin(claseEnCurso.hora_fin)
+    const minsRestantes = finMin > 0 ? Math.max(0, finMin - ahora) : null
+    const restanteTxt = minsRestantes == null ? '' : ` · ${minsRestantes} min restantes`
     return (
       <div className="home-clase-encurso" onClick={onVerHorario}>
         <span className="home-encurso-dot" />
-        <span className="home-encurso-tag">EN CLASES AHORA</span>
-        <span className="home-encurso-ramo">{claseEnCurso.ramo_nombre || '(sin nombre)'}</span>
-        <span className="home-encurso-meta">
-          {claseEnCurso.sala ? `${claseEnCurso.sala} · ` : ''}hasta las {claseEnCurso.hora_fin || '—'}
-        </span>
+        <div className="home-encurso-body">
+          <div className="home-encurso-tag">EN CLASES AHORA</div>
+          <div className="home-encurso-ramo">{claseEnCurso.ramo_nombre || '(sin nombre)'}</div>
+          <div className="home-encurso-meta">
+            {claseEnCurso.sala ? `${claseEnCurso.sala} · ` : ''}hasta las {claseEnCurso.hora_fin || '—'}{restanteTxt}
+          </div>
+        </div>
       </div>
     )
   }
