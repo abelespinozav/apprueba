@@ -2466,10 +2466,16 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPatchEval, onDeleteEva
   const guardarNota = async (ev, rawValor) => {
     setNotaEditingId(null)
     const trimmed = (rawValor ?? '').trim()
-    if (trimmed === '') return  // vacío → revertir sin guardar
+    const actual = ev.nota !== null && ev.nota !== undefined && ev.nota !== '' ? parseFloat(ev.nota) : null
+    // Input vacío → marcar como "aún no rendida" (nota: null). Antes
+    // cancelaba sin guardar y el usuario no podía limpiar una nota.
+    if (trimmed === '') {
+      if (actual === null) return  // ya estaba sin nota, no hay cambio
+      await onPatchEval(ramo.id, ev.id, { nota: null })
+      return
+    }
     const nueva = parseFloat(trimmed)
     if (isNaN(nueva) || nueva < 1 || nueva > 7) return  // fuera de rango → revertir
-    const actual = ev.nota !== null && ev.nota !== undefined && ev.nota !== '' ? parseFloat(ev.nota) : null
     if (actual !== null && Math.abs(actual - nueva) < 0.001) return  // sin cambios reales
     const ok = await onPatchEval(ramo.id, ev.id, { nota: nueva })
     if (!ok) return
@@ -2816,7 +2822,7 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPatchEval, onDeleteEva
                       <input
                         type="number" min="1" max="7" step="0.1"
                         defaultValue={tieneNota ? notaVal.toFixed(1) : ''}
-                        placeholder="?"
+                        placeholder="—"
                         autoFocus
                         onFocus={e => e.target.select()}
                         onBlur={e => guardarNota(ev, e.target.value)}
@@ -2829,10 +2835,10 @@ function RamoScreen({ ramo, onBack, onUpdate, onDelete, onPatchEval, onDeleteEva
                     ) : (
                       <div
                         onClick={() => setNotaEditingId(ev.id)}
-                        title="Tap para editar la nota"
-                        style={{ width: 48, height: 48, background: tieneNota ? `${notaColor(notaVal)}22` : 'var(--shadow-color)', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: tieneNota ? 15 : 18, fontWeight: 800, color: tieneNota ? notaColor(notaVal) : 'var(--color-primary)', flexShrink: 0, border: `1.5px solid ${notaBorderColor}`, boxShadow: notaBoxShadow, cursor: 'pointer', transition: 'box-shadow 0.3s, border-color 0.3s' }}
+                        title={tieneNota ? 'Tap para editar la nota' : 'Aún no rendida — tap para ingresar nota'}
+                        style={{ width: 48, height: 48, background: tieneNota ? `${notaColor(notaVal)}22` : 'var(--shadow-color)', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: tieneNota ? 15 : 20, fontWeight: 800, color: tieneNota ? notaColor(notaVal) : 'rgba(255,255,255,0.4)', flexShrink: 0, border: `1.5px solid ${notaBorderColor}`, boxShadow: notaBoxShadow, cursor: 'pointer', transition: 'box-shadow 0.3s, border-color 0.3s' }}
                       >
-                        {tieneNota ? notaVal.toFixed(1) : '?'}
+                        {tieneNota ? notaVal.toFixed(1) : '—'}
                       </div>
                     )}
                     <div style={{ flex: 1 }}>
@@ -3044,7 +3050,9 @@ function AdminScreen({ usuario, onBack }) {
 
   const calcularPromedio = (evaluaciones) => {
     if (!evaluaciones?.length) return null
-    const conNota = evaluaciones.filter(e => e.nota != null && e.ponderacion != null)
+    // Excluye null, undefined y string vacío — "" venía causando NaN en el
+    // sumatorio (parseFloat('') === NaN) y reventaba el promedio del panel.
+    const conNota = evaluaciones.filter(e => e.nota !== null && e.nota !== undefined && e.nota !== '' && e.ponderacion != null)
     if (!conNota.length) return null
     const totalPeso = conNota.reduce((s, e) => s + parseFloat(e.ponderacion), 0)
     const suma = conNota.reduce((s, e) => s + parseFloat(e.nota) * parseFloat(e.ponderacion), 0)
