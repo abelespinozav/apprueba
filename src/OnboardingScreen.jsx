@@ -71,7 +71,12 @@ export default function OnboardingScreen({ user, onComplete, API }) {
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Error al guardar'); setGuardando(false); return }
-      localStorage.setItem('onboarding_completo', 'true')
+      // Confirmar que el servidor efectivamente marcó onboarding_v2=true.
+      // Si por alguna razón no lo hizo, no seteamos el flag local para
+      // evitar que el cliente crea estar onboarded cuando el server no.
+      if (data?.usuario?.onboarding_v2) {
+        localStorage.setItem('onboarding_completo', 'true')
+      }
       onComplete(data.usuario)
     } catch (e) {
       setError('Error de conexión')

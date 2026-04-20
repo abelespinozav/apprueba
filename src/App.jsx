@@ -3698,14 +3698,16 @@ function AppContent() {
     <>
       <Routes>
         <Route path="/" element={(() => {
-          // Decisión basada en localStorage (síncrono, sin race con /auth/me pendiente).
-          // Sin token → splash de login. Con token pero usuario aún no hidratado → loading
-          // breve para evitar parpadeo. Con token y onboarding listo → home; sino → onboarding.
+          // Sin token → splash de login. Con token pero usuario aún no hidratado
+          // → loading breve para evitar parpadeo. Decisión de onboarding se
+          // basa EXCLUSIVAMENTE en `usuario.onboarding_v2` del servidor —
+          // antes el OR con localStorage podía dejar al usuario atrapado
+          // entre /home y /onboarding si los dos valores divergían.
           const hasToken = !!localStorage.getItem('token')
           if (!hasToken && !landingSeen) return <LandingPage onEntrar={() => { localStorage.setItem('landing_seen', '1'); setLandingSeen(true) }} />
           if (!hasToken) return <LoginScreen onLogin={handleLogin} />
           if (!usuario) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)', color: 'rgba(255,255,255,0.5)' }}>Cargando...</div>
-          if (localStorage.getItem('onboarding_completo') === 'true' || usuario.onboarding_v2) return <Navigate to="/home" replace />
+          if (usuario.onboarding_v2) return <Navigate to="/home" replace />
           return <Navigate to="/onboarding" replace />
         })()} />
         <Route path="/onboarding" element={
