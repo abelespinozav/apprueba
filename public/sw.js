@@ -1,5 +1,22 @@
+// Logs activos para diagnosticar por qué notificaciones "enviadas" desde el
+// backend no aparecen en el dispositivo. Verlos en chrome://serviceworker-
+// internals o DevTools → Application → Service Workers → pushsw (o filtrar
+// la consola del sw).
 self.addEventListener('push', function(event) {
-  const data = event.data ? event.data.json() : {}
+  console.log('[sw] push event recibido', {
+    hasData: !!event.data,
+    timestamp: new Date().toISOString()
+  })
+  let data = {}
+  try {
+    data = event.data ? event.data.json() : {}
+    console.log('[sw] payload parseado:', data)
+  } catch (err) {
+    // Algunos push services mandan texto plano o arrive malformed
+    const raw = event.data ? event.data.text() : ''
+    console.warn('[sw] payload no-JSON, raw:', raw, 'error:', err?.message)
+    data = { title: 'APPrueba', body: raw || 'Nueva notificación' }
+  }
   const title = data.title || 'APPrueba'
   const options = {
     body: data.body || '',
@@ -12,11 +29,27 @@ self.addEventListener('push', function(event) {
       { action: 'close', title: 'Cerrar' }
     ]
   }
-  event.waitUntil(self.registration.showNotification(title, options))
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+      .then(() => console.log('[sw] showNotification ok:', title))
+      .catch(err => console.error('[sw] showNotification falló:', err))
+  )
 })
 
 self.addEventListener('notificationclick', function(event) {
+  console.log('[sw] notificationclick', { action: event.action, url: event.notification?.data?.url })
   event.notification.close()
   if (event.action === 'close') return
   event.waitUntil(clients.openWindow(event.notification.data.url || '/'))
+})
+
+// Cuando el browser rota la suscripción (key rotation, expiración), el
+// endpoint viejo queda inválido y el sw recibe este evento. Loguea para
+// diagnosticar; re-subscripción automática requiere fetch del VAPID key
+// que normalmente no está cacheado aquí — lo hace el frontend al volver.
+self.addEventListener('pushsubscriptionchange', function(event) {
+  console.warn('[sw] pushsubscriptionchange — la suscripción previa expiró/cambió', {
+    oldEndpoint: event.oldSubscription?.endpoint?.slice(-40),
+    newEndpoint: event.newSubscription?.endpoint?.slice(-40)
+  })
 })
