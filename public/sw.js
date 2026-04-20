@@ -17,11 +17,15 @@ self.addEventListener('push', function(event) {
     console.warn('[sw] payload no-JSON, raw:', raw, 'error:', err?.message)
     data = { title: 'APPrueba', body: raw || 'Nueva notificación' }
   }
+  // Shape canónica del backend (buildPushPayload):
+  // { title, body, icon, badge, url } — todos los campos vienen siempre,
+  // pero mantenemos los defaults por defensa (SWs viejos del usuario o
+  // payloads de fuentes externas).
   const title = data.title || 'APPrueba'
   const options = {
     body: data.body || '',
     icon: data.icon || '/icon-192.png',
-    badge: '/icon-192.png',
+    badge: data.badge || '/icon-192.png',
     vibrate: [200, 100, 200],
     data: { url: data.url || '/' },
     actions: [
