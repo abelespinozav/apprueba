@@ -3551,9 +3551,13 @@ function AppContent() {
     window.history.replaceState({}, '', window.location.pathname)
     localStorage.setItem('token', token)
     fetch(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json())
+      .then(async r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        const data = await r.json()
+        if (!data?.user) throw new Error('Respuesta inválida de /auth/me')
+        return data
+      })
       .then(data => {
-        if (!data.user) return
         const user = data.user
         localStorage.setItem('usuario', JSON.stringify(user))
         setUsuario(user)
@@ -3568,7 +3572,17 @@ function AppContent() {
           navigate('/home')
         }
       })
-      .catch(e => console.error('Error auth/me:', e))
+      .catch(err => {
+        // Login roto: token malo o backend caído. Limpiamos y volvemos al
+        // landing para que el usuario reintente en vez de dejarlo en limbo
+        // con un token que no valida.
+        console.error('Error auth/me post-login:', err)
+        localStorage.removeItem('token')
+        localStorage.removeItem('usuario')
+        setUsuario(null)
+        alert('No pudimos completar el inicio de sesión. Intenta de nuevo.')
+        navigate('/')
+      })
   }, [])
 
   const handleUniversidad = async (universidad) => {
