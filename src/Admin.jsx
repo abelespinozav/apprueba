@@ -716,10 +716,21 @@ function NotificacionesAdmin() {
   const [msgBroadcast, setMsgBroadcast] = useState('')
   const [busy, setBusy] = useState(false)
 
-  useEffect(() => {
+  const recargarStats = () =>
     authFetch('/admin/push-stats').then(r => r.json()).then(setStats).catch(() => {})
+  useEffect(() => {
+    recargarStats()
     authFetch('/admin/stats').then(r => r.json()).then(d => setUsuarios(d.usuarios || [])).catch(() => {})
   }, [])
+
+  const resumenEnvio = (data) => {
+    // Formato: "N enviadas · M vencidas (limpiadas) · K fallidas · Total T"
+    const partes = [`${data.enviadas || 0} enviadas`]
+    if (data.vencidas > 0) partes.push(`${data.vencidas} vencidas (limpiadas)`)
+    if (data.fallidas > 0) partes.push(`${data.fallidas} fallidas`)
+    partes.push(`Total ${data.total}`)
+    return '✅ ' + partes.join(' · ')
+  }
 
   const enviarIndividual = async () => {
     if (!individualForm.usuario_id || !individualForm.titulo.trim() || !individualForm.mensaje.trim()) {
@@ -741,8 +752,9 @@ function NotificacionesAdmin() {
       const data = await res.json()
       if (!res.ok) setMsgIndividual('❌ ' + (data.error || 'Error'))
       else if (data.sin_push) setMsgIndividual('⚠️ Usuario sin suscripción push activa')
-      else setMsgIndividual(`✅ Enviadas: ${data.enviadas}/${data.total}`)
+      else setMsgIndividual(resumenEnvio(data))
       if (res.ok && !data.sin_push) setIndividualForm({ usuario_id: individualForm.usuario_id, titulo: '', mensaje: '' })
+      if (data?.vencidas > 0) recargarStats() // el backend limpió subs muertas
     } catch { setMsgIndividual('❌ Error de conexión') }
     setBusy(false)
   }
@@ -764,9 +776,10 @@ function NotificacionesAdmin() {
       const data = await res.json()
       if (!res.ok) setMsgBroadcast('❌ ' + (data.error || 'Error'))
       else {
-        setMsgBroadcast(`✅ Enviadas: ${data.enviadas} · Fallidas: ${data.fallidas} · Total: ${data.total}`)
+        setMsgBroadcast(resumenEnvio(data))
         setBroadcastForm({ titulo: '', mensaje: '' })
       }
+      if (data?.vencidas > 0) recargarStats() // refleja subs eliminadas
     } catch { setMsgBroadcast('❌ Error de conexión') }
     setBusy(false)
   }
