@@ -111,8 +111,8 @@ export default function Admin({ usuario }) {
           {tab === 'engagement'  && <Engagement />}
           {tab === 'novedades'   && <Novedades />}
           {tab === 'telegram'    && <TelegramBot />}
-          {tab === 'config'      && <Configuracion />}
-          {tab === 'seguridad'   && <PlaceholderPanel title="🔒 Seguridad" />}
+          {tab === 'config'         && <Configuracion />}
+          {tab === 'notificaciones' && <NotificacionesAdmin />}
         </main>
       </div>
     </>
@@ -172,8 +172,8 @@ function Sidebar({ tab, setTab, usuario, onBack }) {
       <SideItem id="telegram"  icon="🤖" label="Telegram Bot" />
 
       <Section>Sistema</Section>
-      <SideItem id="config"    icon="⚙️" label="Configuración" />
-      <SideItem id="seguridad" icon="🔒" label="Seguridad" />
+      <SideItem id="config"        icon="⚙️" label="Configuración" />
+      <SideItem id="notificaciones" icon="🔔" label="Notificaciones" />
       <a
         className="admin-side-item"
         onClick={onBack}
@@ -681,6 +681,163 @@ function Engagement() {
             })}
           </div>
         )}
+      </Panel>
+    </>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════
+// NOTIFICACIONES ADMIN
+// ═══════════════════════════════════════════════════════════════
+function NotificacionesAdmin() {
+  const [stats, setStats] = useState({ total_usuarios: 0, con_push: 0, sin_push: 0 })
+  const [usuarios, setUsuarios] = useState([])
+  const [individualForm, setIndividualForm] = useState({ usuario_id: '', titulo: '', mensaje: '' })
+  const [broadcastForm, setBroadcastForm] = useState({ titulo: '', mensaje: '' })
+  const [msgIndividual, setMsgIndividual] = useState('')
+  const [msgBroadcast, setMsgBroadcast] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    authFetch('/admin/push-stats').then(r => r.json()).then(setStats).catch(() => {})
+    authFetch('/admin/stats').then(r => r.json()).then(d => setUsuarios(d.usuarios || [])).catch(() => {})
+  }, [])
+
+  const enviarIndividual = async () => {
+    if (!individualForm.usuario_id || !individualForm.titulo.trim() || !individualForm.mensaje.trim()) {
+      setMsgIndividual('Completa usuario, título y mensaje')
+      return
+    }
+    setBusy(true)
+    setMsgIndividual('')
+    try {
+      const res = await authFetch('/admin/notificacion-individual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          usuario_id: parseInt(individualForm.usuario_id),
+          titulo: individualForm.titulo,
+          mensaje: individualForm.mensaje
+        })
+      })
+      const data = await res.json()
+      if (!res.ok) setMsgIndividual('❌ ' + (data.error || 'Error'))
+      else if (data.sin_push) setMsgIndividual('⚠️ Usuario sin suscripción push activa')
+      else setMsgIndividual(`✅ Enviadas: ${data.enviadas}/${data.total}`)
+      if (res.ok && !data.sin_push) setIndividualForm({ usuario_id: individualForm.usuario_id, titulo: '', mensaje: '' })
+    } catch { setMsgIndividual('❌ Error de conexión') }
+    setBusy(false)
+  }
+
+  const enviarBroadcast = async () => {
+    if (!broadcastForm.titulo.trim() || !broadcastForm.mensaje.trim()) {
+      setMsgBroadcast('Completa título y mensaje')
+      return
+    }
+    if (!window.confirm(`¿Enviar a los ${stats.con_push} usuarios con push activo?`)) return
+    setBusy(true)
+    setMsgBroadcast('')
+    try {
+      const res = await authFetch('/admin/notificacion-broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(broadcastForm)
+      })
+      const data = await res.json()
+      if (!res.ok) setMsgBroadcast('❌ ' + (data.error || 'Error'))
+      else {
+        setMsgBroadcast(`✅ Enviadas: ${data.enviadas} · Fallidas: ${data.fallidas} · Total: ${data.total}`)
+        setBroadcastForm({ titulo: '', mensaje: '' })
+      }
+    } catch { setMsgBroadcast('❌ Error de conexión') }
+    setBusy(false)
+  }
+
+  return (
+    <>
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ fontSize: 24, fontWeight: 800 }}>Notificaciones</div>
+        <div style={{ fontSize: 13, color: T.textMuted, marginTop: 2 }}>Push individual o broadcast a todos los usuarios</div>
+      </div>
+
+      <Panel title="📡 Estado de suscripciones">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+          {[
+            ['Total usuarios', stats.total_usuarios, T.textSoft],
+            ['Con push activo', stats.con_push, '#34d399'],
+            ['Sin push', stats.sin_push, T.textMuted],
+          ].map(([label, value, color]) => (
+            <div key={label} style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: 16 }}>
+              <div style={{ fontSize: 11, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>{label}</div>
+              <div style={{ fontSize: 28, fontWeight: 900, color }}>{value}</div>
+            </div>
+          ))}
+        </div>
+      </Panel>
+
+      <div style={{ height: 20 }} />
+
+      <Panel title="👤 Envío individual">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <select
+            value={individualForm.usuario_id}
+            onChange={e => setIndividualForm({ ...individualForm, usuario_id: e.target.value })}
+            style={inputStyle}
+          >
+            <option value="" style={{ background: '#0f1424' }}>— Selecciona usuario —</option>
+            {usuarios.map(u => (
+              <option key={u.id} value={u.id} style={{ background: '#0f1424' }}>
+                {u.nombre || '(sin nombre)'} · {u.email}
+              </option>
+            ))}
+          </select>
+          <input
+            placeholder="Título"
+            value={individualForm.titulo}
+            onChange={e => setIndividualForm({ ...individualForm, titulo: e.target.value })}
+            style={inputStyle}
+          />
+          <textarea
+            placeholder="Mensaje"
+            rows={3}
+            value={individualForm.mensaje}
+            onChange={e => setIndividualForm({ ...individualForm, mensaje: e.target.value })}
+            style={{ ...inputStyle, resize: 'vertical' }}
+          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button onClick={enviarIndividual} disabled={busy} style={{ padding: '10px 20px', borderRadius: 10, background: 'linear-gradient(135deg, #003087, #2e7dd1)', border: 'none', color: '#fff', fontSize: 13, fontWeight: 800, cursor: busy ? 'wait' : 'pointer', fontFamily: 'inherit' }}>
+              {busy ? 'Enviando...' : 'Enviar'}
+            </button>
+            {msgIndividual && <span style={{ fontSize: 12, color: msgIndividual.startsWith('✅') ? '#34d399' : msgIndividual.startsWith('⚠️') ? '#fbbf24' : '#f87171' }}>{msgIndividual}</span>}
+          </div>
+        </div>
+      </Panel>
+
+      <div style={{ height: 20 }} />
+
+      <Panel title="📣 Broadcast a todos">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <p style={{ fontSize: 12, color: T.textMuted, margin: 0 }}>Se envía a los {stats.con_push} usuarios con push activo. Acción no reversible.</p>
+          <input
+            placeholder="Título"
+            value={broadcastForm.titulo}
+            onChange={e => setBroadcastForm({ ...broadcastForm, titulo: e.target.value })}
+            style={inputStyle}
+          />
+          <textarea
+            placeholder="Mensaje"
+            rows={3}
+            value={broadcastForm.mensaje}
+            onChange={e => setBroadcastForm({ ...broadcastForm, mensaje: e.target.value })}
+            style={{ ...inputStyle, resize: 'vertical' }}
+          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button onClick={enviarBroadcast} disabled={busy || stats.con_push === 0} style={{ padding: '10px 20px', borderRadius: 10, background: 'linear-gradient(135deg, #991b1b, #ef4444)', border: 'none', color: '#fff', fontSize: 13, fontWeight: 800, cursor: (busy || stats.con_push === 0) ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: stats.con_push === 0 ? 0.5 : 1 }}>
+              {busy ? 'Enviando...' : '📣 Broadcast'}
+            </button>
+            {msgBroadcast && <span style={{ fontSize: 12, color: msgBroadcast.startsWith('✅') ? '#34d399' : '#f87171' }}>{msgBroadcast}</span>}
+          </div>
+        </div>
       </Panel>
     </>
   )
