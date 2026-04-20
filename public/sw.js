@@ -1,3 +1,4 @@
+// v2026-04-20 — bump para forzar update del SW en dispositivos activos.
 // Logs activos para diagnosticar por qué notificaciones "enviadas" desde el
 // backend no aparecen en el dispositivo. Verlos en chrome://serviceworker-
 // internals o DevTools → Application → Service Workers → pushsw (o filtrar
