@@ -404,6 +404,7 @@ const HOME_CSS = `
   .home-horario-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 0 rgba(34,197,94,0.7); animation: homeHorarioPulse 1.6s ease-in-out infinite; flex-shrink: 0; }
   @keyframes homeHorarioPulse { 0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.7); } 70% { box-shadow: 0 0 0 8px rgba(34,197,94,0); } 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); } }
   .home-horario-encurso-info { min-width: 0; }
+  .home-horario-encurso-label { font-size: 9px; font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase; color: #22c55e; margin-bottom: 3px; }
   .home-horario-encurso-ramo { font-size: 13px; font-weight: 700; color: var(--color-text); letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .home-horario-encurso-meta { font-size: 10px; color: var(--color-text-muted); font-weight: 600; margin-top: 1px; }
   .home-horario-encurso-cuanto { text-align: right; line-height: 1; }
@@ -741,6 +742,7 @@ function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVer
           <div className="home-horario-encurso" onClick={onVerHorario}>
             <span className="home-horario-dot" />
             <div className="home-horario-encurso-info">
+              <div className="home-horario-encurso-label">En curso</div>
               <div className="home-horario-encurso-ramo">{claseEnCurso.ramo_nombre || '(sin nombre)'}</div>
               <div className="home-horario-encurso-meta">
                 {claseEnCurso.sala ? `${claseEnCurso.sala} · ` : ''}hasta las {claseEnCurso.hora_fin || '—'}
