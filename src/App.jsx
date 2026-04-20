@@ -415,6 +415,13 @@ const HOME_CSS = `
 
   /* Fila de próxima clase — más protagonista que la de en curso */
   .home-horario-proxima { display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; }
+  /* Override local de --horario-accent según proximidad de la próxima
+     clase. Crítico cuando hay clase EN CURSO (accent de la caja es verde
+     por estar activa), para que la próxima muestre su color de urgencia
+     real sin heredar el verde del border-left. */
+  .home-horario-proxima.prox-rojo     { --horario-accent: #ef4444; }
+  .home-horario-proxima.prox-amarillo { --horario-accent: #f59e0b; }
+  .home-horario-proxima.prox-verde    { --horario-accent: #22c55e; }
   .home-horario-proxima-info { min-width: 0; }
   .home-horario-proxima-label { font-size: 9px; font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase; color: var(--horario-accent, var(--color-text-muted)); margin-bottom: 3px; }
   .home-horario-proxima-ramo { font-size: 16px; font-weight: 800; color: var(--color-text); letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -637,7 +644,7 @@ function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVer
         clase: claseHoy,
         etiqueta,
         sub: 'restan',
-        urgencia: mins < 15 ? 'rojo' : mins < 120 ? 'amarillo' : 'verde',
+        urgencia: mins < 15 ? 'rojo' : mins < 30 ? 'amarillo' : 'verde',
         esPronto: mins < 120,
       }
     }
@@ -760,7 +767,7 @@ function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVer
         {claseEnCurso && proximaClase && <div className="home-horario-sep" />}
 
         {proximaClase && (
-          <div className="home-horario-proxima" onClick={onVerHorario}>
+          <div className={`home-horario-proxima prox-${proximaClase.urgencia || 'verde'}`} onClick={onVerHorario}>
             <div className="home-horario-proxima-info">
               <div className="home-horario-proxima-label">Próxima</div>
               <div className="home-horario-proxima-ramo">{proximaClase.clase.ramo_nombre || '(sin nombre)'}</div>
