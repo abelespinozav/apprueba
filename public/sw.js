@@ -27,7 +27,7 @@ self.addEventListener('push', function(event) {
     icon: data.icon || '/icon-192.png',
     badge: data.badge || '/icon-192.png',
     vibrate: [200, 100, 200],
-    data: { url: data.url || '/' },
+    data: { url: data.url || 'https://apprueba.com' },
     actions: [
       { action: 'open', title: '📚 Ver app' },
       { action: 'close', title: 'Cerrar' }
