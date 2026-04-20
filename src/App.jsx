@@ -384,35 +384,43 @@ const HOME_CSS = `
   .home-section-title .link { font-size: 12px; font-weight: 700; color: var(--color-secondary); text-decoration: none; cursor: pointer; background: none; border: none; padding: 0; font-family: inherit; }
   .home-urgente-label h4 { color: #fbbf24 !important; letter-spacing: 0.18em !important; }
 
-  .home-clase-card { display: grid; grid-template-columns: auto 1fr auto; gap: 16px; align-items: center; padding: 16px; background: rgba(255,255,255,0.04); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.08); border-radius: 22px; position: relative; overflow: hidden; }
-  .home-clase-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--urgency-color, #10b981); }
-  .home-clase-urgencia { width: 56px; height: 56px; border-radius: 16px; background: color-mix(in srgb, var(--urgency-color, #10b981) 20%, transparent); color: var(--urgency-color, #10b981); display: grid; place-items: center; font-size: 22px; border: 1px solid color-mix(in srgb, var(--urgency-color, #10b981) 40%, transparent); }
-  .home-clase-info .home-clase-nombre { font-size: 16px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 2px; color: var(--color-text); }
-  .home-clase-info .home-clase-meta { font-size: 12px; color: var(--color-text-muted); }
-  .home-clase-cuanto { text-align: right; }
-  .home-clase-cuanto .home-tiempo { font-size: 15px; font-weight: 900; color: var(--urgency-color, #10b981); letter-spacing: -0.02em; line-height: 1; }
-  .home-clase-cuanto .home-subtime { font-size: 10px; color: var(--color-text-muted); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 4px; }
-  .home-clase-card.urgencia-amarillo { --urgency-color: #f59e0b; background: rgba(245,158,11,0.09); border-color: rgba(245,158,11,0.35); animation: homePulseAmber 2s ease-in-out infinite; }
-  @keyframes homePulseAmber { 0%, 100% { box-shadow: 0 0 0 1px rgba(245,158,11,0.25), 0 8px 32px -8px rgba(245,158,11,0.25); border-color: rgba(245,158,11,0.35); } 50% { box-shadow: 0 0 0 3px rgba(245,158,11,0.4), 0 12px 40px -8px rgba(245,158,11,0.4); border-color: rgba(245,158,11,0.7); } }
-  .home-clase-card.urgencia-rojo { --urgency-color: #ef4444; background: rgba(239,68,68,0.11); border-color: rgba(239,68,68,0.45); animation: homePulseRed 1.4s ease-in-out infinite; }
-  @keyframes homePulseRed { 0%, 100% { box-shadow: 0 0 0 1px rgba(239,68,68,0.3), 0 8px 32px -8px rgba(239,68,68,0.35); border-color: rgba(239,68,68,0.45); } 50% { box-shadow: 0 0 0 4px rgba(239,68,68,0.5), 0 16px 48px -8px rgba(239,68,68,0.5); border-color: rgba(239,68,68,0.9); } }
+  /* Caja unificada "HORARIO DE HOY" — estilo Acción sugerida con header +
+     contenido. Agrupa clase en curso (fila compacta) y próxima clase en una
+     sola card. Border-left cambia de color según contexto: verde si en
+     curso, amber/rojo si próxima urgente, sutil si sólo info. */
+  .home-horario-box { margin: 28px 20px 0; background: rgba(255,255,255,0.04); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.08); border-left: 3px solid var(--horario-accent, rgba(255,255,255,0.15)); border-radius: 22px; padding: 16px 18px; position: relative; overflow: hidden; cursor: pointer; }
+  .home-horario-box.en-curso { --horario-accent: #22c55e; }
+  .home-horario-box.urgencia-amarillo { --horario-accent: #f59e0b; animation: homePulseAmber 2s ease-in-out infinite; }
+  .home-horario-box.urgencia-rojo { --horario-accent: #ef4444; animation: homePulseRed 1.4s ease-in-out infinite; }
+  @keyframes homePulseAmber { 0%, 100% { box-shadow: 0 0 0 1px rgba(245,158,11,0.25), 0 8px 32px -8px rgba(245,158,11,0.25); } 50% { box-shadow: 0 0 0 3px rgba(245,158,11,0.4), 0 12px 40px -8px rgba(245,158,11,0.4); } }
+  @keyframes homePulseRed { 0%, 100% { box-shadow: 0 0 0 1px rgba(239,68,68,0.3), 0 8px 32px -8px rgba(239,68,68,0.35); } 50% { box-shadow: 0 0 0 4px rgba(239,68,68,0.5), 0 16px 48px -8px rgba(239,68,68,0.5); } }
 
-  /* Tarjeta compacta "EN CLASES AHORA" — peso visual reducido a dato
-     informativo secundario: sin fondo verde, borde general casi ausente,
-     tipografía más chica. Sólo el borde izquierdo verde marca "activo". */
-  .home-clase-encurso { display: flex; align-items: flex-start; gap: 10px; padding: 7px 12px; margin-bottom: 10px; background: rgba(255,255,255,0.03); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.06); border-left: 4px solid #22c55e; border-radius: 14px; cursor: pointer; }
-  .home-encurso-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 0 rgba(34,197,94,0.7); animation: homeEncursoPulse 1.6s ease-in-out infinite; flex-shrink: 0; margin-top: 4px; }
-  @keyframes homeEncursoPulse { 0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.7); } 70% { box-shadow: 0 0 0 8px rgba(34,197,94,0); } 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); } }
-  .home-encurso-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
-  .home-encurso-tag { font-size: 9.5px; font-weight: 900; letter-spacing: 0.18em; color: #22c55e; text-transform: uppercase; line-height: 1.2; }
-  .home-encurso-ramo { font-size: 13px; font-weight: 700; color: var(--color-text); letter-spacing: -0.01em; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .home-encurso-meta { font-size: 10px; color: var(--color-text-muted); font-weight: 600; line-height: 1.3; }
+  .home-horario-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .home-horario-header h4 { font-size: 10px; font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase; color: var(--color-text-muted); margin: 0; }
+  .home-horario-header .link { font-size: 12px; font-weight: 700; color: var(--color-secondary); text-decoration: none; cursor: pointer; background: none; border: none; padding: 0; font-family: inherit; }
 
-  .home-clase-empty { text-align: center; padding: 28px 16px; background: rgba(255,255,255,0.03); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px dashed rgba(255,255,255,0.12); border-radius: 22px; }
-  .home-clase-empty .home-empty-emoji { font-size: 44px; margin-bottom: 8px; display: inline-block; animation: homeFloaty 3s ease-in-out infinite; }
-  @keyframes homeFloaty { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
-  .home-clase-empty .home-empty-txt { font-size: 16px; font-weight: 800; margin-bottom: 4px; color: var(--color-text); }
-  .home-clase-empty .home-empty-sub { font-size: 13px; color: var(--color-text-muted); }
+  /* Fila compacta de clase en curso — peso visual secundario dentro de la caja */
+  .home-horario-encurso { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 2px 0; }
+  .home-horario-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 0 rgba(34,197,94,0.7); animation: homeHorarioPulse 1.6s ease-in-out infinite; flex-shrink: 0; }
+  @keyframes homeHorarioPulse { 0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.7); } 70% { box-shadow: 0 0 0 8px rgba(34,197,94,0); } 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); } }
+  .home-horario-encurso-info { min-width: 0; }
+  .home-horario-encurso-ramo { font-size: 13px; font-weight: 700; color: var(--color-text); letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .home-horario-encurso-meta { font-size: 10px; color: var(--color-text-muted); font-weight: 600; margin-top: 1px; }
+  .home-horario-encurso-cuanto { text-align: right; line-height: 1; }
+  .home-horario-encurso-mins { font-size: 16px; font-weight: 900; color: #22c55e; letter-spacing: -0.02em; }
+  .home-horario-encurso-sub { font-size: 8.5px; font-weight: 800; color: var(--color-text-muted); letter-spacing: 0.14em; margin-top: 3px; }
+
+  .home-horario-sep { border-top: 1px solid rgba(255,255,255,0.07); margin: 12px 0; }
+
+  /* Fila de próxima clase — más protagonista que la de en curso */
+  .home-horario-proxima { display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; }
+  .home-horario-proxima-info { min-width: 0; }
+  .home-horario-proxima-label { font-size: 9px; font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase; color: var(--horario-accent, var(--color-text-muted)); margin-bottom: 3px; }
+  .home-horario-proxima-ramo { font-size: 16px; font-weight: 800; color: var(--color-text); letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .home-horario-proxima-meta { font-size: 12px; color: var(--color-text-muted); margin-top: 2px; }
+  .home-horario-proxima-cuanto { text-align: right; line-height: 1; }
+  .home-horario-proxima-tiempo { font-size: 15px; font-weight: 900; color: var(--horario-accent, #10b981); letter-spacing: -0.02em; }
+  .home-horario-proxima-sub { font-size: 10px; color: var(--color-text-muted); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 4px; }
 
   .home-ramos-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
   .home-ramo-card { position: relative; background: rgba(255,255,255,0.04); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 10px; overflow: hidden; cursor: pointer; transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.35s; }
@@ -634,67 +642,64 @@ function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVer
     return { notaPrincipal, notaTipo, necesita, badge, progreso, completadas, total }
   }
 
-  const renderProximaClase = () => {
-    if (!proximaClase) {
-      return (
-        <div className="home-clase-empty">
-          <div className="home-empty-emoji">🎉</div>
-          <div className="home-empty-txt">Sin clases próximas</div>
-          <div className="home-empty-sub">¡Aprovecha para estudiar lo pendiente!</div>
-        </div>
-      )
+  // Renderiza UNA caja "📅 HORARIO DE HOY" con clase en curso (si hay) + próxima
+  // clase (si hay). Si no hay ninguna, no muestra nada.
+  const renderHorarioBox = () => {
+    if (!claseEnCurso && !proximaClase) return null
+    const urgenciaClase = claseEnCurso ? 'en-curso'
+      : proximaClase?.urgencia === 'rojo' ? 'urgencia-rojo'
+      : proximaClase?.urgencia === 'amarillo' ? 'urgencia-amarillo'
+      : 'normal'
+    let minsRestantes = null
+    if (claseEnCurso) {
+      const finMin = toMin(claseEnCurso.hora_fin)
+      minsRestantes = finMin > 0 ? Math.max(0, finMin - ahora) : null
     }
-    const c = proximaClase
-    const urgClase = c.urgencia === 'rojo' ? 'urgencia-rojo' : c.urgencia === 'amarillo' ? 'urgencia-amarillo' : ''
-    const icono = c.urgencia === 'rojo' ? '🔴' : c.urgencia === 'amarillo' ? '🟡' : '🟢'
     return (
-      <div className={`home-clase-card ${urgClase}`} onClick={onVerHorario}>
-        <div className="home-clase-urgencia">{icono}</div>
-        <div className="home-clase-info">
-          <div className="home-clase-nombre">{c.clase.ramo_nombre || '(sin nombre)'}</div>
-          <div className="home-clase-meta">
-            {c.clase.sala ? `${c.clase.sala} · ` : ''}{c.clase.hora_inicio}{c.clase.hora_fin ? ` – ${c.clase.hora_fin}` : ''}
+      <div className={`home-horario-box ${urgenciaClase}`}>
+        <div className="home-horario-header">
+          <h4>📅 Horario de hoy</h4>
+          <button className="link" onClick={onVerHorario}>Ver horario →</button>
+        </div>
+
+        {claseEnCurso && (
+          <div className="home-horario-encurso" onClick={onVerHorario}>
+            <span className="home-horario-dot" />
+            <div className="home-horario-encurso-info">
+              <div className="home-horario-encurso-ramo">{claseEnCurso.ramo_nombre || '(sin nombre)'}</div>
+              <div className="home-horario-encurso-meta">
+                {claseEnCurso.sala ? `${claseEnCurso.sala} · ` : ''}hasta las {claseEnCurso.hora_fin || '—'}
+              </div>
+            </div>
+            {minsRestantes != null && (
+              <div className="home-horario-encurso-cuanto">
+                <div className="home-horario-encurso-mins">{minsRestantes}</div>
+                <div className="home-horario-encurso-sub">MIN</div>
+              </div>
+            )}
           </div>
-        </div>
-        <div className="home-clase-cuanto">
-          <div className="home-tiempo">{c.etiqueta}</div>
-          <div className="home-subtime">{c.sub}</div>
-        </div>
+        )}
+
+        {claseEnCurso && proximaClase && <div className="home-horario-sep" />}
+
+        {proximaClase && (
+          <div className="home-horario-proxima" onClick={onVerHorario}>
+            <div className="home-horario-proxima-info">
+              <div className="home-horario-proxima-label">Próxima</div>
+              <div className="home-horario-proxima-ramo">{proximaClase.clase.ramo_nombre || '(sin nombre)'}</div>
+              <div className="home-horario-proxima-meta">
+                {proximaClase.clase.sala ? `${proximaClase.clase.sala} · ` : ''}{proximaClase.clase.hora_inicio}{proximaClase.clase.hora_fin ? ` – ${proximaClase.clase.hora_fin}` : ''}
+              </div>
+            </div>
+            <div className="home-horario-proxima-cuanto">
+              <div className="home-horario-proxima-tiempo">{proximaClase.etiqueta}</div>
+              <div className="home-horario-proxima-sub">{proximaClase.sub}</div>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
-
-  const renderClaseEnCurso = () => {
-    if (!claseEnCurso) return null
-    // minutos entre ahora y hora_fin — puede salir 0/1 si la clase está por
-    // terminar. Guard por si hora_fin viene vacía o malformada.
-    const finMin = toMin(claseEnCurso.hora_fin)
-    const minsRestantes = finMin > 0 ? Math.max(0, finMin - ahora) : null
-    const restanteTxt = minsRestantes == null ? '' : ` · ${minsRestantes} min restantes`
-    return (
-      <div className="home-clase-encurso" onClick={onVerHorario}>
-        <span className="home-encurso-dot" />
-        <div className="home-encurso-body">
-          <div className="home-encurso-tag">EN CLASES AHORA</div>
-          <div className="home-encurso-ramo">{claseEnCurso.ramo_nombre || '(sin nombre)'}</div>
-          <div className="home-encurso-meta">
-            {claseEnCurso.sala ? `${claseEnCurso.sala} · ` : ''}hasta las {claseEnCurso.hora_fin || '—'}{restanteTxt}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  const seccionProximaClase = (titulo, esUrgente) => (
-    <div className="home-section-block">
-      {renderClaseEnCurso()}
-      <div className={`home-section-title ${esUrgente ? 'home-urgente-label' : ''}`}>
-        <h4>{titulo}</h4>
-        <button className="link" onClick={onVerHorario}>Ver horario →</button>
-      </div>
-      {renderProximaClase()}
-    </div>
-  )
 
   const seccionSugerida = () => {
     if (!sugerida) return null
@@ -852,14 +857,15 @@ function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVer
           </div>
         )}
 
-        {/* Próxima clase URGENTE va antes de sugerida */}
-        {esUrgentePronto && seccionProximaClase('⏰ Tu clase empieza pronto', true)}
+        {/* Caja horario de hoy: clase en curso + próxima. Si urgente (pronto o
+            en curso) va antes de la acción sugerida para priorizarla. */}
+        {(claseEnCurso || esUrgentePronto) && renderHorarioBox()}
 
         {/* Acción sugerida */}
         {seccionSugerida()}
 
-        {/* Próxima clase NO urgente va después */}
-        {!esUrgentePronto && seccionProximaClase('📅 Tu próxima clase', false)}
+        {/* Horario no urgente: va después */}
+        {!claseEnCurso && !esUrgentePronto && renderHorarioBox()}
 
         {/* Ramos grid 2x2 */}
         {ramos.length > 0 && (
