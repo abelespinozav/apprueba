@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom'
-import PanelNotificaciones from './Notificaciones'
+import PanelNotificaciones, { useNotificaciones } from './Notificaciones'
 import PlanEstudio from './PlanEstudio'
 import Quiz from './Quiz'
 import OnboardingScreen from './OnboardingScreen.jsx'
@@ -485,9 +485,84 @@ const HOME_CSS = `
   .home-banner.purple .home-banner-cta { color: #a78bfa; }
   .home-banner-close { background: none; border: none; color: rgba(255,255,255,0.35); font-size: 18px; cursor: pointer; padding: 4px 6px; line-height: 1; font-family: inherit; flex-shrink: 0; transition: color 0.2s; }
   .home-banner-close:hover { color: rgba(255,255,255,0.85); }
+
+  /* Nudge notificaciones — card con glow morado/azul, opción B del mockup.
+     Se renderiza como primer bloque del content, antes de horario/ramos. */
+  .home-nudge-notif { margin: 20px 20px 0; background: linear-gradient(135deg, rgba(108,99,255,0.10), rgba(46,125,209,0.06)); border: 1px solid rgba(108,99,255,0.3); border-radius: 18px; padding: 16px; position: relative; overflow: hidden; animation: homeBannerIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .home-nudge-notif-glow { position: absolute; width: 140px; height: 140px; background: rgba(108,99,255,0.2); border-radius: 50%; filter: blur(44px); top: -30px; right: -20px; pointer-events: none; }
+  .home-nudge-notif-close { position: absolute; top: 10px; right: 12px; font-size: 14px; color: rgba(255,255,255,0.3); cursor: pointer; background: none; border: none; padding: 4px 6px; line-height: 1; font-family: inherit; z-index: 2; }
+  .home-nudge-notif-close:hover { color: rgba(255,255,255,0.7); }
+  .home-nudge-notif-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; position: relative; }
+  .home-nudge-notif-emoji { font-size: 30px; flex-shrink: 0; filter: drop-shadow(0 0 12px rgba(108,99,255,0.4)); animation: nudgeBell 2.8s ease-in-out infinite; }
+  @keyframes nudgeBell { 0%, 90%, 100% { transform: rotate(0); } 93% { transform: rotate(-12deg); } 96% { transform: rotate(10deg); } }
+  .home-nudge-notif-label { font-size: 10px; font-weight: 800; color: var(--color-secondary, #a78bfa); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 2px; }
+  .home-nudge-notif-title { font-size: 15px; font-weight: 800; color: var(--color-text, #fff); line-height: 1.2; }
+  .home-nudge-notif-desc { font-size: 12px; color: var(--color-text-muted, rgba(255,255,255,0.5)); line-height: 1.5; margin-bottom: 14px; position: relative; }
+  .home-nudge-notif-actions { display: flex; gap: 8px; position: relative; }
+  .home-nudge-notif-btn-primary { flex: 1; background: linear-gradient(135deg, #6c63ff, #8b5cf6); border: none; border-radius: 12px; padding: 11px; color: #fff; font-size: 13px; font-weight: 800; cursor: pointer; font-family: inherit; transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.2s; box-shadow: 0 8px 22px rgba(108,99,255,0.28); }
+  .home-nudge-notif-btn-primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
+  .home-nudge-notif-btn-primary:active { transform: scale(0.98); }
+  .home-nudge-notif-btn-primary:disabled { opacity: 0.65; cursor: wait; transform: none; }
+  .home-nudge-notif-btn-secondary { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 11px 16px; color: rgba(255,255,255,0.55); font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.2s, color 0.2s; }
+  .home-nudge-notif-btn-secondary:hover { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.85); }
 `
 
 const HOME_ACCENTS = ['accent-cyan', 'accent-purple', 'accent-pink', 'accent-orange', 'accent-emerald', 'accent-yellow']
+
+// Nudge inline (opción B del mockup) que invita a activar notifs push.
+// Lógica:
+//  - No monta si el browser no tiene Notification API.
+//  - Respeta localStorage nudge_notif_dismissed=true (cerrado con "Ahora no").
+//  - Sólo si permission === 'default' (no muestra si ya aceptó o bloqueó).
+//  - Al hacer click en "Activar ahora" delega a useNotificaciones().activar()
+//    que hace todo el flujo: requestPermission + SW register + push subscribe
+//    + POST al backend. Reutiliza — no duplica.
+//  - Si el permiso cambia a granted/denied post-click, el componente se
+//    auto-oculta porque el render depende de permiso === 'default'.
+function NudgeNotificaciones() {
+  const [dismissed, setDismissed] = useState(() =>
+    typeof window !== 'undefined' && localStorage.getItem('nudge_notif_dismissed') === 'true'
+  )
+  const soportado = typeof window !== 'undefined' && 'Notification' in window
+  if (!soportado || dismissed) return null
+  return <NudgeNotificacionesInner onDismiss={() => {
+    localStorage.setItem('nudge_notif_dismissed', 'true')
+    setDismissed(true)
+  }} />
+}
+
+function NudgeNotificacionesInner({ onDismiss }) {
+  const { permiso, activar, cargando } = useNotificaciones()
+  if (permiso !== 'default') return null
+  return (
+    <div className="home-nudge-notif" role="region" aria-label="Activar notificaciones">
+      <div className="home-nudge-notif-glow" />
+      <button className="home-nudge-notif-close" onClick={onDismiss} aria-label="Cerrar">✕</button>
+      <div className="home-nudge-notif-top">
+        <div className="home-nudge-notif-emoji">🔔</div>
+        <div>
+          <div className="home-nudge-notif-label">No te pierdas nada</div>
+          <div className="home-nudge-notif-title">Activa las notificaciones</div>
+        </div>
+      </div>
+      <div className="home-nudge-notif-desc">
+        Te avisamos cuando empiece una clase, se acerque una prueba o tengas tiempo libre para estudiar.
+      </div>
+      <div className="home-nudge-notif-actions">
+        <button
+          className="home-nudge-notif-btn-primary"
+          onClick={activar}
+          disabled={cargando}
+        >
+          {cargando ? 'Activando…' : '🔔 Activar ahora'}
+        </button>
+        <button className="home-nudge-notif-btn-secondary" onClick={onDismiss}>
+          Ahora no
+        </button>
+      </div>
+    </div>
+  )
+}
 
 function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVerRamo, onHorario, onVerHorario, onNotif, onPerfil, onAdmin, evalProximas3dias, novedades }) {
   const navigate = useNavigate()
@@ -856,6 +931,10 @@ function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVer
             ))}
           </div>
         )}
+
+        {/* Nudge push notifs — autocontenido: se muestra solo si soportado +
+            permission===default + no fue dismisseado antes. */}
+        <NudgeNotificaciones />
 
         {/* Caja horario de hoy: clase en curso + próxima. Si urgente (pronto o
             en curso) va antes de la acción sugerida para priorizarla. */}
