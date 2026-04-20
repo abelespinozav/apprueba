@@ -577,6 +577,24 @@ function UsuarioDetalleModal({ detalle, onClose }) {
                 <div><span style={{ color: T.textMuted }}>Carrera:</span> <strong>{d.usuario?.carrera || '—'}</strong></div>
                 <div><span style={{ color: T.textMuted }}>Registrado:</span> <strong>{d.usuario?.created_at ? new Date(d.usuario.created_at).toLocaleDateString('es-CL') : '—'}</strong></div>
                 <div><span style={{ color: T.textMuted }}>Último acceso:</span> <strong>{relativeTime(d.usuario?.last_login)}</strong></div>
+                {d.usuario?.fecha_nacimiento && (() => {
+                  const fn = new Date(d.usuario.fecha_nacimiento)
+                  if (isNaN(fn.getTime())) return null
+                  const hoy = new Date()
+                  let edad = hoy.getFullYear() - fn.getFullYear()
+                  const m = hoy.getMonth() - fn.getMonth()
+                  if (m < 0 || (m === 0 && hoy.getDate() < fn.getDate())) edad--
+                  const cumple = new Date(hoy.getFullYear(), fn.getMonth(), fn.getDate())
+                  if (cumple < hoy) cumple.setFullYear(hoy.getFullYear() + 1)
+                  const diasParaCumple = Math.round((cumple - hoy) / (1000 * 60 * 60 * 24))
+                  const cumpleLabel = diasParaCumple === 0 ? '🎉 ¡Hoy!' : diasParaCumple <= 30 ? `En ${diasParaCumple}d` : fn.toLocaleDateString('es-CL', { day: 'numeric', month: 'long' })
+                  return (
+                    <>
+                      <div><span style={{ color: T.textMuted }}>Edad:</span> <strong>{edad} años</strong></div>
+                      <div><span style={{ color: T.textMuted }}>Cumpleaños:</span> <strong>{cumpleLabel}</strong></div>
+                    </>
+                  )
+                })()}
               </div>
             </div>
             <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: 16, marginBottom: 16 }}>

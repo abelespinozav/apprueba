@@ -1257,10 +1257,27 @@ const PERFIL_CSS = `
   .perfil-btn.logout:hover { background: rgba(239,68,68,0.14); border-color: rgba(239,68,68,0.4); }
 `
 
-function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, numeroRegistro }) {
+function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, numeroRegistro, onUpdateUsuario }) {
   const uni = usuario?.universidad || ''
   const uniLabel = uni === 'ufro' ? 'UFRO' : uni === 'umayor' ? 'U. Mayor' : uni === 'uautonoma' ? 'U. Autónoma' : uni === 'inacap' ? 'INACAP' : uni === 'santotomas' ? 'Santo Tomás' : uni === 'uctemuco' ? 'UC Temuco' : uni ? uni.toUpperCase() : 'Sin universidad'
   const inicial = (usuario?.nombre || usuario?.name || 'U')[0].toUpperCase()
+  const fechaNacInicial = usuario?.fecha_nacimiento ? String(usuario.fecha_nacimiento).slice(0, 10) : ''
+  const [fechaNac, setFechaNac] = useState(fechaNacInicial)
+  const [guardandoFN, setGuardandoFN] = useState(false)
+  useEffect(() => { setFechaNac(fechaNacInicial) }, [fechaNacInicial])
+  const guardarFechaNac = async (valor) => {
+    if (valor === fechaNacInicial) return
+    setGuardandoFN(true)
+    try {
+      const res = await fetch(`${API}/auth/perfil`, {
+        method: 'PATCH',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ fecha_nacimiento: valor || null })
+      })
+      if (res.ok && onUpdateUsuario) onUpdateUsuario({ ...usuario, fecha_nacimiento: valor || null })
+    } catch(e) { console.error(e) }
+    setGuardandoFN(false)
+  }
 
   return (
     <>
@@ -1301,6 +1318,20 @@ function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, nume
               <div className="perfil-info-content">
                 <div className="perfil-info-label">Miembro desde</div>
                 <div className="perfil-info-value">{usuario?.created_at ? new Date(usuario.created_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}</div>
+              </div>
+            </div>
+            <div className="perfil-info-item">
+              <span className="perfil-info-icon">🎂</span>
+              <div className="perfil-info-content" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div className="perfil-info-label">Fecha de nacimiento {guardandoFN && <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginLeft: 6 }}>guardando…</span>}</div>
+                <input
+                  type="date"
+                  value={fechaNac}
+                  max={new Date().toISOString().slice(0, 10)}
+                  onChange={e => setFechaNac(e.target.value)}
+                  onBlur={e => guardarFechaNac(e.target.value)}
+                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '6px 10px', color: 'white', fontSize: 13, outline: 'none', colorScheme: 'dark', width: 'fit-content' }}
+                />
               </div>
             </div>
           </div>
@@ -3816,6 +3847,7 @@ function AppContent() {
             onAdmin={() => navigate('/admin')}
             esFundador={usuario?.es_fundador}
             numeroRegistro={usuario?.numero_registro}
+            onUpdateUsuario={(u) => { setUsuario(u); localStorage.setItem('usuario', JSON.stringify(u)) }}
           />
         ))} />
         <Route path="/ramos/:ramoId" element={
