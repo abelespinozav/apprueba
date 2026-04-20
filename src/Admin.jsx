@@ -1095,21 +1095,49 @@ function TelegramBot() {
 // CONFIGURACIÓN
 // ═══════════════════════════════════════════════════════════════
 function Configuracion() {
-  const [limite, setLimite] = useState(100)
-  const [limiteInput, setLimiteInput] = useState('100')
+  const [limiteGlobal, setLimiteGlobal] = useState('100')
+  const [porTipo, setPorTipo] = useState({
+    limite_planes: '',
+    limite_quizzes: '',
+    limite_podcasts: '',
+    limite_ejercicios: '',
+  })
+  const [efectivoGlobal, setEfectivoGlobal] = useState(100) // para mostrar placeholders
   const [mensaje, setMensaje] = useState(null)
 
   useEffect(() => {
-    authFetch('/admin/limite-global').then(r => r.json()).then(d => {
-      if (d?.limite_global != null) { setLimite(d.limite_global); setLimiteInput(String(d.limite_global)) }
+    authFetch('/admin/limites-globales').then(r => r.json()).then(d => {
+      if (d?.limite_global != null) {
+        setLimiteGlobal(String(d.limite_global))
+        setEfectivoGlobal(d.limite_global)
+      }
+      setPorTipo({
+        limite_planes:     d?.limite_planes     != null ? String(d.limite_planes)     : '',
+        limite_quizzes:    d?.limite_quizzes    != null ? String(d.limite_quizzes)    : '',
+        limite_podcasts:   d?.limite_podcasts   != null ? String(d.limite_podcasts)   : '',
+        limite_ejercicios: d?.limite_ejercicios != null ? String(d.limite_ejercicios) : '',
+      })
     }).catch(() => {})
   }, [])
 
   const aplicar = async () => {
-    const n = parseInt(limiteInput, 10)
-    if (isNaN(n) || n < 0) return setMensaje({ tipo: 'err', txt: 'Número inválido' })
-    const res = await authFetch('/admin/limite-global', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ limite: n }) })
-    if (res.ok) { setLimite(n); setMensaje({ tipo: 'ok', txt: 'Actualizado' }) }
+    const gn = parseInt(limiteGlobal, 10)
+    if (isNaN(gn) || gn < 0) return setMensaje({ tipo: 'err', txt: 'Límite global inválido' })
+    const body = { limite_global: gn }
+    for (const [k, v] of Object.entries(porTipo)) {
+      body[k] = v === '' ? null : parseInt(v, 10)
+      if (body[k] !== null && (isNaN(body[k]) || body[k] < 0)) {
+        return setMensaje({ tipo: 'err', txt: `${k.replace('limite_', '')} inválido` })
+      }
+    }
+    const res = await authFetch('/admin/limites-globales', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    if (res.ok) {
+      setEfectivoGlobal(gn)
+      setMensaje({ tipo: 'ok', txt: 'Actualizado' })
+    } else {
+      const data = await res.json().catch(() => ({}))
+      setMensaje({ tipo: 'err', txt: data.error || 'Error al guardar' })
+    }
     setTimeout(() => setMensaje(null), 2500)
   }
 
@@ -1128,15 +1156,34 @@ function Configuracion() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-        <Panel title="⚡ Límite global de uso IA">
-          <p style={{ color: T.textSoft, fontSize: 13, marginBottom: 16 }}>
-            Máximo de podcasts, ejercicios, quizzes y planes que puede generar cada usuario. Aplica a los 4 contadores por separado.
+        <Panel title="⚡ Límites globales de uso IA">
+          <p style={{ color: T.textSoft, fontSize: 13, marginBottom: 14 }}>
+            Máximo por tipo de generación para cada usuario. Si dejas un tipo vacío, usa el límite global como fallback.
           </p>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <input type="number" min="0" max="10000" value={limiteInput} onChange={e => setLimiteInput(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
-            <button onClick={aplicar} style={{ padding: '10px 18px', borderRadius: 10, background: 'linear-gradient(135deg, #003087, #2e7dd1)', border: 'none', color: '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>Guardar</button>
+          <label style={{ display: 'block', marginBottom: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Global (fallback)</div>
+            <input type="number" min="0" max="10000" value={limiteGlobal} onChange={e => setLimiteGlobal(e.target.value)} style={{ ...inputStyle, width: '100%' }} />
+          </label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+            {[
+              ['limite_planes',     'Planes IA'],
+              ['limite_quizzes',    'Quizzes'],
+              ['limite_podcasts',   'Podcasts'],
+              ['limite_ejercicios', 'Ejercicios PDF'],
+            ].map(([k, label]) => (
+              <label key={k} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{label}</span>
+                <input
+                  type="number" min="0" max="10000"
+                  value={porTipo[k]}
+                  onChange={e => setPorTipo({ ...porTipo, [k]: e.target.value })}
+                  placeholder={`Global (${efectivoGlobal})`}
+                  style={{ ...inputStyle, width: '100%' }}
+                />
+              </label>
+            ))}
           </div>
-          <p style={{ fontSize: 11, color: T.textMuted, marginTop: 10 }}>Actual: <strong style={{ color: T.text }}>{limite}</strong></p>
+          <button onClick={aplicar} style={{ width: '100%', padding: '10px 18px', borderRadius: 10, background: 'linear-gradient(135deg, #003087, #2e7dd1)', border: 'none', color: '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>Guardar</button>
         </Panel>
 
         <Panel title="🧹 Resetear contadores">
