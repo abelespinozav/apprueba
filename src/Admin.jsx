@@ -470,7 +470,7 @@ function UsuariosTable({ usuarios = [], onVer, onEliminar }) {
           {usuarios.length === 0 ? (
             <tr><td colSpan={6} style={{ padding: 40, textAlign: 'center', color: T.textMuted, fontSize: 13 }}>Sin usuarios para mostrar</td></tr>
           ) : usuarios.map(u => {
-            const isCEO = u.email === 'abelespinozav@gmail.com'
+            const isCEO = u.email === 'abelespinozav@gmail.com' || u.email === 'alvaro@menz.cl'
             const uniInfo = UNI_COLORS[u.universidad]
             const ramos = u.ramos_count || 0
             const estadoBadge = isCEO

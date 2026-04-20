@@ -796,7 +796,7 @@ function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVer
           <div className="home-hero-top">
             <div>
               <div className="home-saludo">Hola, {nombreCorto} <span className="home-wave">👋</span></div>
-              {(usuario?.badge === 'CEO' || usuario?.email === 'abelespinozav@gmail.com') ? (
+              {(usuario?.badge === 'CEO' || usuario?.email === 'abelespinozav@gmail.com' || usuario?.email === 'alvaro@menz.cl') ? (
                 <div className="home-fundador-badge">👑 CEO</div>
               ) : esFundador && (
                 <div className="home-fundador-badge">🏅 Fundador #{numeroRegistro}</div>
