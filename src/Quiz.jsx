@@ -6,10 +6,11 @@ const authHeaders = (extra = {}) => ({ ...extra, 'Authorization': `Bearer ${getT
 
 const DIFICULTAD_COLOR = { facil: '#4ade80', media: '#fbbf24', dificil: '#f87171' }
 
-// Hint dentro del loader del quiz: si el usuario ya tiene notifs push
-// activadas, le confirma que le avisaremos. Si no, ofrece activarlas
-// inline con un botón pequeño (reutiliza el hook compartido que hace
-// requestPermission + SW register + push subscribe + POST backend).
+// Hint dentro del loader del quiz. Source of truth: endpoint backend
+// /notificaciones/estado que consolida (subs en DB + config.activo).
+// Antes chequeaba solo Notification.permission del browser, lo que
+// mentía en 3 cases (config.activo=false, config=null, subs vencida).
+// Ahora solo promete "te avisaremos" si el backend confirma puede_recibir.
 function LoaderNotifHint() {
   const soportado = typeof window !== 'undefined' && 'Notification' in window
   if (!soportado) return null
@@ -18,26 +19,77 @@ function LoaderNotifHint() {
 
 function LoaderNotifHintInner() {
   const { permiso, activar, cargando } = useNotificaciones()
-  const baseStyle = { fontSize: 12, margin: '0 0 2px', maxWidth: 340, lineHeight: 1.5 }
-  if (permiso === 'granted') {
+  const [estado, setEstado] = useState(null) // { puede_recibir, razon } del backend
+  const [cargandoEstado, setCargandoEstado] = useState(true)
+
+  const refrescarEstado = () => {
+    fetch(`${API}/notificaciones/estado`, { headers: authHeaders() })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { setEstado(d); setCargandoEstado(false) })
+      .catch(() => setCargandoEstado(false))
+  }
+  useEffect(() => { refrescarEstado() }, [])
+
+  const activarYRefrescar = async () => {
+    await activar()
+    // Tras el flow de activar() (requestPermission + SW + subscribe + POST),
+    // el backend tiene una nueva fila — re-pedimos el estado para actualizar.
+    setTimeout(refrescarEstado, 400)
+  }
+
+  const baseStyle = { fontSize: 12, margin: '0 0 2px', maxWidth: 360, lineHeight: 1.5 }
+
+  // Mientras carga el estado inicial, silencio (no mostrar nada para no parpadear).
+  if (cargandoEstado) return null
+
+  // Source of truth: si el backend dice que puede recibir, prometer.
+  if (estado?.puede_recibir) {
     return <p style={{ ...baseStyle, color: '#34d399' }}>✅ Te avisaremos cuando esté listo</p>
   }
-  if (permiso === 'denied') {
-    return <p style={{ ...baseStyle, color: 'rgba(255,255,255,0.38)' }}>Esto puede tardar un momento. Quédate en la pantalla.</p>
+
+  // Desde acá: no puede recibir — razones distintas requieren CTA distintos.
+  const razon = estado?.razon
+  const pillStyle = { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 380, margin: '0 auto', padding: '8px 12px', background: 'rgba(108,99,255,0.1)', border: '1px solid rgba(108,99,255,0.25)', borderRadius: 12 }
+  const btnActivar = (label = 'Activar') => (
+    <button
+      onClick={activarYRefrescar}
+      disabled={cargando}
+      style={{ background: 'linear-gradient(135deg, #6c63ff, #8b5cf6)', border: 'none', borderRadius: 8, padding: '6px 14px', color: '#fff', fontSize: 12, fontWeight: 800, cursor: cargando ? 'wait' : 'pointer', fontFamily: 'inherit', flexShrink: 0 }}
+    >
+      {cargando ? '…' : label}
+    </button>
+  )
+
+  // El user apagó el toggle en el panel — no tiene sentido ofrecer
+  // "Activar" acá, va al panel con la setting correspondiente.
+  if (razon === 'config_off') {
+    return (
+      <p style={{ ...baseStyle, color: 'rgba(255,255,255,0.6)' }}>
+        🔕 Notificaciones desactivadas en tu panel — quédate en la pantalla
+      </p>
+    )
   }
-  // default: ofrecemos activar inline
+
+  // Permiso del browser denegado: no podemos re-preguntar.
+  if (permiso === 'denied') {
+    return (
+      <p style={{ ...baseStyle, color: 'rgba(255,255,255,0.38)' }}>
+        Activalas desde settings del navegador para futuras — por ahora quédate en la pantalla.
+      </p>
+    )
+  }
+
+  // Falta la suscripción (sin_subscription) o nunca activó la config
+  // (sin_config). Con permiso 'default' o 'granted-sin-sub' ofrecemos
+  // activar inline — el hook se encarga del flow completo.
+  const copy = razon === 'sin_subscription'
+    ? '🔔 Volvé a activar notificaciones para avisarte cuando esté listo'
+    : '🔔 ¿Activar notificaciones para avisarte cuando esté listo?'
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 360, margin: '0 auto', padding: '8px 12px', background: 'rgba(108,99,255,0.1)', border: '1px solid rgba(108,99,255,0.25)', borderRadius: 12 }}>
-      <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>
-        🔔 ¿Activar notificaciones para avisarte cuando esté listo?
-      </span>
-      <button
-        onClick={activar}
-        disabled={cargando}
-        style={{ background: 'linear-gradient(135deg, #6c63ff, #8b5cf6)', border: 'none', borderRadius: 8, padding: '6px 14px', color: '#fff', fontSize: 12, fontWeight: 800, cursor: cargando ? 'wait' : 'pointer', fontFamily: 'inherit', flexShrink: 0 }}
-      >
-        {cargando ? '…' : 'Activar'}
-      </button>
+    <div style={pillStyle}>
+      <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>{copy}</span>
+      {btnActivar()}
     </div>
   )
 }
