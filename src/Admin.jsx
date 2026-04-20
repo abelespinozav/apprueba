@@ -527,6 +527,37 @@ const tdBtn = (danger = false) => ({
 
 function UsuarioDetalleModal({ detalle, onClose }) {
   const d = detalle?.data
+  const [limites, setLimites] = useState({ planes_limite: '', quizzes_limite: '', podcasts_limite: '', ejercicios_limite: '' })
+  const [limiteGlobal, setLimiteGlobal] = useState(100)
+  const [guardandoLim, setGuardandoLim] = useState(false)
+  const [mensajeLim, setMensajeLim] = useState('')
+  useEffect(() => {
+    if (!d?.usuario) return
+    setLimites({
+      planes_limite:     d.usuario.planes_limite     ?? '',
+      quizzes_limite:    d.usuario.quizzes_limite    ?? '',
+      podcasts_limite:   d.usuario.podcasts_limite   ?? '',
+      ejercicios_limite: d.usuario.ejercicios_limite ?? '',
+    })
+    setLimiteGlobal(d.limiteGlobal || 100)
+  }, [d?.usuario?.id])
+  const guardarLimites = async () => {
+    if (!d?.usuario?.id) return
+    setGuardandoLim(true)
+    setMensajeLim('')
+    try {
+      const body = {}
+      for (const k of ['planes_limite', 'quizzes_limite', 'podcasts_limite', 'ejercicios_limite']) {
+        body[k] = limites[k] === '' ? null : parseInt(limites[k])
+      }
+      const res = await authFetch(`/admin/usuarios/${d.usuario.id}/limites`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      setMensajeLim(res.ok ? '✅ Límites guardados' : '❌ Error al guardar')
+    } catch {
+      setMensajeLim('❌ Error de conexión')
+    }
+    setGuardandoLim(false)
+    setTimeout(() => setMensajeLim(''), 2500)
+  }
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(10px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 20px 60px', overflowY: 'auto' }}>
       <div onClick={e => e.stopPropagation()} style={{ background: '#0f1424', border: `1px solid ${T.border}`, borderRadius: T.radius, padding: 24, maxWidth: 720, width: '100%', maxHeight: 'calc(100vh - 80px)', overflowY: 'auto' }}>
@@ -546,6 +577,38 @@ function UsuarioDetalleModal({ detalle, onClose }) {
                 <div><span style={{ color: T.textMuted }}>Carrera:</span> <strong>{d.usuario?.carrera || '—'}</strong></div>
                 <div><span style={{ color: T.textMuted }}>Registrado:</span> <strong>{d.usuario?.created_at ? new Date(d.usuario.created_at).toLocaleDateString('es-CL') : '—'}</strong></div>
                 <div><span style={{ color: T.textMuted }}>Último acceso:</span> <strong>{relativeTime(d.usuario?.last_login)}</strong></div>
+              </div>
+            </div>
+            <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.textMuted, marginBottom: 10 }}>Límites individuales</div>
+              <p style={{ fontSize: 11, color: T.textMuted, margin: '0 0 12px' }}>Vacío = usar global ({limiteGlobal}). El uso actual aparece como "usados/límite efectivo".</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, fontSize: 12 }}>
+                {[
+                  ['planes_limite',     'Planes IA',    d.usuario?.planes_usados],
+                  ['quizzes_limite',    'Quizzes',      d.usuario?.quizzes_usados],
+                  ['podcasts_limite',   'Podcasts',     d.usuario?.podcasts_usados],
+                  ['ejercicios_limite', 'Ejercicios PDF', d.usuario?.ejercicios_usados],
+                ].map(([k, label, usados]) => {
+                  const efectivo = limites[k] === '' ? limiteGlobal : parseInt(limites[k])
+                  return (
+                    <label key={k} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <span style={{ color: T.textMuted, fontSize: 11 }}>{label} — {usados || 0}/{isNaN(efectivo) ? '?' : efectivo}</span>
+                      <input
+                        type="number" min="0"
+                        value={limites[k]}
+                        onChange={e => setLimites({ ...limites, [k]: e.target.value })}
+                        placeholder={`Global (${limiteGlobal})`}
+                        style={{ ...inputStyle, padding: '8px 10px' }}
+                      />
+                    </label>
+                  )
+                })}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
+                <button onClick={guardarLimites} disabled={guardandoLim} style={{ padding: '8px 16px', borderRadius: 10, background: 'linear-gradient(135deg, #003087, #2e7dd1)', border: 'none', color: '#fff', fontSize: 12, fontWeight: 700, cursor: guardandoLim ? 'wait' : 'pointer', fontFamily: 'inherit' }}>
+                  {guardandoLim ? 'Guardando...' : 'Guardar límites'}
+                </button>
+                {mensajeLim && <span style={{ fontSize: 12, color: mensajeLim.startsWith('✅') ? '#34d399' : '#f87171' }}>{mensajeLim}</span>}
               </div>
             </div>
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.textMuted, marginBottom: 10 }}>Ramos ({(d.ramos || []).length})</div>
