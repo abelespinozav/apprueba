@@ -283,7 +283,7 @@ export default function LandingPage({ onEntrar }) {
         <div style={{ margin: '0 24px 28px', textAlign: 'center', padding: '36px 20px', background: 'linear-gradient(135deg,rgba(108,99,255,0.18),rgba(139,92,246,0.12))', border: '1px solid rgba(108,99,255,0.28)', borderRadius: 28, position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', top: -60, left: '50%', transform: 'translateX(-50%)', width: 200, height: 200, borderRadius: '50%', background: 'rgba(108,99,255,0.2)', filter: 'blur(50px)' }} />
           <div style={{ position: 'relative' }}>
-            <div style={{ fontSize: 40, marginBottom: 16 }}>🎓</div>
+            <img src="/icon-192.png" alt="APPrueba" style={{ width: 72, height: 72, borderRadius: 18, marginBottom: 16, boxShadow: '0 8px 24px rgba(108,99,255,0.4)' }} />
             <h2 style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.02em', marginBottom: 10 }}>¿Listo para sacar mejores notas?</h2>
             <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', lineHeight: 1.65, marginBottom: 24 }}>Únete a los primeros estudiantes que ya estudian con IA. Los primeros 50 son fundadores para siempre.</p>
             <button onClick={handleEntrar} className="cta-btn-main" style={{ width: '100%', background: 'linear-gradient(135deg,#6c63ff,#8b5cf6)', border: 'none', borderRadius: 16, padding: 16, color: 'white', fontSize: 16, fontWeight: 800, cursor: 'pointer', boxShadow: '0 8px 32px rgba(108,99,255,0.4)' }}>
