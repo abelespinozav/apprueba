@@ -1999,6 +1999,33 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
 
   const getTipoColor = (tipo) => TIPOS.find(t => t.value === tipo)?.color || 'var(--color-primary)'
 
+  // Bloque de acciones — se renderiza arriba si no hay horario (usuario en
+  // flujo inicial, necesita el importar) o abajo si ya lo tiene (grilla
+  // protagonista). El botón de importar se oculta una vez que hay horario.
+  const tieneHorario = horario.length > 0
+  const accionesJSX = (
+    <div className="hor-actions">
+      {tieneHorario && (
+        <button className="hor-btn hor-btn-danger" onClick={borrarHorario}>
+          🗑️ Borrar horario completo
+        </button>
+      )}
+      <button className="hor-btn hor-btn-glass" onClick={() => abrirNuevoBloque('Lunes', '')}>
+        ➕ Agregar bloque manualmente
+      </button>
+      {!tieneHorario && (
+        <div className="hor-import" onClick={() => inputRef.current.click()}>
+          <span className="hor-import-icon">{extrayendo ? '⏳' : '📸'}</span>
+          <div className="hor-import-txt">
+            <div className="hor-import-title">{extrayendo ? 'Analizando...' : 'Importar desde foto, PDF o Excel'}</div>
+            <div className="hor-import-sub">La IA detecta tus ramos automáticamente</div>
+          </div>
+          <input ref={inputRef} type="file" accept="image/*,.pdf,.xls,.xlsx" style={{ display: 'none' }} onChange={handleImagen} />
+        </div>
+      )}
+    </div>
+  )
+
   return (
     <>
       <style>{HORARIO_CSS}</style>
@@ -2011,24 +2038,9 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
         <div className="hor-container">
           {mensaje && <div className="hor-msg">{mensaje}</div>}
 
-          <div className="hor-actions">
-            {horario.length > 0 && (
-              <button className="hor-btn hor-btn-danger" onClick={borrarHorario}>
-                🗑️ Borrar horario completo
-              </button>
-            )}
-            <button className="hor-btn hor-btn-glass" onClick={() => abrirNuevoBloque('Lunes', '')}>
-              ➕ Agregar bloque manualmente
-            </button>
-            <div className="hor-import" onClick={() => inputRef.current.click()}>
-              <span className="hor-import-icon">{extrayendo ? '⏳' : '📸'}</span>
-              <div className="hor-import-txt">
-                <div className="hor-import-title">{extrayendo ? 'Analizando...' : 'Importar desde foto, PDF o Excel'}</div>
-                <div className="hor-import-sub">La IA detecta tus ramos automáticamente</div>
-              </div>
-              <input ref={inputRef} type="file" accept="image/*,.pdf,.xls,.xlsx" style={{ display: 'none' }} onChange={handleImagen} />
-            </div>
-          </div>
+          {/* Sin horario: acciones arriba (con botón de importar). Durante
+              preview de import se ocultan porque el user está confirmando. */}
+          {!bloquesPreview && !tieneHorario && accionesJSX}
 
           {usuario?.universidad === 'ufro' && horario.length === 0 && (
             <div className="hor-tip-ufro">
@@ -2183,6 +2195,9 @@ function HorarioScreen({ usuario, onBack, API, authHeaders }) {
               )}
             </div>
           )}
+
+          {/* Con horario: acciones debajo de la grilla (grilla protagonista). */}
+          {!bloquesPreview && tieneHorario && accionesJSX}
         </div>
 
         {/* Modal editar bloque */}

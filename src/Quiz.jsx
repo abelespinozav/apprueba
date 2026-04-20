@@ -1,9 +1,46 @@
 import { useState, useEffect } from 'react'
+import { useNotificaciones } from './Notificaciones'
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const getToken = () => localStorage.getItem('token')
 const authHeaders = (extra = {}) => ({ ...extra, 'Authorization': `Bearer ${getToken()}` })
 
 const DIFICULTAD_COLOR = { facil: '#4ade80', media: '#fbbf24', dificil: '#f87171' }
+
+// Hint dentro del loader del quiz: si el usuario ya tiene notifs push
+// activadas, le confirma que le avisaremos. Si no, ofrece activarlas
+// inline con un botón pequeño (reutiliza el hook compartido que hace
+// requestPermission + SW register + push subscribe + POST backend).
+function LoaderNotifHint() {
+  const soportado = typeof window !== 'undefined' && 'Notification' in window
+  if (!soportado) return null
+  return <LoaderNotifHintInner />
+}
+
+function LoaderNotifHintInner() {
+  const { permiso, activar, cargando } = useNotificaciones()
+  const baseStyle = { fontSize: 12, margin: '0 0 2px', maxWidth: 340, lineHeight: 1.5 }
+  if (permiso === 'granted') {
+    return <p style={{ ...baseStyle, color: '#34d399' }}>✅ Te avisaremos cuando esté listo</p>
+  }
+  if (permiso === 'denied') {
+    return <p style={{ ...baseStyle, color: 'rgba(255,255,255,0.38)' }}>Esto puede tardar un momento. Quédate en la pantalla.</p>
+  }
+  // default: ofrecemos activar inline
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 360, margin: '0 auto', padding: '8px 12px', background: 'rgba(108,99,255,0.1)', border: '1px solid rgba(108,99,255,0.25)', borderRadius: 12 }}>
+      <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>
+        🔔 ¿Activar notificaciones para avisarte cuando esté listo?
+      </span>
+      <button
+        onClick={activar}
+        disabled={cargando}
+        style={{ background: 'linear-gradient(135deg, #6c63ff, #8b5cf6)', border: 'none', borderRadius: 8, padding: '6px 14px', color: '#fff', fontSize: 12, fontWeight: 800, cursor: cargando ? 'wait' : 'pointer', fontFamily: 'inherit', flexShrink: 0 }}
+      >
+        {cargando ? '…' : 'Activar'}
+      </button>
+    </div>
+  )
+}
 
 export default function Quiz({ evaluacion, ramo, onBack }) {
   const [estado, setEstado] = useState('inicio') // inicio | cargando | quiz | resultado
@@ -41,19 +78,12 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
     } catch(e) {}
   }
 
-  // Cargar contador al montar + auto-recuperar quiz cacheado si existe
+  // Cargar contador al montar. Ya NO auto-saltamos a 'quiz' aunque haya
+  // quiz_generado: ahora la pantalla 'inicio' muestra dos botones
+  // (📋 Responder existente · 🔄 Generar nuevo) y el user elige. La primera
+  // opción llama verQuizGuardado() que hace el parse + setEstado('quiz').
   useEffect(() => {
     cargarContador()
-    if (evaluacion.quiz_generado) {
-      const pregs = typeof evaluacion.quiz_generado === 'string'
-        ? JSON.parse(evaluacion.quiz_generado)
-        : evaluacion.quiz_generado
-      setPreguntas(pregs)
-      setRespuestas({})
-      setPreguntaActual(0)
-      setMostrarExplicacion(false)
-      setEstado('quiz')
-    }
   }, [evaluacion.id])
 
   const generarQuiz = async (forzar = false) => {
@@ -227,18 +257,52 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
             🔒 Alcanzaste el límite de {limiteGlobal} quizzes.
           </div>
         ) : null}
-        {evaluacion.quiz_generado && (
-          <button onClick={verQuizGuardado} style={{ ...s.btn, background: 'linear-gradient(135deg, #059669, #34d399)', marginBottom: 10 }}>
-            📋 Ver quiz generado
-          </button>
-        )}
+        {/* Con quiz guardado: primario = responder existente, secundario =
+            regenerar con confirm. Sin quiz: botón único como antes. El branch
+            de cargando es igual en ambos casos — disabled con progresoMsg. */}
         {estado === 'cargando' ? (
           <button disabled style={{ ...s.btn, background: 'rgba(108,99,255,0.5)', cursor: 'not-allowed' }}>
             ⏳ {progresoMsg || 'Iniciando...'}
           </button>
+        ) : evaluacion.quiz_generado ? (
+          <>
+            <button
+              onClick={verQuizGuardado}
+              style={{ ...s.btn, background: 'linear-gradient(135deg, #059669, #34d399)', marginBottom: 10 }}
+            >
+              📋 Responder quiz existente
+            </button>
+            <button
+              onClick={() => {
+                if (quizzesUsados >= limiteGlobal) return
+                if (!window.confirm('¿Seguro que quieres generar un quiz nuevo? El quiz actual será reemplazado.')) return
+                generarQuiz(true)
+              }}
+              disabled={quizzesUsados >= limiteGlobal}
+              style={{
+                ...s.btn,
+                background: 'transparent',
+                border: '1px solid rgba(255,255,255,0.15)',
+                color: quizzesUsados >= limiteGlobal ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.72)',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: quizzesUsados >= limiteGlobal ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {quizzesUsados >= limiteGlobal
+                ? '🔒 Límite alcanzado'
+                : `🔄 Generar nuevo quiz (${limiteGlobal - (quizzesUsados || 0)} restantes)`}
+            </button>
+          </>
         ) : (
-          <button onClick={() => generarQuiz(false)} disabled={quizzesUsados >= limiteGlobal} style={{ ...s.btn, background: quizzesUsados >= limiteGlobal ? 'rgba(46,125,209,0.3)' : 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', cursor: quizzesUsados >= limiteGlobal ? 'not-allowed' : 'pointer' }}>
-            {quizzesUsados >= limiteGlobal ? '🔒 Límite alcanzado' : `🤖 Generar Quiz con IA (${limiteGlobal - (quizzesUsados || 0)} restantes)`}
+          <button
+            onClick={() => generarQuiz(false)}
+            disabled={quizzesUsados >= limiteGlobal}
+            style={{ ...s.btn, background: quizzesUsados >= limiteGlobal ? 'rgba(46,125,209,0.3)' : 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', cursor: quizzesUsados >= limiteGlobal ? 'not-allowed' : 'pointer' }}
+          >
+            {quizzesUsados >= limiteGlobal
+              ? '🔒 Límite alcanzado'
+              : `🤖 Generar Quiz con IA (${limiteGlobal - (quizzesUsados || 0)} restantes)`}
           </button>
         )}
       </div>
@@ -266,9 +330,7 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
         <p style={{ color: 'var(--color-secondary, #a78bfa)', fontSize: 14, margin: '0 0 6px', maxWidth: 420, lineHeight: 1.5 }}>
           {progresoMsg || 'Analizando tu material de estudio…'}
         </p>
-        <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: 12, margin: 0, maxWidth: 340, lineHeight: 1.5 }}>
-          Puedes cerrar esta pantalla — te avisamos cuando esté listo.
-        </p>
+        <LoaderNotifHint />
         <div className="quiz-loader-dots"><span/><span/><span/></div>
       </div>
     </>
