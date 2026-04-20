@@ -2,6 +2,24 @@
 // backend no aparecen en el dispositivo. Verlos en chrome://serviceworker-
 // internals o DevTools → Application → Service Workers → pushsw (o filtrar
 // la consola del sw).
+
+// install + activate con skipWaiting/claim: cuando deployamos un sw.js
+// nuevo, el browser por defecto lo deja en estado "waiting" hasta que todas
+// las ventanas abiertas se cierren. skipWaiting lo activa inmediatamente;
+// clients.claim fuerza al nuevo SW a tomar control de las páginas ya
+// abiertas (sin esperar a un refresh). Resultado: cualquier fix en el SW
+// (ej. default de url, nuevos logs) empieza a aplicar en la próxima carga
+// de la app, no en la siguiente sesión.
+self.addEventListener('install', function(event) {
+  console.log('[sw] install — skipWaiting')
+  self.skipWaiting()
+})
+
+self.addEventListener('activate', function(event) {
+  console.log('[sw] activate — claim clients')
+  event.waitUntil(self.clients.claim())
+})
+
 self.addEventListener('push', function(event) {
   console.log('[sw] push event recibido', {
     hasData: !!event.data,
