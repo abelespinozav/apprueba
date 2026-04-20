@@ -5,6 +5,7 @@ import PlanEstudio from './PlanEstudio'
 import Quiz from './Quiz'
 import OnboardingScreen from './OnboardingScreen.jsx'
 import Admin from './Admin.jsx'
+import LandingPage from './LandingPage.jsx'
 import { useTheme } from './useTheme'
 import { colorTextoSobreHeader } from './theme'
 
@@ -3395,6 +3396,7 @@ export default function App() {
 }
 
 function AppContent() {
+  const [landingSeen, setLandingSeen] = useState(() => !!localStorage.getItem('landing_seen'))
   const [usuario, setUsuario] = useState(null)
   const [loadingAuth, setLoadingAuth] = useState(true)
   const [ramos, setRamos] = useState([])
@@ -3685,6 +3687,7 @@ function AppContent() {
           // Sin token → splash de login. Con token pero usuario aún no hidratado → loading
           // breve para evitar parpadeo. Con token y onboarding listo → home; sino → onboarding.
           const hasToken = !!localStorage.getItem('token')
+          if (!hasToken && !landingSeen) return <LandingPage onEntrar={() => { localStorage.setItem('landing_seen', '1'); setLandingSeen(true) }} />
           if (!hasToken) return <LoginScreen onLogin={handleLogin} />
           if (!usuario) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)', color: 'rgba(255,255,255,0.5)' }}>Cargando...</div>
           if (localStorage.getItem('onboarding_completo') === 'true' || usuario.onboarding_v2) return <Navigate to="/home" replace />
