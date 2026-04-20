@@ -3349,6 +3349,7 @@ function QuizRouteWrapper({ ramos, loadingRamos, usuario }) {
 function DesktopFrame({ children }) {
   const [isDesktop, setIsDesktop] = useState(false)
   const location = useLocation()
+  const inFrame = isDesktop && !location.pathname.startsWith('/admin')
   useEffect(() => {
     const check = () => {
       const desktop = window.innerWidth > 768 && !/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
@@ -3358,22 +3359,46 @@ function DesktopFrame({ children }) {
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   }, [])
+  // Aplica overflow:hidden a html/body de forma IMPERATIVA solo mientras el
+  // frame esté activo. El <style> tag de abajo también lo hace, pero al
+  // montarse el estilo recién en el segundo render puede haber un flash
+  // donde el body ya quedó scrolleable. Esto lo fija en el primer effect.
+  useEffect(() => {
+    if (!inFrame) return
+    const prevHtml = document.documentElement.style.overflow
+    const prevBody = document.body.style.overflow
+    document.documentElement.style.overflow = 'hidden'
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.documentElement.style.overflow = prevHtml
+      document.body.style.overflow = prevBody
+    }
+  }, [inFrame])
   // Ruta /admin se renderiza fullscreen en desktop (panel administrativo,
   // no tiene sentido verlo dentro del phone frame).
-  if (!isDesktop) return children
-  if (location.pathname.startsWith('/admin')) return children
+  if (!inFrame) return children
   return (
     <>
       <style>{`
-        html, body { margin: 0; overflow: hidden; background: #0a0a0f; }
+        html, body { margin: 0; overflow: hidden; height: 100%; background: #0a0a0f; overscroll-behavior: none; }
+        #root { height: 100%; }
         .df-wrap { position: fixed; inset: 0; background: #0a0a0f; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 20px; box-sizing: border-box; }
-        .df-phone { width: 390px; height: min(844px, calc(100vh - 110px)); border-radius: 44px; box-shadow: 0 0 0 12px #1a1a2e, 0 0 0 14px #2a2a3e, 0 30px 80px rgba(0,0,0,0.8); overflow-y: auto; overflow-x: hidden; position: relative; background: var(--bg-primary); transform: translateZ(0); }
+        /* overscroll-behavior: contain evita que el scroll del frame se
+           "escape" al document cuando llega a los bordes (rubberband en
+           trackpad macOS y chain en wheel Chrome/Firefox). */
+        .df-phone { width: 390px; height: min(844px, calc(100vh - 110px)); border-radius: 44px; box-shadow: 0 0 0 12px #1a1a2e, 0 0 0 14px #2a2a3e, 0 30px 80px rgba(0,0,0,0.8); overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; position: relative; background: var(--bg-primary); transform: translateZ(0); }
         .df-phone::-webkit-scrollbar { display: none; }
         .df-notch { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 120px; height: 30px; background: #000; border-radius: 0 0 20px 20px; z-index: 10000; pointer-events: none; }
         .df-hint { color: rgba(255,255,255,0.45); font-size: 13px; margin: 0; text-align: center; font-weight: 500; letter-spacing: 0.01em; }
-        /* Los roots scrollables usan 100vh (viewport completo); dentro del frame
-           deben llenar el frame (100% del contenedor transformado) no el viewport. */
-        .home-root, .ramos-root, .pq-root, .hor-root, .perfil-root { height: 100% !important; }
+        /* Roots con className propia: scroll interno dentro del frame. */
+        .home-root, .ramos-root, .pq-root, .hor-root, .perfil-root { height: 100% !important; overscroll-behavior: contain; }
+        /* Roots con estilo inline minHeight: 100vh (RamoScreen, PlanEstudio,
+           LandingPage, loading states): el 100vh se mide contra el viewport
+           y hace al root más alto que el frame, provocando scroll en el
+           frame. Dentro del DesktopFrame convertimos ese 100vh en 100% del
+           frame; el contenido interno largo sigue causando scroll (vía el
+           overflow-y:auto del frame) pero con medida coherente. */
+        .df-phone div[style*="min-height: 100vh"] { min-height: 100% !important; }
       `}</style>
       <div className="df-wrap">
         <div className="df-phone">
