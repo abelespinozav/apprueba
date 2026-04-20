@@ -610,9 +610,22 @@ function Novedades() {
   const [items, setItems] = useState([])
   const [mostrando, setMostrando] = useState(false)
   const [form, setForm] = useState({ titulo: '', descripcion: '', universidad: 'ufro', tipo: 'Anuncio', emoji: '📢', color: '#2e7dd1', expira_en: '' })
+  const [filterUni, setFilterUni] = useState('todas')
+  const [sortOrder, setSortOrder] = useState('reciente') // reciente | antigua
 
   const reload = () => authFetch('/admin/novedades').then(r => r.json()).then(d => setItems(Array.isArray(d) ? d : [])).catch(() => {})
   useEffect(reload, [])
+
+  const filtered = useMemo(() => {
+    let list = items
+    if (filterUni !== 'todas') list = list.filter(n => n.universidad === filterUni)
+    list = [...list].sort((a, b) => {
+      const ta = new Date(a.creada_en).getTime() || 0
+      const tb = new Date(b.creada_en).getTime() || 0
+      return sortOrder === 'reciente' ? tb - ta : ta - tb
+    })
+    return list
+  }, [items, filterUni, sortOrder])
 
   const crear = async () => {
     if (!form.titulo.trim()) return
@@ -641,10 +654,21 @@ function Novedades() {
       </div>
 
       <Panel title="📰 Listado" noPadding>
+        <div style={{ padding: '14px 16px 6px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', borderBottom: `1px solid ${T.border}` }}>
+          <select value={filterUni} onChange={e => setFilterUni(e.target.value)} style={{ ...inputStyle, width: 'auto', padding: '7px 12px', fontSize: 12 }}>
+            <option value="todas" style={{ background: '#0f1424' }}>Todas las universidades</option>
+            {Object.keys(UNI_COLORS).map(u => <option key={u} value={u} style={{ background: '#0f1424' }}>{UNI_COLORS[u].label}</option>)}
+          </select>
+          <select value={sortOrder} onChange={e => setSortOrder(e.target.value)} style={{ ...inputStyle, width: 'auto', padding: '7px 12px', fontSize: 12 }}>
+            <option value="reciente" style={{ background: '#0f1424' }}>Más reciente primero</option>
+            <option value="antigua" style={{ background: '#0f1424' }}>Más antigua primero</option>
+          </select>
+          <span style={{ fontSize: 11, color: T.textMuted, marginLeft: 'auto' }}>{filtered.length} resultados</span>
+        </div>
         <div style={{ padding: '12px 16px' }}>
-          {items.length === 0 ? (
-            <p style={{ color: T.textMuted, fontSize: 13, textAlign: 'center', padding: '40px 0' }}>Sin novedades aún</p>
-          ) : items.map(n => {
+          {filtered.length === 0 ? (
+            <p style={{ color: T.textMuted, fontSize: 13, textAlign: 'center', padding: '40px 0' }}>Sin novedades</p>
+          ) : filtered.map(n => {
             const origenBadge = n.origen === 'telegram' ? { bg: 'rgba(46,125,209,0.15)', c: T.secondary } : n.origen === 'scrape' ? { bg: 'rgba(167,139,250,0.15)', c: '#c4b5fd' } : { bg: 'rgba(16,185,129,0.15)', c: '#34d399' }
             const estado = !n.activa ? 'Inactiva' : n.expira_en && new Date(n.expira_en) < new Date() ? 'Expirada' : 'Activa'
             const estadoTone = estado === 'Activa' ? 'green' : estado === 'Expirada' ? 'muted' : 'red'
