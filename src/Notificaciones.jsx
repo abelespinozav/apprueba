@@ -11,15 +11,25 @@ async function registrarServiceWorker() {
 }
 
 async function suscribirPush(reg, vapidKey) {
+  console.log('[notif] suscribirPush: llamando pushManager.subscribe...')
   const sub = await reg.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: urlBase64ToUint8Array(vapidKey)
   })
-  await fetch(`${API}/notificaciones/subscribe`, {
-    method: 'POST',
-    headers: authHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ subscription: sub.toJSON() })
-  })
+  console.log('[notif] suscribirPush: subscription creada', sub.toJSON())
+  try {
+    const res = await fetch(`${API}/notificaciones/subscribe`, {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ subscription: sub.toJSON() })
+    })
+    const bodyTxt = await res.text()
+    console.log('[notif] POST /notificaciones/subscribe →', res.status, bodyTxt)
+    if (!res.ok) console.error('[notif] subscribe NO OK:', res.status, bodyTxt)
+  } catch(e) {
+    console.error('[notif] POST /notificaciones/subscribe falló:', e)
+    throw e
+  }
   return sub
 }
 
@@ -43,16 +53,36 @@ export function useNotificaciones() {
   }, [])
 
   const activar = async () => {
+    console.log('[notif] activar: inicio')
     setCargando(true)
     try {
       const perm = await Notification.requestPermission()
+      console.log('[notif] requestPermission →', perm)
       setPermiso(perm)
-      if (perm !== 'granted') return
-      const { publicKey } = await fetch(`${API}/notificaciones/vapid-key`).then(r => r.json())
+      if (perm !== 'granted') {
+        console.warn('[notif] permiso NO granted — abortando activar()')
+        return
+      }
+      const vapidRes = await fetch(`${API}/notificaciones/vapid-key`).then(r => r.json())
+      console.log('[notif] vapid-key response:', vapidRes)
+      const { publicKey } = vapidRes
+      if (!publicKey) {
+        console.error('[notif] VAPID publicKey vacía — abortando')
+        return
+      }
       const reg = await registrarServiceWorker()
-      if (reg) await suscribirPush(reg, publicKey)
+      console.log('[notif] registrarServiceWorker →', reg)
+      if (!reg) {
+        console.error('[notif] SW registration null — browser no soporta push? abortando')
+        return
+      }
+      const sub = await suscribirPush(reg, publicKey)
+      console.log('[notif] suscribirPush OK:', sub?.endpoint)
       await guardarConfig({ ...config, activo: true })
-    } catch(e) { console.error(e) }
+      console.log('[notif] guardarConfig OK — activar() completo')
+    } catch(e) {
+      console.error('[notif] activar() threw:', e)
+    }
     setCargando(false)
   }
 

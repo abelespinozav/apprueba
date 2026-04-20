@@ -32,8 +32,22 @@ function LoaderNotifHintInner() {
 
   const activarYRefrescar = async () => {
     await activar()
-    // Tras el flow de activar() (requestPermission + SW + subscribe + POST),
-    // el backend tiene una nueva fila — re-pedimos el estado para actualizar.
+    // activar() ya hace subscribe + POST config con activo:true, pero usa el
+    // config actual del hook — si el user tenía notif_clases o notif_ventanas
+    // en false, quedarían así. Desde este pill el usuario está pidiendo "dale,
+    // actívamelas todas", así que forzamos el full-on con defaults sensatos.
+    try {
+      await fetch(`${API}/notificaciones/config`, {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          activo: true,
+          dias_antes: [1, 2, 5],
+          notif_clases: true,
+          notif_ventanas: true
+        })
+      })
+    } catch(e) { console.error(e) }
     setTimeout(refrescarEstado, 400)
   }
 
@@ -60,17 +74,8 @@ function LoaderNotifHintInner() {
     </button>
   )
 
-  // El user apagó el toggle en el panel — no tiene sentido ofrecer
-  // "Activar" acá, va al panel con la setting correspondiente.
-  if (razon === 'config_off') {
-    return (
-      <p style={{ ...baseStyle, color: 'rgba(255,255,255,0.6)' }}>
-        🔕 Notificaciones desactivadas en tu panel — quédate en la pantalla
-      </p>
-    )
-  }
-
-  // Permiso del browser denegado: no podemos re-preguntar.
+  // Permiso del browser denegado: no podemos re-preguntar desde JS, el
+  // user tiene que ir a settings del browser manualmente.
   if (permiso === 'denied') {
     return (
       <p style={{ ...baseStyle, color: 'rgba(255,255,255,0.38)' }}>
@@ -79,12 +84,16 @@ function LoaderNotifHintInner() {
     )
   }
 
-  // Falta la suscripción (sin_subscription) o nunca activó la config
-  // (sin_config). Con permiso 'default' o 'granted-sin-sub' ofrecemos
-  // activar inline — el hook se encarga del flow completo.
+  // Resto de los cases no-recibir (sin_subscription, config_off, sin_config)
+  // → misma CTA: pill con texto + botón "Activar". activarYRefrescar() llama
+  // al hook que hace requestPermission + SW + subscribe + guardarConfig(
+  // activo: true), por lo tanto también cubre el case config_off (no solo
+  // re-suscribe, también re-activa el toggle en el backend).
   const copy = razon === 'sin_subscription'
-    ? '🔔 Volvé a activar notificaciones para avisarte cuando esté listo'
-    : '🔔 ¿Activar notificaciones para avisarte cuando esté listo?'
+    ? '🔔 Activa las notificaciones y te avisamos cuando esté listo'
+    : razon === 'config_off'
+      ? '🔔 Activa las notificaciones y te avisamos cuando esté listo'
+      : '🔔 ¿Activar notificaciones y te avisamos cuando esté listo?'
 
   return (
     <div style={pillStyle}>
