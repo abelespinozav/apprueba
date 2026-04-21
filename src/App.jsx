@@ -3943,12 +3943,17 @@ function AppContent() {
   // lo consumen la home (streak-pill) y PerfilTab (card de nivel).
   const cargarGamificacion = async () => {
     try {
-      const res = await fetch(`${API}/usuarios/gamificacion`, { headers: authHeaders() })
-      if (res.ok) setGamificacion(await res.json())
-      fetch(`${API}/usuarios/historial-generaciones`, { headers: authHeaders() })
-        .then(r => r.json())
-        .then(d => { if (d.historial) setHistorialGen(d.historial) })
-        .catch(() => {})
+      const [resGam, resHist] = await Promise.allSettled([
+        fetch(`${API}/usuarios/gamificacion`, { headers: authHeaders() }),
+        fetch(`${API}/usuarios/historial-generaciones`, { headers: authHeaders() })
+      ])
+      if (resGam.status === 'fulfilled' && resGam.value.ok) {
+        setGamificacion(await resGam.value.json())
+      }
+      if (resHist.status === 'fulfilled' && resHist.value.ok) {
+        const d = await resHist.value.json()
+        if (d.historial) setHistorialGen(d.historial)
+      }
     } catch(e) {}
   }
 
