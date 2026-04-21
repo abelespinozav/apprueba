@@ -573,7 +573,7 @@ function NudgeNotificacionesInner({ onDismiss }) {
   )
 }
 
-function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVerRamo, onHorario, onVerHorario, onNotif, onPerfil, onAdmin, evalProximas3dias, novedades }) {
+function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVerRamo, onHorario, onVerHorario, onNotif, onPerfil, onAdmin, evalProximas3dias, novedades, creditos, onVerPlanes }) {
   const navigate = useNavigate()
   const hoy = new Date()
   const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado']
@@ -895,6 +895,22 @@ function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVer
                 🔔
                 {evalProximas3dias > 0 && <span className="home-notif-badge">{evalProximas3dias}</span>}
               </button>
+              {creditos !== null && creditos !== undefined && (
+                <button
+                  onClick={onVerPlanes}
+                  aria-label={`Tienes ${creditos} créditos — ir a planes`}
+                  style={{
+                    background: creditos < 30 ? 'rgba(248,113,113,0.18)' : 'rgba(251,191,36,0.15)',
+                    border: `1px solid ${creditos < 30 ? 'rgba(248,113,113,0.5)' : 'rgba(251,191,36,0.35)'}`,
+                    borderRadius: 20, padding: '4px 12px', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 4,
+                    fontSize: 13, fontWeight: 800,
+                    color: creditos < 30 ? '#f87171' : '#fbbf24'
+                  }}
+                >
+                  ⚡ {creditos}
+                </button>
+              )}
               <div onClick={onPerfil} className="home-avatar">{inicial}</div>
             </div>
           </div>
@@ -1395,7 +1411,7 @@ const PERFIL_CSS = `
   .perfil-btn.logout:hover { background: rgba(239,68,68,0.14); border-color: rgba(239,68,68,0.4); }
 `
 
-function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, numeroRegistro, onUpdateUsuario }) {
+function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, numeroRegistro, onUpdateUsuario, creditos, onVerPlanes }) {
   const uni = usuario?.universidad || ''
   const uniLabel = uni === 'ufro' ? 'UFRO' : uni === 'umayor' ? 'U. Mayor' : uni === 'uautonoma' ? 'U. Autónoma' : uni === 'inacap' ? 'INACAP' : uni === 'santotomas' ? 'Santo Tomás' : uni === 'uctemuco' ? 'UC Temuco' : uni ? uni.toUpperCase() : 'Sin universidad'
   const inicial = (usuario?.nombre || usuario?.name || 'U')[0].toUpperCase()
@@ -1475,6 +1491,38 @@ function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, nume
           </div>
         </div>
 
+        {/* CRÉDITOS — saldo grande + costos por función + CTA a /planes */}
+        <div style={{ margin: '0 0 16px', background: 'var(--bg-card)', borderRadius: 16, padding: 16, border: '1px solid rgba(251,191,36,0.2)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: 'white', margin: 0 }}>⚡ Tus créditos</p>
+            <button onClick={onVerPlanes} style={{ background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 700, color: '#fbbf24', cursor: 'pointer' }}>
+              Ver planes
+            </button>
+          </div>
+          <div style={{ fontSize: 32, fontWeight: 800, color: '#fbbf24', marginBottom: 4 }}>
+            {creditos ?? '—'}
+            <span style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,0.4)', marginLeft: 6 }}>créditos disponibles</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 12 }}>
+            {[
+              { label: 'Quiz', costo: 10, icono: '⚡' },
+              { label: 'Plan IA', costo: 15, icono: '🤖' },
+              { label: 'Guía', costo: 8, icono: '📖' },
+              { label: 'Ejercicios', costo: 12, icono: '✏️' },
+              { label: 'Podcast', costo: 30, icono: '🎙️' },
+              { label: 'Material', costo: 0, icono: '📎' },
+            ].map(fn => (
+              <div key={fn.label} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '8px 6px', textAlign: 'center' }}>
+                <div style={{ fontSize: 18 }}>{fn.icono}</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginBottom: 2 }}>{fn.label}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: fn.costo === 0 ? '#4ade80' : '#fbbf24' }}>
+                  {fn.costo === 0 ? 'Gratis' : `${fn.costo} cr`}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* ACCIONES */}
         <div className="perfil-section">
           <h4 className="perfil-section-title">⚙️ Ajustes</h4>
@@ -1547,7 +1595,26 @@ function BottomNav() {
 // ============================================================
 // APP HEADER
 // ============================================================
-function AppHeader({ usuario, esFundador, numeroRegistro, evalProximas3dias, onNotif, onPerfil, onAdmin, onLogout }) {
+// Badge reutilizable: muestra el costo en créditos de una acción. Si le
+// pasas `creditos` (el saldo actual del user) y es menor al costo, se
+// pinta rojo — pista visual para saber que la acción no va a pasar.
+export function CreditBadge({ costo, creditos, size = 'sm' }) {
+  const sinCreditos = creditos !== null && creditos !== undefined && creditos < costo
+  const baseStyle = {
+    display: 'inline-flex', alignItems: 'center', gap: 3,
+    background: sinCreditos ? 'rgba(248,113,113,0.15)' : 'rgba(251,191,36,0.15)',
+    border: `1px solid ${sinCreditos ? 'rgba(248,113,113,0.4)' : 'rgba(251,191,36,0.3)'}`,
+    borderRadius: 20,
+    padding: size === 'sm' ? '2px 8px' : '4px 12px',
+    fontSize: size === 'sm' ? 11 : 13,
+    fontWeight: 700,
+    color: sinCreditos ? '#f87171' : '#fbbf24',
+    whiteSpace: 'nowrap'
+  }
+  return <span style={baseStyle}>⚡ {costo} cr</span>
+}
+
+function AppHeader({ usuario, esFundador, numeroRegistro, evalProximas3dias, onNotif, onPerfil, onAdmin, onLogout, creditos, onVerPlanes }) {
   const uni = usuario?.universidad || ''
   const uniLabel = uni === 'ufro' ? 'UFRO' : uni === 'uchile' ? 'U. Chile' : uni === 'puc' ? 'PUC' : uni === 'usach' ? 'USACH' : uni ? uni.toUpperCase() : null
   const inicial = (usuario?.nombre || usuario?.name || 'U')[0].toUpperCase()
@@ -1591,6 +1658,18 @@ function AppHeader({ usuario, esFundador, numeroRegistro, evalProximas3dias, onN
               <span style={{ position: 'absolute', top: -2, right: -2, background: '#f87171', color: 'white', borderRadius: '50%', width: 16, height: 16, fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{evalProximas3dias}</span>
             )}
           </button>
+          {creditos !== null && creditos !== undefined && (
+            <button onClick={onVerPlanes} style={{
+              background: creditos < 30 ? 'rgba(248,113,113,0.2)' : 'rgba(251,191,36,0.15)',
+              border: `1px solid ${creditos < 30 ? 'rgba(248,113,113,0.5)' : 'rgba(251,191,36,0.3)'}`,
+              borderRadius: 20, padding: '4px 12px', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 4,
+              fontSize: 13, fontWeight: 700,
+              color: creditos < 30 ? '#f87171' : '#fbbf24'
+            }}>
+              ⚡ {creditos}
+            </button>
+          )}
           <div onClick={onPerfil} style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, color: 'white', cursor: 'pointer' }}>
             {inicial}
           </div>
@@ -3624,8 +3703,22 @@ function AppContent() {
   const [mostrarNotif, setMostrarNotif] = useState(false)
   const [showNotifPrompt, setShowNotifPrompt] = useState(false)
   const [evalDestacada, setEvalDestacada] = useState(null)
+  const [creditos, setCreditos] = useState(null)
   const navigate = useNavigate()
   const location = useLocation()
+
+  // Carga el saldo de créditos del usuario. Se llama al montar y se puede
+  // re-llamar desde acciones que el backend descontó (plan, quiz, etc.)
+  // para sincronizar el chip del header después del optimistic decrement.
+  const cargarCreditos = async () => {
+    try {
+      const res = await fetch(`${API}/usuarios/creditos`, { headers: authHeaders() })
+      if (res.ok) {
+        const d = await res.json()
+        setCreditos(d.total ?? d.creditos_total ?? 0)
+      }
+    } catch(e) {}
+  }
 
   useTheme(usuario?.universidad)
 
@@ -3650,6 +3743,7 @@ function AppContent() {
         cargarRamos(token)
         cargarNovedades(token, uniInicial)
         cargarHorarioGlobal()
+        cargarCreditos()
       } catch { /* usuario corrupto en LS → lo ignoramos */ }
     } else {
       setLoadingRamos(false)
@@ -3964,6 +4058,8 @@ function AppContent() {
             onAdmin={() => navigate('/admin')}
             evalProximas3dias={proximas3dias}
             novedades={novedades}
+            creditos={creditos}
+            onVerPlanes={() => navigate('/planes')}
           />
         ))} />
         <Route path="/ramos" element={requireAuth(withBottomNav(
@@ -4001,6 +4097,8 @@ function AppContent() {
             esFundador={usuario?.es_fundador}
             numeroRegistro={usuario?.numero_registro}
             onUpdateUsuario={(u) => { setUsuario(u); localStorage.setItem('usuario', JSON.stringify(u)) }}
+            creditos={creditos}
+            onVerPlanes={() => navigate('/planes')}
           />
         ))} />
         <Route path="/ramos/:ramoId" element={

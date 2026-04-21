@@ -8,6 +8,28 @@ const authHeaders = (extra = {}) => ({ ...extra, 'Authorization': `Bearer ${getT
 const PRIORIDAD_COLOR = { alta: '#f87171', media: '#fbbf24', baja: '#4ade80' }
 const PRIORIDAD_BG = { alta: 'rgba(248,113,113,0.12)', media: 'rgba(251,191,36,0.12)', baja: 'rgba(74,222,128,0.12)' }
 
+// Costos del sistema de créditos (matchean el backend).
+const COSTO_PLAN = 15
+const COSTO_GUIA = 8
+const COSTO_EJERCICIOS = 12
+const COSTO_PODCAST = 30
+
+// Copia local del badge de créditos (evita ciclo App ↔ PlanEstudio).
+function CreditBadge({ costo, creditos }) {
+  const sinCreditos = creditos !== null && creditos !== undefined && creditos < costo
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 3,
+      background: sinCreditos ? 'rgba(248,113,113,0.15)' : 'rgba(251,191,36,0.15)',
+      border: `1px solid ${sinCreditos ? 'rgba(248,113,113,0.4)' : 'rgba(251,191,36,0.3)'}`,
+      borderRadius: 20, padding: '1px 7px',
+      fontSize: 10, fontWeight: 700,
+      color: sinCreditos ? '#f87171' : '#fbbf24',
+      whiteSpace: 'nowrap', marginLeft: 6
+    }}>⚡ {costo} cr</span>
+  )
+}
+
 export default function PlanEstudio({ evaluacion, ramo, onBack }) {
   const planInicial = evaluacion.plan_estudio || null
   const completadasIniciales = evaluacion.tareas_completadas || []
@@ -34,11 +56,7 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
   const [podcastPlaying, setPodcastPlaying] = useState(false)
   const [podcastProgress, setPodcastProgress] = useState(0)
   const [podcastDuration, setPodcastDuration] = useState(0)
-  const [podcastsUsados, setPodcastsUsados] = useState(null)
-  const [ejerciciosUsados, setEjerciciosUsados] = useState(null)
-  const [quizzesUsados, setQuizzesUsados] = useState(null)
-  const [planesUsados, setPlanesUsados] = useState(null)
-  const [limiteGlobal, setLimiteGlobal] = useState(100)
+  const [creditos, setCreditos] = useState(null)
   const [guiasGeneradas, setGuiasGeneradas] = useState({})
   const [ejerciciosGenerados, setEjerciciosGenerados] = useState({})
   const audioRef = useRef(null)
@@ -100,12 +118,16 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
             } else if (evento.tipo === 'plan') {
               setPlan(evento.plan)
               setCompletadas(new Set())
-              if (plan) setPlanesUsados(prev => (prev || 0) + 1)
+              // Regeneración: el backend solo cobra cuando ya existía un plan.
+              if (plan) {
+                setCreditos(prev => prev !== null ? Math.max(0, prev - COSTO_PLAN) : prev)
+                cargarContadores()
+              }
               cargarArchivos()
             } else if (evento.tipo === 'error') {
-              if (evento.error === 'limite_alcanzado') {
-                setPlanesUsados(limiteGlobal)
-                alert(`🔒 Alcanzaste el límite de ${limiteGlobal} regeneraciones de plan.`)
+              if (evento.error === 'creditos_insuficientes') {
+                setCreditos(evento.saldo ?? 0)
+                alert(`Sin créditos. Necesitas ${evento.creditos_necesarios ?? COSTO_PLAN} cr, tienes ${evento.saldo ?? 0} cr.`)
               } else if (evento.error === 'sin_material') {
                 alert('📚 Debes subir tu material de estudio (PDF o Word) para generar el plan.')
               } else if (evento.error === 'archivo_no_legible') {
@@ -153,8 +175,25 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
         headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ tarea, tareaIndex: index })
       })
-      if (res.ok) { const g = await res.json(); setGuia(g); setGuiasGeneradas(prev => ({ ...prev, [index]: true })) }
-      else setGuia({ error: true })
+      if (res.status === 403) {
+        const data = await res.json().catch(() => ({}))
+        if (data.error === 'creditos_insuficientes') {
+          setCreditos(data.saldo ?? 0)
+          alert(`Sin créditos. Necesitas ${data.creditos_necesarios} cr, tienes ${data.saldo} cr.`)
+        }
+        setGuia({ error: true })
+      } else if (res.ok) {
+        const g = await res.json()
+        setGuia(g)
+        setGuiasGeneradas(prev => ({ ...prev, [index]: true }))
+        // Solo cobramos si NO era cache — el backend marca cache con g.cached.
+        if (!g.cached) {
+          setCreditos(prev => prev !== null ? Math.max(0, prev - COSTO_GUIA) : prev)
+          cargarContadores()
+        }
+      } else {
+        setGuia({ error: true })
+      }
     } catch (e) { setGuia({ error: true }) }
     setCargandoGuia(false)
   }
@@ -241,27 +280,16 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
 
   const cargarContadores = async () => {
     try {
-      const [meRes, limiteRes] = await Promise.all([
-        fetch(API + '/auth/me', { headers: authHeaders() }),
-        fetch(API + '/config/limite-global', { headers: authHeaders() })
-      ])
-      if (meRes.ok) {
-        const data = await meRes.json()
-        setPodcastsUsados(data.podcasts_usados || 0)
-        setEjerciciosUsados(data.ejercicios_usados || 0)
-        setQuizzesUsados(data.quizzes_usados || 0)
-        setPlanesUsados(data.planes_usados || 0)
-      }
-      if (limiteRes.ok) {
-        const ldata = await limiteRes.json()
-        if (ldata.limite !== undefined) setLimiteGlobal(ldata.limite)
+      const res = await fetch(`${API}/usuarios/creditos`, { headers: authHeaders() })
+      if (res.ok) {
+        const d = await res.json()
+        setCreditos(d.total ?? d.creditos_total ?? 0)
       }
     } catch(e) {}
   }
-  const cargarPodcastsUsados = cargarContadores
 
   const descargarEjercicios = async (tarea, tareaIndex) => {
-    if (ejerciciosUsados >= limiteGlobal) return
+    if (creditos !== null && creditos < COSTO_EJERCICIOS) return
     setDescargandoEjerciciosId(tareaIndex)
     try {
       const res = await fetch(API + '/evaluaciones/' + evaluacion.id + '/ejercicios-pdf', {
@@ -271,10 +299,16 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
       })
       if (res.status === 403) {
         const data = await res.json()
-        if (data.error === 'limite_alcanzado') setEjerciciosUsados(limiteGlobal)
+        if (data.error === 'creditos_insuficientes') {
+          setCreditos(data.saldo ?? 0)
+          alert(`Sin créditos. Necesitas ${data.creditos_necesarios} cr, tienes ${data.saldo} cr.`)
+        }
         setDescargandoEjerciciosId(null); return
       }
       if (!res.ok) { alert('Error generando ejercicios'); setDescargandoEjerciciosId(null); return }
+      // Ejercicios PDF tiene cache diario server-side: si el header X-Cached=1
+      // viene, el backend no cobró créditos — no hacemos decrement local.
+      const cached = res.headers.get('X-Cached') === '1'
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -283,13 +317,16 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
       a.click()
       URL.revokeObjectURL(url)
       setEjerciciosGenerados(prev => ({ ...prev, [tareaIndex]: true }))
-      setEjerciciosUsados(prev => (prev || 0) + 1)
+      if (!cached) {
+        setCreditos(prev => prev !== null ? Math.max(0, prev - COSTO_EJERCICIOS) : prev)
+        cargarContadores()
+      }
     } catch(e) { console.error(e); alert('Error descargando ejercicios') }
     setDescargandoEjerciciosId(null)
   }
 
   const generarPodcast = async (tareaIdx) => {
-    if (podcastsUsados >= limiteGlobal) return
+    if (creditos !== null && creditos < COSTO_PODCAST) return
     setGenerandoPodcastId(tareaIdx)
     try {
       const res = await fetch(API + '/evaluaciones/' + evaluacion.id + '/podcast', {
@@ -299,7 +336,10 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
       })
       if (res.status === 403) {
         const data = await res.json()
-        if (data.error === 'limite_alcanzado') setPodcastsUsados(limiteGlobal)
+        if (data.error === 'creditos_insuficientes') {
+          setCreditos(data.saldo ?? 0)
+          alert(`Sin créditos. Necesitas ${data.creditos_necesarios} cr, tienes ${data.saldo} cr.`)
+        }
         return
       }
       if (res.status === 400) {
@@ -309,9 +349,9 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
         return
       }
       if (!res.ok) { alert('Error generando podcast'); return }
-      const usados = parseInt(res.headers.get('X-Podcasts-Usados') || '1')
       const titulo = decodeURIComponent(res.headers.get('X-Podcast-Titulo') || evaluacion.nombre)
-      setPodcastsUsados(usados)
+      setCreditos(prev => prev !== null ? Math.max(0, prev - COSTO_PODCAST) : prev)
+      cargarContadores()
       setPodcastsExistentes(prev => {
         const filtered = prev.filter(p => Number(p.tarea_idx) !== Number(tareaIdx))
         return [...filtered, { tarea_idx: tareaIdx, titulo }]
@@ -531,22 +571,22 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
                         </span>
                       </p>}
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <button onClick={() => verGuia(t, i)} style={{ background: 'rgba(var(--color-primary-rgb, 46,125,209), 0.15)', border: 'none', borderRadius: 8, padding: '6px 12px', color: 'var(--color-secondary)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
-  {guiasGeneradas[i] ? '📖 Ver guía' : '✨ Generar guía'}
+                      <button onClick={() => verGuia(t, i)} style={{ background: 'rgba(var(--color-primary-rgb, 46,125,209), 0.15)', border: 'none', borderRadius: 8, padding: '6px 12px', color: 'var(--color-secondary)', fontSize: 12, cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center' }}>
+  {guiasGeneradas[i] ? '📖 Ver guía' : <>✨ Generar guía <CreditBadge costo={COSTO_GUIA} creditos={creditos} /></>}
 </button>
-                      <button onClick={() => descargarEjercicios(t, i)} disabled={descargandoEjerciciosId === i || ejerciciosUsados >= limiteGlobal} style={{ background: ejerciciosUsados >= limiteGlobal ? 'rgba(255,255,255,0.05)' : 'rgba(74,222,128,0.15)', border: 'none', borderRadius: 8, padding: '6px 12px', color: ejerciciosUsados >= limiteGlobal ? 'rgba(255,255,255,0.2)' : '#4ade80', fontSize: 12, cursor: (descargandoEjerciciosId === i || ejerciciosUsados >= limiteGlobal) ? 'not-allowed' : 'pointer', fontWeight: 600 }}>
-  {descargandoEjerciciosId === i ? <><span style={spinnerStyle}></span>Generando...</> : ejerciciosUsados >= limiteGlobal ? '🔒 Límite alcanzado' : ejerciciosGenerados[i] ? '📥 Ver ejercicios PDF' : `✨ Ejercicios PDF (${limiteGlobal - (ejerciciosUsados || 0)} restantes)`}
+                      <button onClick={() => descargarEjercicios(t, i)} disabled={descargandoEjerciciosId === i || (creditos !== null && creditos < COSTO_EJERCICIOS)} style={{ background: (creditos !== null && creditos < COSTO_EJERCICIOS) ? 'rgba(255,255,255,0.05)' : 'rgba(74,222,128,0.15)', border: 'none', borderRadius: 8, padding: '6px 12px', color: (creditos !== null && creditos < COSTO_EJERCICIOS) ? 'rgba(255,255,255,0.2)' : '#4ade80', fontSize: 12, cursor: (descargandoEjerciciosId === i || (creditos !== null && creditos < COSTO_EJERCICIOS)) ? 'not-allowed' : 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center' }}>
+  {descargandoEjerciciosId === i ? <><span style={spinnerStyle}></span>Generando...</> : (creditos !== null && creditos < COSTO_EJERCICIOS) ? '🔒 Sin créditos' : ejerciciosGenerados[i] ? '📥 Ver ejercicios PDF' : <>✨ Ejercicios PDF <CreditBadge costo={COSTO_EJERCICIOS} creditos={creditos} /></>}
 </button>
                       {podcastsExistentes.some(p => Number(p.tarea_idx) === i) ? (
                         <div style={{ display: 'flex', gap: 6 }}>
                           <button onClick={() => { const p = podcastsExistentes.find(p => Number(p.tarea_idx) === i); escucharPodcast(evaluacion.id, i, p?.titulo || '') }} style={{ background: 'rgba(251,191,36,0.15)', border: 'none', borderRadius: 8, padding: '6px 12px', color: '#fbbf24', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>🎧 Escuchar</button>
-                          <button onClick={() => generarPodcast(i)} disabled={generandoPodcastId === i} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: 8, padding: '6px 10px', color: 'rgba(255,255,255,0.4)', fontSize: 11, cursor: 'pointer' }}>
+                          <button onClick={() => generarPodcast(i)} disabled={generandoPodcastId === i || (creditos !== null && creditos < COSTO_PODCAST)} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: 8, padding: '6px 10px', color: 'rgba(255,255,255,0.4)', fontSize: 11, cursor: (generandoPodcastId === i || (creditos !== null && creditos < COSTO_PODCAST)) ? 'not-allowed' : 'pointer' }} title={`Regenerar podcast — ${COSTO_PODCAST} cr`}>
                             {generandoPodcastId === i ? <span style={spinnerStyle}></span> : '🔄'}
                           </button>
                         </div>
                       ) : (
-                        <button onClick={() => generarPodcast(i)} disabled={generandoPodcastId === i || podcastsUsados >= limiteGlobal} style={{ background: podcastsUsados >= limiteGlobal ? 'rgba(255,255,255,0.05)' : 'rgba(251,191,36,0.15)', border: 'none', borderRadius: 8, padding: '6px 12px', color: podcastsUsados >= limiteGlobal ? 'rgba(255,255,255,0.2)' : '#fbbf24', fontSize: 12, cursor: podcastsUsados >= limiteGlobal ? 'not-allowed' : 'pointer', fontWeight: 600 }}>
-                          {generandoPodcastId === i ? <><span style={spinnerStyle}></span>Generando...</> : podcastsUsados >= limiteGlobal ? '🔒 Límite alcanzado' : '🎙️ Podcast (' + (limiteGlobal - (podcastsUsados || 0)) + ' restantes)'}
+                        <button onClick={() => generarPodcast(i)} disabled={generandoPodcastId === i || (creditos !== null && creditos < COSTO_PODCAST)} style={{ background: (creditos !== null && creditos < COSTO_PODCAST) ? 'rgba(255,255,255,0.05)' : 'rgba(251,191,36,0.15)', border: 'none', borderRadius: 8, padding: '6px 12px', color: (creditos !== null && creditos < COSTO_PODCAST) ? 'rgba(255,255,255,0.2)' : '#fbbf24', fontSize: 12, cursor: (creditos !== null && creditos < COSTO_PODCAST) ? 'not-allowed' : 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center' }}>
+                          {generandoPodcastId === i ? <><span style={spinnerStyle}></span>Generando...</> : (creditos !== null && creditos < COSTO_PODCAST) ? '🔒 Sin créditos' : <>🎙️ Podcast <CreditBadge costo={COSTO_PODCAST} creditos={creditos} /></>}
                         </button>
                       )}
                     </div>
@@ -579,8 +619,8 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
               <button onClick={() => setMostrarModalMaterial(true)} style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1.5px dashed rgba(46,125,209,0.3)', borderRadius: 12, padding: 10, color: 'var(--color-secondary)', fontSize: 13, cursor: 'pointer', marginBottom: 10 }}>
                 {(archivos.length > 0 || youtubeUrls.length > 0) ? `📎 ${archivos.length} archivo(s) + 🎬 ${youtubeUrls.length} video(s)` : '📎 Agregar material (PDF, video, YouTube...)'}
               </button>
-              <button onClick={generarPlan} disabled={generando || planesUsados >= limiteGlobal} style={{ width: '100%', background: (generando || planesUsados >= limiteGlobal) ? 'rgba(108,99,255,0.3)' : 'linear-gradient(135deg, #6c63ff, #8b5cf6)', border: 'none', borderRadius: 12, padding: 12, color: 'white', fontSize: 14, fontWeight: 700, cursor: (generando || planesUsados >= limiteGlobal) ? 'not-allowed' : 'pointer' }}>
-                {generando ? <><span style={spinnerStyle}></span>{progresoMsg || 'Iniciando...'}</> : planesUsados >= limiteGlobal ? '🔒 Límite de regeneraciones alcanzado' : `🤖 Regenerar plan con IA (${limiteGlobal - (planesUsados || 0)} restantes)`}
+              <button onClick={generarPlan} disabled={generando || (creditos !== null && creditos < COSTO_PLAN)} style={{ width: '100%', background: (generando || (creditos !== null && creditos < COSTO_PLAN)) ? 'rgba(108,99,255,0.3)' : 'linear-gradient(135deg, #6c63ff, #8b5cf6)', border: 'none', borderRadius: 12, padding: 12, color: 'white', fontSize: 14, fontWeight: 700, cursor: (generando || (creditos !== null && creditos < COSTO_PLAN)) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {generando ? <><span style={spinnerStyle}></span>{progresoMsg || 'Iniciando...'}</> : (creditos !== null && creditos < COSTO_PLAN) ? '🔒 Sin créditos suficientes' : <>🤖 Regenerar plan con IA <CreditBadge costo={COSTO_PLAN} creditos={creditos} /></>}
               </button>
             </div>
           </>
