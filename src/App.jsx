@@ -1471,7 +1471,7 @@ const MOTIVO_LABELS = {
   bienvenida: '👋 Bono de bienvenida',
 }
 
-function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, numeroRegistro, onUpdateUsuario, creditos, onVerPlanes, gamificacion, onCargarGamificacion, logros }) {
+function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, numeroRegistro, onUpdateUsuario, creditos, onVerPlanes, gamificacion, onCargarGamificacion, logros, historialGen = [] }) {
   const uni = usuario?.universidad || ''
   const uniLabel = uni === 'ufro' ? 'UFRO' : uni === 'umayor' ? 'U. Mayor' : uni === 'uautonoma' ? 'U. Autónoma' : uni === 'inacap' ? 'INACAP' : uni === 'santotomas' ? 'Santo Tomás' : uni === 'uctemuco' ? 'UC Temuco' : uni ? uni.toUpperCase() : 'Sin universidad'
   const inicial = (usuario?.nombre || usuario?.name || 'U')[0].toUpperCase()
@@ -1690,6 +1690,54 @@ function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, nume
             })}
           </div>
         )}
+
+        {/* Historial de generaciones */}
+        <div style={{ marginTop: 32 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', marginBottom: 16 }}>
+            📋 Historial de generaciones
+          </h3>
+          {historialGen.length === 0 ? (
+            <div style={{
+              textAlign: 'center', color: '#94a3b8', padding: '32px 16px',
+              background: '#f8fafc', borderRadius: 12, fontSize: 14
+            }}>
+              Aún no has generado nada. ¡Empieza con un quiz o plan de estudio! 🚀
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {historialGen.map((item, i) => {
+                const ICONOS = { quiz: '🧠', plan: '📅', guia: '📖', ejercicios: '✏️', podcast: '🎙️' }
+                const LABELS = { quiz: 'Quiz', plan: 'Plan de estudio', guia: 'Guía de tarea', ejercicios: 'Ejercicios PDF', podcast: 'Podcast' }
+                const fecha = new Date(item.fecha_creacion).toLocaleDateString('es-CL', {
+                  day: 'numeric', month: 'short', year: 'numeric'
+                })
+                return (
+                  <div key={i} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '10px 14px', background: '#fff', borderRadius: 10,
+                    border: '1px solid #e2e8f0', gap: 8
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 20 }}>{ICONOS[item.tipo] || '⚡'}</span>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>
+                          {LABELS[item.tipo] || item.tipo}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#64748b' }}>{item.ramo_nombre}</div>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <div style={{ fontSize: 12, color: '#94a3b8' }}>{fecha}</div>
+                      <div style={{ fontSize: 11, color: '#f59e0b', fontWeight: 600 }}>
+                        -{item.creditos_usados} cr
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
 
         {/* ACCIONES */}
         <div className="perfil-section">
@@ -3874,6 +3922,7 @@ function AppContent() {
   const [creditos, setCreditos] = useState(null)
   const [gamificacion, setGamificacion] = useState(null)
   const [logros, setLogros] = useState(null)
+  const [historialGen, setHistorialGen] = useState([])
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -3896,6 +3945,10 @@ function AppContent() {
     try {
       const res = await fetch(`${API}/usuarios/gamificacion`, { headers: authHeaders() })
       if (res.ok) setGamificacion(await res.json())
+      fetch(`${API}/usuarios/historial-generaciones`, { headers: authHeaders() })
+        .then(r => r.json())
+        .then(d => { if (d.historial) setHistorialGen(d.historial) })
+        .catch(() => {})
     } catch(e) {}
   }
 
@@ -4293,6 +4346,7 @@ function AppContent() {
             gamificacion={gamificacion}
             onCargarGamificacion={cargarGamificacion}
             logros={logros}
+            historialGen={historialGen}
           />
         ))} />
         <Route path="/ramos/:ramoId" element={
