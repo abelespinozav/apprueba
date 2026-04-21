@@ -573,7 +573,7 @@ function NudgeNotificacionesInner({ onDismiss }) {
   )
 }
 
-function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVerRamo, onHorario, onVerHorario, onNotif, onPerfil, onAdmin, evalProximas3dias, novedades, creditos, onVerPlanes }) {
+function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVerRamo, onHorario, onVerHorario, onNotif, onPerfil, onAdmin, evalProximas3dias, novedades, creditos, onVerPlanes, gamificacion }) {
   const navigate = useNavigate()
   const hoy = new Date()
   const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado']
@@ -675,9 +675,12 @@ function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVer
 
   const sugerida = proximas.find(ev => !ev.plan_estudio) || proximas[0] || null
 
-  const xpTotal = ramos.reduce((acc, r) => acc + (r.evaluaciones||[]).filter(e => e.nota).length * 80, 0) + (esFundador ? 500 : 0)
-  const nivel = Math.floor(xpTotal / 500) + 1
-  const nivelLabel = nivel <= 1 ? 'Novato' : nivel <= 2 ? 'Estudiante' : nivel <= 3 ? 'Dedicado' : nivel <= 4 ? 'Experto' : 'Maestro'
+  // Gamificación desde backend; mientras carga, fallback a estimación local
+  // basada en ramos + bono fundador para no mostrar 0 XP de primera.
+  const xpTotal = gamificacion?.xp_total ?? (ramos.reduce((acc, r) => acc + (r.evaluaciones||[]).filter(e => e.nota).length * 80, 0) + (esFundador ? 500 : 0))
+  const nivel = gamificacion?.nivel ?? (Math.floor(xpTotal / 500) + 1)
+  const rachaActual = gamificacion?.racha_dias ?? 0
+  const nivelLabel = nivel <= 1 ? 'Novato' : nivel <= 2 ? 'Estudiante' : nivel <= 3 ? 'Dedicado' : nivel <= 4 ? 'Experto' : nivel <= 5 ? 'Brillante' : nivel <= 6 ? 'Sobresaliente' : 'Maestro'
 
   const nombreCorto = (usuario?.nombre || usuario?.name || 'estudiante').split(' ')[0]
   const inicial = (usuario?.nombre || usuario?.name || 'U')[0].toUpperCase()
@@ -916,8 +919,8 @@ function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVer
           </div>
 
           <div className="home-streak-pill">
-            <span className="home-flame">🔥</span>
-            <span>Nivel {nivelLabel} · {xpTotal} XP</span>
+            <span className="home-flame">{rachaActual >= 7 ? '🔥🔥' : rachaActual >= 3 ? '🔥' : '⭐'}</span>
+            <span>Nivel {nivelLabel} · {xpTotal} XP{rachaActual >= 2 ? ` · ${rachaActual} días` : ''}</span>
           </div>
 
           <div className="home-promedio-block">
@@ -1411,7 +1414,34 @@ const PERFIL_CSS = `
   .perfil-btn.logout:hover { background: rgba(239,68,68,0.14); border-color: rgba(239,68,68,0.4); }
 `
 
-function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, numeroRegistro, onUpdateUsuario, creditos, onVerPlanes }) {
+const NOMBRES_NIVEL = [
+  '',
+  'Novato 📖',
+  'Estudiante ✏️',
+  'Aplicado 📚',
+  'Dedicado 🧠',
+  'Brillante ⭐',
+  'Sobresaliente 🏆',
+  'Elite 🚀',
+  'Leyenda 👑',
+]
+function getNombreNivel(nivel) {
+  const n = nivel ?? 1
+  return NOMBRES_NIVEL[Math.min(n, NOMBRES_NIVEL.length - 1)] || `Nivel ${n}`
+}
+const MOTIVO_LABELS = {
+  registrar_nota: '📝 Registraste una nota',
+  subir_material: '📎 Subiste material',
+  completar_tarea: '✅ Completaste una tarea',
+  responder_quiz: '⚡ Completaste un quiz',
+  importar_horario: '🗓 Importaste tu horario',
+  racha_7_dias: '🔥 ¡7 días de racha!',
+  racha_14_dias: '🔥🔥 ¡14 días de racha!',
+  racha_30_dias: '🔥🔥🔥 ¡30 días de racha!',
+  bienvenida: '👋 Bono de bienvenida',
+}
+
+function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, numeroRegistro, onUpdateUsuario, creditos, onVerPlanes, gamificacion, onCargarGamificacion }) {
   const uni = usuario?.universidad || ''
   const uniLabel = uni === 'ufro' ? 'UFRO' : uni === 'umayor' ? 'U. Mayor' : uni === 'uautonoma' ? 'U. Autónoma' : uni === 'inacap' ? 'INACAP' : uni === 'santotomas' ? 'Santo Tomás' : uni === 'uctemuco' ? 'UC Temuco' : uni ? uni.toUpperCase() : 'Sin universidad'
   const inicial = (usuario?.nombre || usuario?.name || 'U')[0].toUpperCase()
@@ -1432,6 +1462,23 @@ function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, nume
     } catch(e) { console.error(e) }
     setGuardandoFN(false)
   }
+
+  // Gamificación: pedimos al padre que cargue al montar (el fetch vive en
+  // AppContent para que el state quede ahí y el header también pueda usarlo).
+  useEffect(() => {
+    if (onCargarGamificacion) onCargarGamificacion()
+  }, [])
+
+  const xp = gamificacion?.xp_total ?? 0
+  const nivel = gamificacion?.nivel ?? 1
+  const racha = gamificacion?.racha_dias ?? 0
+  const mejorRacha = gamificacion?.mejor_racha ?? 0
+  const historialXP = gamificacion?.historial ?? []
+  const xpEnNivel = xp % 500
+  const xpParaSiguiente = 500
+  const pctNivel = Math.min(100, Math.round((xpEnNivel / xpParaSiguiente) * 100))
+  const nombreNivel = getNombreNivel(nivel)
+  const nombreSiguiente = getNombreNivel(nivel + 1)
 
   return (
     <>
@@ -1489,6 +1536,57 @@ function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, nume
               </div>
             </div>
           </div>
+        </div>
+
+        {/* XP / NIVEL / RACHA */}
+        <div style={{ margin: '0 0 16px', background: 'var(--bg-card)', borderRadius: 16, padding: 16, border: '1px solid rgba(139,92,246,0.25)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: 'white', margin: 0 }}>🏆 Nivel y progreso</p>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#a78bfa', background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 20, padding: '3px 10px' }}>
+              {xp.toLocaleString('es-CL')} XP total
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg, #7c3aed, #a78bfa)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
+              {nivel <= 1 ? '📖' : nivel <= 2 ? '✏️' : nivel <= 3 ? '📚' : nivel <= 4 ? '🧠' : nivel <= 5 ? '⭐' : nivel <= 6 ? '🏆' : nivel <= 7 ? '🚀' : '👑'}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: '#fff', marginBottom: 2 }}>{nombreNivel}</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>Siguiente: {nombreSiguiente}</div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 18, fontWeight: 900, color: '#a78bfa' }}>Niv. {nivel}</div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{xpEnNivel}/{xpParaSiguiente} XP</div>
+            </div>
+          </div>
+          <div style={{ height: 8, background: 'rgba(255,255,255,0.07)', borderRadius: 99, overflow: 'hidden', marginBottom: 14 }}>
+            <div style={{ height: '100%', width: `${pctNivel}%`, background: 'linear-gradient(90deg, #7c3aed, #a78bfa)', borderRadius: 99, transition: 'width 0.6s ease' }} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: historialXP.length > 0 ? 14 : 0 }}>
+            <div style={{ background: racha >= 3 ? 'rgba(251,146,60,0.1)' : 'rgba(255,255,255,0.04)', border: `1px solid ${racha >= 3 ? 'rgba(251,146,60,0.3)' : 'rgba(255,255,255,0.08)'}`, borderRadius: 12, padding: '10px 12px', textAlign: 'center' }}>
+              <div style={{ fontSize: 22 }}>{racha >= 7 ? '🔥🔥' : racha >= 3 ? '🔥' : '💤'}</div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: racha >= 3 ? '#fb923c' : 'rgba(255,255,255,0.6)', lineHeight: 1.2 }}>{racha}</div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>días de racha</div>
+            </div>
+            <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 12px', textAlign: 'center' }}>
+              <div style={{ fontSize: 22 }}>🏅</div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: 'rgba(255,255,255,0.7)', lineHeight: 1.2 }}>{mejorRacha}</div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>mejor racha</div>
+            </div>
+          </div>
+          {historialXP.length > 0 && (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Últimas actividades</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {historialXP.slice(0, 5).map((h, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: 10 }}>
+                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{MOTIVO_LABELS[h.motivo] || `🎯 ${h.motivo}`}</span>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: '#a78bfa', whiteSpace: 'nowrap', marginLeft: 8 }}>+{h.xp} XP</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* CRÉDITOS — saldo grande + costos por función + CTA a /planes */}
@@ -3704,6 +3802,7 @@ function AppContent() {
   const [showNotifPrompt, setShowNotifPrompt] = useState(false)
   const [evalDestacada, setEvalDestacada] = useState(null)
   const [creditos, setCreditos] = useState(null)
+  const [gamificacion, setGamificacion] = useState(null)
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -3717,6 +3816,15 @@ function AppContent() {
         const d = await res.json()
         setCreditos(d.total ?? d.creditos_total ?? 0)
       }
+    } catch(e) {}
+  }
+
+  // Gamificación: XP total, nivel, racha, mejor_racha, historial. El state
+  // lo consumen la home (streak-pill) y PerfilTab (card de nivel).
+  const cargarGamificacion = async () => {
+    try {
+      const res = await fetch(`${API}/usuarios/gamificacion`, { headers: authHeaders() })
+      if (res.ok) setGamificacion(await res.json())
     } catch(e) {}
   }
 
@@ -3744,6 +3852,7 @@ function AppContent() {
         cargarNovedades(token, uniInicial)
         cargarHorarioGlobal()
         cargarCreditos()
+        cargarGamificacion()
       } catch { /* usuario corrupto en LS → lo ignoramos */ }
     } else {
       setLoadingRamos(false)
@@ -4060,6 +4169,7 @@ function AppContent() {
             novedades={novedades}
             creditos={creditos}
             onVerPlanes={() => navigate('/planes')}
+            gamificacion={gamificacion}
           />
         ))} />
         <Route path="/ramos" element={requireAuth(withBottomNav(
@@ -4099,6 +4209,8 @@ function AppContent() {
             onUpdateUsuario={(u) => { setUsuario(u); localStorage.setItem('usuario', JSON.stringify(u)) }}
             creditos={creditos}
             onVerPlanes={() => navigate('/planes')}
+            gamificacion={gamificacion}
+            onCargarGamificacion={cargarGamificacion}
           />
         ))} />
         <Route path="/ramos/:ramoId" element={
