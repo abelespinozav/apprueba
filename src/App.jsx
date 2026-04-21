@@ -6,6 +6,7 @@ import Quiz from './Quiz'
 import OnboardingScreen from './OnboardingScreen.jsx'
 import Admin from './Admin.jsx'
 import LandingPage from './LandingPage.jsx'
+import Planes from './pages/Planes.jsx'
 import { useTheme } from './useTheme'
 import { colorTextoSobreHeader } from './theme'
 
@@ -4030,6 +4031,7 @@ function AppContent() {
             usuario={usuario}
           />
         } />
+        <Route path="/planes" element={<Planes />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       {mostrarNotif && <PanelNotificaciones onClose={() => setMostrarNotif(false)} proximas={ramos.flatMap(r => (r.evaluaciones||[]).filter(e => e.fecha && !e.nota).map(e => ({...e, ramoNombre: r.nombre})))} />}
