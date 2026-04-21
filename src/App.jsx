@@ -1238,6 +1238,7 @@ function QuizTab({ ramos, onIniciarQuiz }) {
   const [historial, setHistorial] = useState([])
   const [ramoExpandido, setRamoExpandido] = useState(null)
   const [evalSinMaterial, setEvalSinMaterial] = useState(null)
+  const [estadoSemanal, setEstadoSemanal] = useState(null)
   const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
   const getToken = () => localStorage.getItem('token')
 
@@ -1245,6 +1246,18 @@ function QuizTab({ ramos, onIniciarQuiz }) {
     fetch(`${API}/quiz/historial`, { headers: { 'Authorization': `Bearer ${getToken()}` } })
       .then(r => r.json())
       .then(data => Array.isArray(data) && setHistorial(data))
+      .catch(() => {})
+  }, [])
+
+  // Estado del quiz semanal — el backend devuelve {jugado, puntaje, total}
+  // según la semana ISO actual; el banner cambia entre "disponible" y
+  // "completado".
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    if (!token) return
+    fetch(`${API}/quiz/semanal/estado`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setEstadoSemanal(d) })
       .catch(() => {})
   }, [])
 
@@ -1261,6 +1274,23 @@ function QuizTab({ ramos, onIniciarQuiz }) {
         </div>
 
         <div className="pq-section">
+          {/* Banner quiz semanal — solo se muestra si el backend responde el estado */}
+          {estadoSemanal && !estadoSemanal.jugado && (
+            <div style={{ margin: '0 0 16px', background: 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(96,165,250,0.15))', border: '1px solid rgba(139,92,246,0.4)', borderRadius: 16, padding: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ fontSize: 32, flexShrink: 0 }}>🗓</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#fff', marginBottom: 2 }}>Quiz semanal disponible</div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Juega cualquier quiz esta semana y gana +60 XP y +8 créditos extra.</div>
+              </div>
+              <div style={{ fontSize: 20 }}>→</div>
+            </div>
+          )}
+          {estadoSemanal?.jugado && (
+            <div style={{ margin: '0 0 16px', background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.25)', borderRadius: 16, padding: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 18 }}>✅</span>
+              <div style={{ fontSize: 13, color: '#4ade80', fontWeight: 700 }}>Quiz semanal completado — {estadoSemanal.puntaje}/{estadoSemanal.total} esta semana</div>
+            </div>
+          )}
           {ramos.length === 0 ? (
             <div className="pq-empty">
               <div className="pq-empty-emoji">📚</div>
@@ -1441,7 +1471,7 @@ const MOTIVO_LABELS = {
   bienvenida: '👋 Bono de bienvenida',
 }
 
-function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, numeroRegistro, onUpdateUsuario, creditos, onVerPlanes, gamificacion, onCargarGamificacion }) {
+function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, numeroRegistro, onUpdateUsuario, creditos, onVerPlanes, gamificacion, onCargarGamificacion, logros }) {
   const uni = usuario?.universidad || ''
   const uniLabel = uni === 'ufro' ? 'UFRO' : uni === 'umayor' ? 'U. Mayor' : uni === 'uautonoma' ? 'U. Autónoma' : uni === 'inacap' ? 'INACAP' : uni === 'santotomas' ? 'Santo Tomás' : uni === 'uctemuco' ? 'UC Temuco' : uni ? uni.toUpperCase() : 'Sin universidad'
   const inicial = (usuario?.nombre || usuario?.name || 'U')[0].toUpperCase()
@@ -1620,6 +1650,46 @@ function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, nume
             ))}
           </div>
         </div>
+
+        {/* LOGROS — galería agrupada por categoría, bloqueados en gris */}
+        {logros && (
+          <div style={{ margin: '0 0 16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: 'white', margin: 0 }}>🏅 Logros</p>
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>
+                {logros.desbloqueados}/{logros.total}
+              </span>
+            </div>
+            {['inicio', 'racha', 'notas', 'quiz', 'nivel'].map(cat => {
+              const grupo = (logros.logros || []).filter(l => l.categoria === cat)
+              if (grupo.length === 0) return null
+              const catLabel = { inicio: '🚀 Primeros pasos', racha: '🔥 Racha', notas: '📝 Notas', quiz: '⚡ Quiz', nivel: '🏆 Nivel' }[cat]
+              return (
+                <div key={cat} style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>{catLabel}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                    {grupo.map(logro => (
+                      <div key={logro.id} style={{
+                        background: logro.desbloqueado ? 'rgba(139,92,246,0.12)' : 'rgba(255,255,255,0.03)',
+                        border: `1px solid ${logro.desbloqueado ? 'rgba(139,92,246,0.35)' : 'rgba(255,255,255,0.07)'}`,
+                        borderRadius: 12, padding: '10px 6px', textAlign: 'center',
+                        opacity: logro.desbloqueado ? 1 : 0.45,
+                        transition: 'all 0.2s'
+                      }}>
+                        <div style={{ fontSize: 24, marginBottom: 4, filter: logro.desbloqueado ? 'none' : 'grayscale(1)' }}>{logro.emoji}</div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: logro.desbloqueado ? '#fff' : 'rgba(255,255,255,0.5)', lineHeight: 1.3, marginBottom: 2 }}>{logro.nombre}</div>
+                        <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', lineHeight: 1.3 }}>{logro.descripcion}</div>
+                        {logro.desbloqueado && (
+                          <div style={{ fontSize: 9, color: '#a78bfa', fontWeight: 700, marginTop: 4 }}>+{logro.xp > 0 ? `${logro.xp} XP` : ''}{logro.xp > 0 && logro.creditos > 0 ? ' · ' : ''}{logro.creditos > 0 ? `${logro.creditos} cr` : ''}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
 
         {/* ACCIONES */}
         <div className="perfil-section">
@@ -3803,6 +3873,7 @@ function AppContent() {
   const [evalDestacada, setEvalDestacada] = useState(null)
   const [creditos, setCreditos] = useState(null)
   const [gamificacion, setGamificacion] = useState(null)
+  const [logros, setLogros] = useState(null)
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -3825,6 +3896,15 @@ function AppContent() {
     try {
       const res = await fetch(`${API}/usuarios/gamificacion`, { headers: authHeaders() })
       if (res.ok) setGamificacion(await res.json())
+    } catch(e) {}
+  }
+
+  // Logros: catálogo completo con flag desbloqueado por id. La UI en
+  // PerfilTab los agrupa por categoría y pinta en gris los bloqueados.
+  const cargarLogros = async () => {
+    try {
+      const res = await fetch(`${API}/usuarios/logros`, { headers: authHeaders() })
+      if (res.ok) setLogros(await res.json())
     } catch(e) {}
   }
 
@@ -3853,6 +3933,7 @@ function AppContent() {
         cargarHorarioGlobal()
         cargarCreditos()
         cargarGamificacion()
+        cargarLogros()
       } catch { /* usuario corrupto en LS → lo ignoramos */ }
     } else {
       setLoadingRamos(false)
@@ -4211,6 +4292,7 @@ function AppContent() {
             onVerPlanes={() => navigate('/planes')}
             gamificacion={gamificacion}
             onCargarGamificacion={cargarGamificacion}
+            logros={logros}
           />
         ))} />
         <Route path="/ramos/:ramoId" element={
