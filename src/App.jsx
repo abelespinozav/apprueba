@@ -1208,6 +1208,7 @@ function PlanTab({ ramos, onIniciarPlan }) {
                 <input type="file" accept=".pdf,.docx,.doc,.txt,.pptx,.ppt,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.mp3,.m4a,.wav,.mp4,.mov" style={{ display: 'none' }} onChange={async (e) => {
                   const file = e.target.files[0]
                   if (!file) return
+                  if (!evalSinMaterial?.ev?.id) { alert('⚠️ No hay evaluación seleccionada.'); return }
                   const fd = new FormData()
                   fd.append('archivo', file)
                   const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -1379,6 +1380,7 @@ function QuizTab({ ramos, onIniciarQuiz }) {
                 <input type="file" accept=".pdf,.docx,.doc,.txt,.pptx,.ppt,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.mp3,.m4a,.wav,.mp4,.mov" style={{ display: 'none' }} onChange={async (e) => {
                   const file = e.target.files[0]
                   if (!file) return
+                  if (!evalSinMaterial?.ev?.id) { alert('⚠️ No hay evaluación seleccionada.'); return }
                   const fd = new FormData()
                   fd.append('archivo', file)
                   const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
