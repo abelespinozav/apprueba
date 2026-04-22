@@ -1775,6 +1775,9 @@ const NAV_CSS = `
   .nav-label { font-size: 11px; font-weight: 700; letter-spacing: 0.01em; color: var(--color-text-muted); transition: color 0.3s, font-weight 0.3s; white-space: nowrap; }
   .nav-item.active .nav-icon-bg { background: linear-gradient(135deg, var(--color-primary), var(--color-secondary)); box-shadow: 0 8px 20px -4px var(--shadow-color), inset 0 1px 0 rgba(255,255,255,0.22); transform: translateY(-2px); }
   .nav-item.active .nav-label { color: var(--color-primary); font-weight: 900; }
+  @keyframes logroSlideUp { from { opacity: 0; transform: translateY(40px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  @keyframes logroSlideDown { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(40px) scale(0.95); } }
+  .logro-toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); z-index: 9999; background: linear-gradient(135deg, rgba(124,58,237,0.95), rgba(109,40,217,0.95)); border: 1px solid rgba(167,139,250,0.4); border-radius: 20px; padding: 14px 20px; display: flex; align-items: center; gap: 12px; box-shadow: 0 8px 32px rgba(124,58,237,0.4); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); animation: logroSlideUp 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards; min-width: 260px; max-width: 320px; }
 `
 
 function BottomNav() {
@@ -3928,6 +3931,7 @@ function AppContent() {
   const [gamificacion, setGamificacion] = useState(null)
   const [logros, setLogros] = useState(null)
   const [historialGen, setHistorialGen] = useState([])
+  const [logroToast, setLogroToast] = useState(null)
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -3959,6 +3963,7 @@ function AppContent() {
         const d = await resHist.value.json()
         if (d.historial) setHistorialGen(d.historial)
       }
+      cargarLogros()
     } catch(e) {}
   }
 
@@ -3967,7 +3972,20 @@ function AppContent() {
   const cargarLogros = async () => {
     try {
       const res = await fetch(`${API}/usuarios/logros`, { headers: authHeaders() })
-      if (res.ok) setLogros(await res.json())
+      if (!res.ok) return
+      const nuevosLogros = await res.json()
+      // Detectar logros recién desbloqueados comparando con estado anterior
+      setLogros(prev => {
+        const prevArr = prev?.logros || []
+        const nuevoArr = nuevosLogros?.logros || []
+        const prevDesbloqueados = new Set(prevArr.filter(l => l.desbloqueado).map(l => l.id))
+        const recienDesbloqueados = nuevoArr.filter(l => l.desbloqueado && !prevDesbloqueados.has(l.id))
+        if (recienDesbloqueados.length > 0 && prev !== null) {
+          setLogroToast(recienDesbloqueados[0])
+          setTimeout(() => setLogroToast(null), 4000)
+        }
+        return nuevosLogros
+      })
     } catch(e) {}
   }
 
@@ -4393,6 +4411,20 @@ function AppContent() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       {mostrarNotif && <PanelNotificaciones onClose={() => setMostrarNotif(false)} proximas={ramos.flatMap(r => (r.evaluaciones||[]).filter(e => e.fecha && !e.nota).map(e => ({...e, ramoNombre: r.nombre})))} />}
+      {logroToast && (
+        <div className="logro-toast">
+          <div style={{ fontSize: 32, flexShrink: 0 }}>{logroToast.emoji}</div>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 2 }}>🏅 ¡Logro desbloqueado!</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: '#fff', marginBottom: 2 }}>{logroToast.nombre}</div>
+            {(logroToast.xp > 0 || logroToast.creditos > 0) && (
+              <div style={{ fontSize: 12, color: '#a78bfa', fontWeight: 700 }}>
+                {logroToast.xp > 0 ? `+${logroToast.xp} XP` : ''}{logroToast.xp > 0 && logroToast.creditos > 0 ? ' · ' : ''}{logroToast.creditos > 0 ? `+${logroToast.creditos} cr` : ''}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       {showNotifPrompt && (
         <NotificationsPrompt onDone={() => {
           setShowNotifPrompt(false)
