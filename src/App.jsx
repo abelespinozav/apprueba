@@ -1667,20 +1667,20 @@ function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, nume
               return (
                 <div key={cat} style={{ marginBottom: 12 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>{catLabel}</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
                     {grupo.map(logro => (
                       <div key={logro.id} style={{
                         background: logro.desbloqueado ? 'rgba(139,92,246,0.12)' : 'rgba(255,255,255,0.03)',
                         border: `1px solid ${logro.desbloqueado ? 'rgba(139,92,246,0.35)' : 'rgba(255,255,255,0.07)'}`,
-                        borderRadius: 12, padding: '10px 6px', textAlign: 'center',
+                        borderRadius: 12, padding: '12px 8px', textAlign: 'center',
                         opacity: logro.desbloqueado ? 1 : 0.45,
                         transition: 'all 0.2s'
                       }}>
-                        <div style={{ fontSize: 24, marginBottom: 4, filter: logro.desbloqueado ? 'none' : 'grayscale(1)' }}>{logro.emoji}</div>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: logro.desbloqueado ? '#fff' : 'rgba(255,255,255,0.5)', lineHeight: 1.3, marginBottom: 2 }}>{logro.nombre}</div>
-                        <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', lineHeight: 1.3 }}>{logro.descripcion}</div>
+                        <div style={{ fontSize: 26, marginBottom: 6, filter: logro.desbloqueado ? 'none' : 'grayscale(1)' }}>{logro.emoji}</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: logro.desbloqueado ? '#fff' : 'rgba(255,255,255,0.5)', lineHeight: 1.3, marginBottom: 2 }}>{logro.nombre}</div>
+                        <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', lineHeight: 1.3 }}>{logro.descripcion}</div>
                         {logro.desbloqueado && (
-                          <div style={{ fontSize: 9, color: '#a78bfa', fontWeight: 700, marginTop: 4 }}>+{logro.xp > 0 ? `${logro.xp} XP` : ''}{logro.xp > 0 && logro.creditos > 0 ? ' · ' : ''}{logro.creditos > 0 ? `${logro.creditos} cr` : ''}</div>
+                          <div style={{ fontSize: 10, color: '#a78bfa', fontWeight: 700, marginTop: 4 }}>+{logro.xp > 0 ? `${logro.xp} XP` : ''}{logro.xp > 0 && logro.creditos > 0 ? ' · ' : ''}{logro.creditos > 0 ? `${logro.creditos} cr` : ''}</div>
                         )}
                       </div>
                     ))}
@@ -1692,8 +1692,8 @@ function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, nume
         )}
 
         {/* Historial de generaciones */}
-        <div style={{ marginTop: 32 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', marginBottom: 16 }}>
+        <div style={{ margin: '0 0 16px', background: 'var(--bg-card)', borderRadius: 16, padding: 16, border: '1px solid rgba(255,255,255,0.07)' }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: '#f1f5f9', marginBottom: 16 }}>
             📋 Historial de generaciones
           </h3>
           {historialGen.length === 0 ? (
