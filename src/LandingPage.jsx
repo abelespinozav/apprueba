@@ -292,71 +292,23 @@ export default function LandingPage({ onEntrar }) {
           </div>
         </div>
 
-        {/* Sección de planes */}
-        <section style={{ padding: '64px 24px', background: '#f8fafc', textAlign: 'center' }}>
-          <h2 style={{ fontSize: 28, fontWeight: 800, color: '#1e293b', marginBottom: 8 }}>
-            Elige tu plan
+        {/* CTA planes */}
+        <div style={{ textAlign: 'center', padding: '48px 24px' }}>
+          <h2 style={{ fontSize: 22, fontWeight: 800, color: '#f1f5f9', marginBottom: 8 }}>
+            ¿Listo para estudiar más inteligente? 🚀
           </h2>
-          <p style={{ color: '#64748b', fontSize: 16, marginBottom: 40 }}>
-            Empieza gratis, escala cuando lo necesites
+          <p style={{ color: '#64748b', fontSize: 14, marginBottom: 24 }}>
+            Empieza gratis o elige el plan que más te acomoda.
           </p>
-          <div style={{
-            display: 'flex', gap: 20, justifyContent: 'center',
-            flexWrap: 'wrap', maxWidth: 900, margin: '0 auto'
+          <a href="/planes" style={{
+            display: 'inline-block', background: '#6366f1', color: '#fff',
+            fontWeight: 700, fontSize: 15, padding: '14px 36px',
+            borderRadius: 99, textDecoration: 'none',
+            boxShadow: '0 4px 20px rgba(99,102,241,0.4)'
           }}>
-            {[
-              {
-                nombre: 'Aprobado', precio: 'Gratis', creditos: '150 créditos de bienvenida',
-                color: '#64748b', highlight: false,
-                features: ['Quiz, planes y guías con IA', 'Horario inteligente', 'Novedades universitarias']
-              },
-              {
-                nombre: 'Con Distinción', precio: '$2.990/mes', creditos: '400 créditos/mes',
-                color: '#6366f1', highlight: true,
-                features: ['Todo del plan Aprobado', '400 créditos mensuales', 'Acceso a podcasts con IA', 'Soporte prioritario']
-              },
-              {
-                nombre: 'Con Distinción Máxima', precio: '$4.990/mes', creditos: '1.200 créditos/mes',
-                color: '#7c3aed', highlight: false,
-                features: ['Todo del plan Con Distinción', '1.200 créditos mensuales', 'Generaciones ilimitadas*', 'Acceso anticipado a features']
-              }
-            ].map((plan) => (
-              <div key={plan.nombre} style={{
-                background: plan.highlight ? plan.color : '#fff',
-                color: plan.highlight ? '#fff' : '#1e293b',
-                border: `2px solid ${plan.highlight ? plan.color : '#e2e8f0'}`,
-                borderRadius: 20, padding: '32px 28px', minWidth: 240, maxWidth: 280,
-                boxShadow: plan.highlight ? '0 8px 32px rgba(99,102,241,0.25)' : '0 2px 8px rgba(0,0,0,0.06)',
-                transform: plan.highlight ? 'scale(1.04)' : 'scale(1)',
-                position: 'relative'
-              }}>
-                {plan.highlight && (
-                  <div style={{
-                    position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)',
-                    background: '#fbbf24', color: '#1e293b', fontSize: 11, fontWeight: 700,
-                    padding: '3px 12px', borderRadius: 99
-                  }}>⭐ MÁS POPULAR</div>
-                )}
-                <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 4 }}>{plan.nombre}</div>
-                <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 4 }}>{plan.precio}</div>
-                <div style={{
-                  fontSize: 12, fontWeight: 600, marginBottom: 20, opacity: 0.8,
-                  color: plan.highlight ? '#c7d2fe' : '#6366f1'
-                }}>{plan.creditos}</div>
-                <ul style={{ listStyle: 'none', padding: 0, margin: 0, textAlign: 'left' }}>
-                  {plan.features.map(f => (
-                    <li key={f} style={{ fontSize: 13, marginBottom: 8, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                      <span>✅</span> {f}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-          <p style={{ marginTop: 24, fontSize: 12, color: '#94a3b8' }}>
-            * Sujeto al límite mensual de créditos del plan
-          </p>
-        </section>
+            Ver planes →
+          </a>
+        </div>
 
         {/* Footer */}
         <div style={{ textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.18)' }}>Hecho con ❤️ en Chile · apprueba.com</div>
