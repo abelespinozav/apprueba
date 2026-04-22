@@ -30,7 +30,7 @@ function CreditBadge({ costo, creditos }) {
   )
 }
 
-export default function PlanEstudio({ evaluacion, ramo, onBack }) {
+export default function PlanEstudio({ evaluacion, ramo, onBack, onGeneracionExitosa = () => {} }) {
   const planInicial = evaluacion.plan_estudio || null
   const completadasIniciales = evaluacion.tareas_completadas || []
 
@@ -124,6 +124,7 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
                 cargarContadores()
               }
               cargarArchivos()
+              onGeneracionExitosa()
             } else if (evento.tipo === 'error') {
               if (evento.error === 'creditos_insuficientes') {
                 setCreditos(evento.saldo ?? 0)
@@ -190,6 +191,7 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
         if (!g.cached) {
           setCreditos(prev => prev !== null ? Math.max(0, prev - COSTO_GUIA) : prev)
           cargarContadores()
+          onGeneracionExitosa()
         }
       } else {
         setGuia({ error: true })
@@ -262,6 +264,7 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
           setProgresoMsg('')
           clearInterval(pollingInterval)
           pollingInterval = null
+          onGeneracionExitosa()
         } else {
           // No está generando ni hay plan → estado inicial
           setGenerando(false)
@@ -320,6 +323,7 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
       if (!cached) {
         setCreditos(prev => prev !== null ? Math.max(0, prev - COSTO_EJERCICIOS) : prev)
         cargarContadores()
+        onGeneracionExitosa()
       }
     } catch(e) { console.error(e); alert('Error descargando ejercicios') }
     setDescargandoEjerciciosId(null)
@@ -352,6 +356,7 @@ export default function PlanEstudio({ evaluacion, ramo, onBack }) {
       const titulo = decodeURIComponent(res.headers.get('X-Podcast-Titulo') || evaluacion.nombre)
       setCreditos(prev => prev !== null ? Math.max(0, prev - COSTO_PODCAST) : prev)
       cargarContadores()
+      onGeneracionExitosa()
       setPodcastsExistentes(prev => {
         const filtered = prev.filter(p => Number(p.tarea_idx) !== Number(tareaIdx))
         return [...filtered, { tarea_idx: tareaIdx, titulo }]

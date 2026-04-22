@@ -120,7 +120,7 @@ function LoaderNotifHintInner() {
   )
 }
 
-export default function Quiz({ evaluacion, ramo, onBack }) {
+export default function Quiz({ evaluacion, ramo, onBack, onGeneracionExitosa = () => {} }) {
   const [estado, setEstado] = useState('inicio') // inicio | cargando | quiz | resultado
   const [preguntas, setPreguntas] = useState([])
   const [respuestas, setRespuestas] = useState({})
@@ -221,6 +221,7 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
               // transacciones concurrentes.
               setCreditos(prev => prev !== null ? Math.max(0, prev - COSTO_QUIZ) : prev)
               cargarContador()
+              onGeneracionExitosa()
               setEstado('quiz')
             } else if (evento.tipo === 'error') {
               if (evento.error === 'creditos_insuficientes') {
