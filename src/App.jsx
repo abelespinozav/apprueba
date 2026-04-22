@@ -1699,7 +1699,7 @@ function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, nume
           {historialGen.length === 0 ? (
             <div style={{
               textAlign: 'center', color: '#94a3b8', padding: '32px 16px',
-              background: '#f8fafc', borderRadius: 12, fontSize: 14
+              background: 'rgba(255,255,255,0.04)', borderRadius: 12, fontSize: 14
             }}>
               Aún no has generado nada. ¡Empieza con un quiz o plan de estudio! 🚀
             </div>
