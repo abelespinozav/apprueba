@@ -1569,7 +1569,7 @@ function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, nume
         </div>
 
         {/* XP / NIVEL / RACHA */}
-        <div style={{ margin: '0 0 16px', background: 'var(--bg-card)', borderRadius: 16, padding: 16, border: '1px solid rgba(139,92,246,0.25)' }}>
+        <div style={{ margin: '0 16px 16px', background: 'var(--bg-card)', borderRadius: 16, padding: 16, border: '1px solid rgba(139,92,246,0.25)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <p style={{ fontSize: 13, fontWeight: 700, color: 'white', margin: 0 }}>🏆 Nivel y progreso</p>
             <span style={{ fontSize: 12, fontWeight: 700, color: '#a78bfa', background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 20, padding: '3px 10px' }}>
@@ -1620,7 +1620,7 @@ function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, nume
         </div>
 
         {/* CRÉDITOS — saldo grande + costos por función + CTA a /planes */}
-        <div style={{ margin: '0 0 16px', background: 'var(--bg-card)', borderRadius: 16, padding: 16, border: '1px solid rgba(251,191,36,0.2)' }}>
+        <div style={{ margin: '0 16px 16px', background: 'var(--bg-card)', borderRadius: 16, padding: 16, border: '1px solid rgba(251,191,36,0.2)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <p style={{ fontSize: 13, fontWeight: 700, color: 'white', margin: 0 }}>⚡ Tus créditos</p>
             <button onClick={onVerPlanes} style={{ background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 700, color: '#fbbf24', cursor: 'pointer' }}>
@@ -1653,7 +1653,7 @@ function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, nume
 
         {/* LOGROS — galería agrupada por categoría, bloqueados en gris */}
         {logros && (
-          <div style={{ margin: '0 0 16px' }}>
+          <div style={{ margin: '0 16px 16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <p style={{ fontSize: 13, fontWeight: 700, color: 'white', margin: 0 }}>🏅 Logros</p>
               <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>
@@ -1692,7 +1692,7 @@ function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, nume
         )}
 
         {/* Historial de generaciones */}
-        <div style={{ margin: '0 0 16px', background: 'var(--bg-card)', borderRadius: 16, padding: 16, border: '1px solid rgba(255,255,255,0.07)' }}>
+        <div style={{ margin: '0 16px 16px', background: 'var(--bg-card)', borderRadius: 16, padding: 16, border: '1px solid rgba(255,255,255,0.07)' }}>
           <h3 style={{ fontSize: 16, fontWeight: 700, color: '#f1f5f9', marginBottom: 16 }}>
             📋 Historial de generaciones
           </h3>
