@@ -1569,7 +1569,7 @@ function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, nume
         </div>
 
         {/* XP / NIVEL / RACHA */}
-        <div style={{ margin: '0 16px 16px', background: 'var(--bg-card)', borderRadius: 16, padding: 16, border: '1px solid rgba(139,92,246,0.25)' }}>
+        <div style={{ margin: '24px 16px 16px', background: 'var(--bg-card)', borderRadius: 16, padding: 16, border: '1px solid rgba(139,92,246,0.25)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <p style={{ fontSize: 13, fontWeight: 700, color: 'white', margin: 0 }}>🏆 Nivel y progreso</p>
             <span style={{ fontSize: 12, fontWeight: 700, color: '#a78bfa', background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 20, padding: '3px 10px' }}>
