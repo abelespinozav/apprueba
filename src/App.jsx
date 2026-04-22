@@ -3790,7 +3790,7 @@ function RamoRouteWrapper({ ramos, loadingRamos, usuario, onUpdate, onDelete, on
   )
 }
 
-function PlanEstudioRouteWrapper({ ramos, loadingRamos, usuario, cargarRamos }) {
+function PlanEstudioRouteWrapper({ ramos, loadingRamos, usuario, cargarRamos, cargarGamificacion }) {
   const { ramoId, evalId } = useParams()
   const navigate = useNavigate()
   if (!usuario) return <Navigate to="/" replace />
@@ -3808,13 +3808,14 @@ function PlanEstudioRouteWrapper({ ramos, loadingRamos, usuario, cargarRamos }) 
           await cargarRamos(token, true)
           navigate(-1)
         }}
+        onGeneracionExitosa={cargarGamificacion}
       />
       <BottomNav />
     </>
   )
 }
 
-function QuizRouteWrapper({ ramos, loadingRamos, usuario }) {
+function QuizRouteWrapper({ ramos, loadingRamos, usuario, cargarGamificacion }) {
   const { ramoId, evalId } = useParams()
   const navigate = useNavigate()
   if (!usuario) return <Navigate to="/" replace />
@@ -3824,7 +3825,7 @@ function QuizRouteWrapper({ ramos, loadingRamos, usuario }) {
   if (!ramo || !ev) return <Navigate to="/ramos" replace />
   return (
     <>
-      <Quiz evaluacion={ev} ramo={ramo} onBack={() => navigate(-1)} />
+      <Quiz evaluacion={ev} ramo={ramo} onBack={() => navigate(-1)} onGeneracionExitosa={cargarGamificacion} />
       <BottomNav />
     </>
   )
@@ -4373,6 +4374,7 @@ function AppContent() {
             loadingRamos={loadingRamos}
             usuario={usuario}
             cargarRamos={cargarRamos}
+            cargarGamificacion={cargarGamificacion}
           />
         } />
         <Route path="/ramos/:ramoId/quiz/:evalId" element={
@@ -4380,6 +4382,7 @@ function AppContent() {
             ramos={ramos}
             loadingRamos={loadingRamos}
             usuario={usuario}
+            cargarGamificacion={cargarGamificacion}
           />
         } />
         <Route path="/planes" element={<Planes />} />
