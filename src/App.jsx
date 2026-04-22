@@ -1678,7 +1678,6 @@ function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, nume
                       }}>
                         <div style={{ fontSize: 26, marginBottom: 6, filter: logro.desbloqueado ? 'none' : 'grayscale(1)' }}>{logro.emoji}</div>
                         <div style={{ fontSize: 11, fontWeight: 700, color: logro.desbloqueado ? '#fff' : 'rgba(255,255,255,0.5)', lineHeight: 1.3, marginBottom: 2 }}>{logro.nombre}</div>
-                        <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', lineHeight: 1.3 }}>{logro.descripcion}</div>
                         {logro.desbloqueado && (
                           <div style={{ fontSize: 10, color: '#a78bfa', fontWeight: 700, marginTop: 4 }}>+{logro.xp > 0 ? `${logro.xp} XP` : ''}{logro.xp > 0 && logro.creditos > 0 ? ' · ' : ''}{logro.creditos > 0 ? `${logro.creditos} cr` : ''}</div>
                         )}
