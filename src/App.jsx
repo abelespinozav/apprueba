@@ -3879,10 +3879,10 @@ function DesktopFrame({ children }) {
            "escape" al document cuando llega a los bordes (rubberband en
            trackpad macOS y chain en wheel Chrome/Firefox). */
         .df-phone { width: 390px; height: min(844px, calc(100vh - 110px)); border-radius: 44px; box-shadow: 0 0 0 12px #1a1a2e, 0 0 0 14px #2a2a3e, 0 30px 80px rgba(0,0,0,0.8); overflow: hidden; position: relative; background: var(--bg-primary); transform: translateZ(0); display: flex; flex-direction: column; }
-        .df-content { flex: 1; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; position: relative; }
+        .df-content { flex: 1; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; position: relative; display: flex; flex-direction: column; }
         .df-phone::-webkit-scrollbar { display: none; }
         .df-content::-webkit-scrollbar { display: none; }
-        .df-phone .nav-root { position: sticky; bottom: 0; left: 0; right: 0; width: 100%; border-radius: 0 0 44px 44px; }
+        .df-phone .nav-root { position: sticky; bottom: 0; left: 0; right: 0; width: 100%; border-radius: 0 0 44px 44px; margin-top: auto; }
         .df-notch { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 120px; height: 30px; background: #000; border-radius: 0 0 20px 20px; z-index: 10000; pointer-events: none; }
         .df-hint { color: rgba(255,255,255,0.45); font-size: 13px; margin: 0; text-align: center; font-weight: 500; letter-spacing: 0.01em; }
         /* Roots con className propia: scroll interno dentro del frame. */
