@@ -6,6 +6,7 @@ import Quiz from './Quiz'
 import OnboardingScreen from './OnboardingScreen.jsx'
 import Admin from './Admin.jsx'
 import LandingPage from './LandingPage.jsx'
+import Planes from './pages/Planes.jsx'
 import { useTheme } from './useTheme'
 import { colorTextoSobreHeader } from './theme'
 
@@ -572,7 +573,7 @@ function NudgeNotificacionesInner({ onDismiss }) {
   )
 }
 
-function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVerRamo, onHorario, onVerHorario, onNotif, onPerfil, onAdmin, evalProximas3dias, novedades }) {
+function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVerRamo, onHorario, onVerHorario, onNotif, onPerfil, onAdmin, evalProximas3dias, novedades, creditos, onVerPlanes, gamificacion }) {
   const navigate = useNavigate()
   const hoy = new Date()
   const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado']
@@ -674,9 +675,12 @@ function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVer
 
   const sugerida = proximas.find(ev => !ev.plan_estudio) || proximas[0] || null
 
-  const xpTotal = ramos.reduce((acc, r) => acc + (r.evaluaciones||[]).filter(e => e.nota).length * 80, 0) + (esFundador ? 500 : 0)
-  const nivel = Math.floor(xpTotal / 500) + 1
-  const nivelLabel = nivel <= 1 ? 'Novato' : nivel <= 2 ? 'Estudiante' : nivel <= 3 ? 'Dedicado' : nivel <= 4 ? 'Experto' : 'Maestro'
+  // Gamificación desde backend; mientras carga, fallback a estimación local
+  // basada en ramos + bono fundador para no mostrar 0 XP de primera.
+  const xpTotal = gamificacion?.xp_total ?? (ramos.reduce((acc, r) => acc + (r.evaluaciones||[]).filter(e => e.nota).length * 80, 0) + (esFundador ? 500 : 0))
+  const nivel = gamificacion?.nivel ?? (Math.floor(xpTotal / 500) + 1)
+  const rachaActual = gamificacion?.racha_dias ?? 0
+  const nivelLabel = nivel <= 1 ? 'Novato' : nivel <= 2 ? 'Estudiante' : nivel <= 3 ? 'Dedicado' : nivel <= 4 ? 'Experto' : nivel <= 5 ? 'Brillante' : nivel <= 6 ? 'Sobresaliente' : 'Maestro'
 
   const nombreCorto = (usuario?.nombre || usuario?.name || 'estudiante').split(' ')[0]
   const inicial = (usuario?.nombre || usuario?.name || 'U')[0].toUpperCase()
@@ -894,13 +898,29 @@ function HomeScreen({ ramos, usuario, esFundador, numeroRegistro, horario, onVer
                 🔔
                 {evalProximas3dias > 0 && <span className="home-notif-badge">{evalProximas3dias}</span>}
               </button>
+              {creditos !== null && creditos !== undefined && (
+                <button
+                  onClick={onVerPlanes}
+                  aria-label={`Tienes ${creditos} créditos — ir a planes`}
+                  style={{
+                    background: creditos < 30 ? 'rgba(248,113,113,0.18)' : 'rgba(251,191,36,0.15)',
+                    border: `1px solid ${creditos < 30 ? 'rgba(248,113,113,0.5)' : 'rgba(251,191,36,0.35)'}`,
+                    borderRadius: 20, padding: '4px 12px', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 4,
+                    fontSize: 13, fontWeight: 800,
+                    color: creditos < 30 ? '#f87171' : '#fbbf24'
+                  }}
+                >
+                  ⚡ {creditos}
+                </button>
+              )}
               <div onClick={onPerfil} className="home-avatar">{inicial}</div>
             </div>
           </div>
 
           <div className="home-streak-pill">
-            <span className="home-flame">🔥</span>
-            <span>Nivel {nivelLabel} · {xpTotal} XP</span>
+            <span className="home-flame">{rachaActual >= 7 ? '🔥🔥' : rachaActual >= 3 ? '🔥' : '⭐'}</span>
+            <span>Nivel {nivelLabel} · {xpTotal} XP{rachaActual >= 2 ? ` · ${rachaActual} días` : ''}</span>
           </div>
 
           <div className="home-promedio-block">
@@ -1188,6 +1208,7 @@ function PlanTab({ ramos, onIniciarPlan }) {
                 <input type="file" accept=".pdf,.docx,.doc,.txt,.pptx,.ppt,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.mp3,.m4a,.wav,.mp4,.mov" style={{ display: 'none' }} onChange={async (e) => {
                   const file = e.target.files[0]
                   if (!file) return
+                  if (!evalSinMaterial?.ev?.id) { alert('⚠️ No hay evaluación seleccionada.'); return }
                   const fd = new FormData()
                   fd.append('archivo', file)
                   const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -1218,6 +1239,7 @@ function QuizTab({ ramos, onIniciarQuiz }) {
   const [historial, setHistorial] = useState([])
   const [ramoExpandido, setRamoExpandido] = useState(null)
   const [evalSinMaterial, setEvalSinMaterial] = useState(null)
+  const [estadoSemanal, setEstadoSemanal] = useState(null)
   const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
   const getToken = () => localStorage.getItem('token')
 
@@ -1225,6 +1247,18 @@ function QuizTab({ ramos, onIniciarQuiz }) {
     fetch(`${API}/quiz/historial`, { headers: { 'Authorization': `Bearer ${getToken()}` } })
       .then(r => r.json())
       .then(data => Array.isArray(data) && setHistorial(data))
+      .catch(() => {})
+  }, [])
+
+  // Estado del quiz semanal — el backend devuelve {jugado, puntaje, total}
+  // según la semana ISO actual; el banner cambia entre "disponible" y
+  // "completado".
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    if (!token) return
+    fetch(`${API}/quiz/semanal/estado`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setEstadoSemanal(d) })
       .catch(() => {})
   }, [])
 
@@ -1241,6 +1275,23 @@ function QuizTab({ ramos, onIniciarQuiz }) {
         </div>
 
         <div className="pq-section">
+          {/* Banner quiz semanal — solo se muestra si el backend responde el estado */}
+          {estadoSemanal && !estadoSemanal.jugado && (
+            <div style={{ margin: '0 0 16px', background: 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(96,165,250,0.15))', border: '1px solid rgba(139,92,246,0.4)', borderRadius: 16, padding: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ fontSize: 32, flexShrink: 0 }}>🗓</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#fff', marginBottom: 2 }}>Quiz semanal disponible</div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Juega cualquier quiz esta semana y gana +60 XP y +8 créditos extra.</div>
+              </div>
+              <div style={{ fontSize: 20 }}>→</div>
+            </div>
+          )}
+          {estadoSemanal?.jugado && (
+            <div style={{ margin: '0 0 16px', background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.25)', borderRadius: 16, padding: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 18 }}>✅</span>
+              <div style={{ fontSize: 13, color: '#4ade80', fontWeight: 700 }}>Quiz semanal completado — {estadoSemanal.puntaje}/{estadoSemanal.total} esta semana</div>
+            </div>
+          )}
           {ramos.length === 0 ? (
             <div className="pq-empty">
               <div className="pq-empty-emoji">📚</div>
@@ -1329,6 +1380,7 @@ function QuizTab({ ramos, onIniciarQuiz }) {
                 <input type="file" accept=".pdf,.docx,.doc,.txt,.pptx,.ppt,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.mp3,.m4a,.wav,.mp4,.mov" style={{ display: 'none' }} onChange={async (e) => {
                   const file = e.target.files[0]
                   if (!file) return
+                  if (!evalSinMaterial?.ev?.id) { alert('⚠️ No hay evaluación seleccionada.'); return }
                   const fd = new FormData()
                   fd.append('archivo', file)
                   const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -1394,7 +1446,34 @@ const PERFIL_CSS = `
   .perfil-btn.logout:hover { background: rgba(239,68,68,0.14); border-color: rgba(239,68,68,0.4); }
 `
 
-function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, numeroRegistro, onUpdateUsuario }) {
+const NOMBRES_NIVEL = [
+  '',
+  'Novato 📖',
+  'Estudiante ✏️',
+  'Aplicado 📚',
+  'Dedicado 🧠',
+  'Brillante ⭐',
+  'Sobresaliente 🏆',
+  'Elite 🚀',
+  'Leyenda 👑',
+]
+function getNombreNivel(nivel) {
+  const n = nivel ?? 1
+  return NOMBRES_NIVEL[Math.min(n, NOMBRES_NIVEL.length - 1)] || `Nivel ${n}`
+}
+const MOTIVO_LABELS = {
+  registrar_nota: '📝 Registraste una nota',
+  subir_material: '📎 Subiste material',
+  completar_tarea: '✅ Completaste una tarea',
+  responder_quiz: '⚡ Completaste un quiz',
+  importar_horario: '🗓 Importaste tu horario',
+  racha_7_dias: '🔥 ¡7 días de racha!',
+  racha_14_dias: '🔥🔥 ¡14 días de racha!',
+  racha_30_dias: '🔥🔥🔥 ¡30 días de racha!',
+  bienvenida: '👋 Bono de bienvenida',
+}
+
+function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, numeroRegistro, onUpdateUsuario, creditos, onVerPlanes, gamificacion, onCargarGamificacion, logros, historialGen = [] }) {
   const uni = usuario?.universidad || ''
   const uniLabel = uni === 'ufro' ? 'UFRO' : uni === 'umayor' ? 'U. Mayor' : uni === 'uautonoma' ? 'U. Autónoma' : uni === 'inacap' ? 'INACAP' : uni === 'santotomas' ? 'Santo Tomás' : uni === 'uctemuco' ? 'UC Temuco' : uni ? uni.toUpperCase() : 'Sin universidad'
   const inicial = (usuario?.nombre || usuario?.name || 'U')[0].toUpperCase()
@@ -1415,6 +1494,23 @@ function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, nume
     } catch(e) { console.error(e) }
     setGuardandoFN(false)
   }
+
+  // Gamificación: pedimos al padre que cargue al montar (el fetch vive en
+  // AppContent para que el state quede ahí y el header también pueda usarlo).
+  useEffect(() => {
+    if (onCargarGamificacion) onCargarGamificacion()
+  }, [])
+
+  const xp = gamificacion?.xp_total ?? 0
+  const nivel = gamificacion?.nivel ?? 1
+  const racha = gamificacion?.racha_dias ?? 0
+  const mejorRacha = gamificacion?.mejor_racha ?? 0
+  const historialXP = gamificacion?.historial ?? []
+  const xpEnNivel = xp % 500
+  const xpParaSiguiente = 500
+  const pctNivel = Math.min(100, Math.round((xpEnNivel / xpParaSiguiente) * 100))
+  const nombreNivel = getNombreNivel(nivel)
+  const nombreSiguiente = getNombreNivel(nivel + 1)
 
   return (
     <>
@@ -1474,6 +1570,176 @@ function PerfilTab({ usuario, onLogout, onUniversidad, onAdmin, esFundador, nume
           </div>
         </div>
 
+        {/* XP / NIVEL / RACHA */}
+        <div style={{ margin: '24px 16px 16px', background: 'var(--bg-card)', borderRadius: 16, padding: 16, border: '1px solid rgba(139,92,246,0.25)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: 'white', margin: 0 }}>🏆 Nivel y progreso</p>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#a78bfa', background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 20, padding: '3px 10px' }}>
+              {xp.toLocaleString('es-CL')} XP total
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg, #7c3aed, #a78bfa)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
+              {nivel <= 1 ? '📖' : nivel <= 2 ? '✏️' : nivel <= 3 ? '📚' : nivel <= 4 ? '🧠' : nivel <= 5 ? '⭐' : nivel <= 6 ? '🏆' : nivel <= 7 ? '🚀' : '👑'}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: '#fff', marginBottom: 2 }}>{nombreNivel}</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>Siguiente: {nombreSiguiente}</div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 18, fontWeight: 900, color: '#a78bfa' }}>Niv. {nivel}</div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{xpEnNivel}/{xpParaSiguiente} XP</div>
+            </div>
+          </div>
+          <div style={{ height: 8, background: 'rgba(255,255,255,0.07)', borderRadius: 99, overflow: 'hidden', marginBottom: 14 }}>
+            <div style={{ height: '100%', width: `${pctNivel}%`, background: 'linear-gradient(90deg, #7c3aed, #a78bfa)', borderRadius: 99, transition: 'width 0.6s ease' }} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: historialXP.length > 0 ? 14 : 0 }}>
+            <div style={{ background: racha >= 3 ? 'rgba(251,146,60,0.1)' : 'rgba(255,255,255,0.04)', border: `1px solid ${racha >= 3 ? 'rgba(251,146,60,0.3)' : 'rgba(255,255,255,0.08)'}`, borderRadius: 12, padding: '10px 12px', textAlign: 'center' }}>
+              <div style={{ fontSize: 22 }}>{racha >= 7 ? '🔥🔥' : racha >= 3 ? '🔥' : '💤'}</div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: racha >= 3 ? '#fb923c' : 'rgba(255,255,255,0.6)', lineHeight: 1.2 }}>{racha}</div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>días de racha</div>
+            </div>
+            <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 12px', textAlign: 'center' }}>
+              <div style={{ fontSize: 22 }}>🏅</div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: 'rgba(255,255,255,0.7)', lineHeight: 1.2 }}>{mejorRacha}</div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>mejor racha</div>
+            </div>
+          </div>
+          {historialXP.length > 0 && (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Últimas actividades</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {historialXP.slice(0, 5).map((h, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: 10 }}>
+                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{MOTIVO_LABELS[h.motivo] || `🎯 ${h.motivo}`}</span>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: '#a78bfa', whiteSpace: 'nowrap', marginLeft: 8 }}>+{h.xp} XP</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* CRÉDITOS — saldo grande + costos por función + CTA a /planes */}
+        <div style={{ margin: '0 16px 16px', background: 'var(--bg-card)', borderRadius: 16, padding: 16, border: '1px solid rgba(251,191,36,0.2)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: 'white', margin: 0 }}>⚡ Tus créditos</p>
+            <button onClick={onVerPlanes} style={{ background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 700, color: '#fbbf24', cursor: 'pointer' }}>
+              Ver planes
+            </button>
+          </div>
+          <div style={{ fontSize: 32, fontWeight: 800, color: '#fbbf24', marginBottom: 4 }}>
+            {creditos ?? '—'}
+            <span style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,0.4)', marginLeft: 6 }}>créditos disponibles</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 12 }}>
+            {[
+              { label: 'Quiz', costo: 10, icono: '⚡' },
+              { label: 'Plan IA', costo: 15, icono: '🤖' },
+              { label: 'Guía', costo: 8, icono: '📖' },
+              { label: 'Ejercicios', costo: 12, icono: '✏️' },
+              { label: 'Podcast', costo: 30, icono: '🎙️' },
+              { label: 'Material', costo: 0, icono: '📎' },
+            ].map(fn => (
+              <div key={fn.label} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '8px 6px', textAlign: 'center' }}>
+                <div style={{ fontSize: 18 }}>{fn.icono}</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginBottom: 2 }}>{fn.label}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: fn.costo === 0 ? '#4ade80' : '#fbbf24' }}>
+                  {fn.costo === 0 ? 'Gratis' : `${fn.costo} cr`}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* LOGROS — galería agrupada por categoría, bloqueados en gris */}
+        {logros && (
+          <div style={{ margin: '0 16px 16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: 'white', margin: 0 }}>🏅 Logros</p>
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>
+                {logros.desbloqueados}/{logros.total}
+              </span>
+            </div>
+            {['inicio', 'racha', 'notas', 'quiz', 'nivel'].map(cat => {
+              const grupo = (logros.logros || []).filter(l => l.categoria === cat)
+              if (grupo.length === 0) return null
+              const catLabel = { inicio: '🚀 Primeros pasos', racha: '🔥 Racha', notas: '📝 Notas', quiz: '⚡ Quiz', nivel: '🏆 Nivel' }[cat]
+              return (
+                <div key={cat} style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>{catLabel}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                    {grupo.map(logro => (
+                      <div key={logro.id} style={{
+                        background: logro.desbloqueado ? 'rgba(139,92,246,0.12)' : 'rgba(255,255,255,0.03)',
+                        border: `1px solid ${logro.desbloqueado ? 'rgba(139,92,246,0.35)' : 'rgba(255,255,255,0.07)'}`,
+                        borderRadius: 12, padding: '12px 8px', textAlign: 'center',
+                        opacity: logro.desbloqueado ? 1 : 0.45,
+                        transition: 'all 0.2s'
+                      }}>
+                        <div style={{ fontSize: 26, marginBottom: 6, filter: logro.desbloqueado ? 'none' : 'grayscale(1)' }}>{logro.emoji}</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: logro.desbloqueado ? '#fff' : 'rgba(255,255,255,0.5)', lineHeight: 1.3, marginBottom: 2 }}>{logro.nombre}</div>
+                        {logro.desbloqueado && (
+                          <div style={{ fontSize: 10, color: '#a78bfa', fontWeight: 700, marginTop: 4 }}>+{logro.xp > 0 ? `${logro.xp} XP` : ''}{logro.xp > 0 && logro.creditos > 0 ? ' · ' : ''}{logro.creditos > 0 ? `${logro.creditos} cr` : ''}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Historial de generaciones */}
+        <div style={{ margin: '0 16px 16px', background: 'var(--bg-card)', borderRadius: 16, padding: 16, border: '1px solid rgba(255,255,255,0.07)' }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: '#f1f5f9', marginBottom: 16 }}>
+            📋 Historial de generaciones
+          </h3>
+          {historialGen.length === 0 ? (
+            <div style={{
+              textAlign: 'center', color: '#94a3b8', padding: '32px 16px',
+              background: 'rgba(255,255,255,0.04)', borderRadius: 12, fontSize: 14
+            }}>
+              Aún no has generado nada. ¡Empieza con un quiz o plan de estudio! 🚀
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {historialGen.map((item, i) => {
+                const ICONOS = { quiz: '🧠', plan: '📅', guia: '📖', ejercicios: '✏️', podcast: '🎙️' }
+                const LABELS = { quiz: 'Quiz', plan: 'Plan de estudio', guia: 'Guía de tarea', ejercicios: 'Ejercicios PDF', podcast: 'Podcast' }
+                const fecha = new Date(item.fecha_creacion).toLocaleDateString('es-CL', {
+                  day: 'numeric', month: 'short', year: 'numeric'
+                })
+                return (
+                  <div key={i} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '10px 14px', background: '#fff', borderRadius: 10,
+                    border: '1px solid #e2e8f0', gap: 8
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 20 }}>{ICONOS[item.tipo] || '⚡'}</span>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>
+                          {LABELS[item.tipo] || item.tipo}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#64748b' }}>{item.ramo_nombre}</div>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <div style={{ fontSize: 12, color: '#94a3b8' }}>{fecha}</div>
+                      <div style={{ fontSize: 11, color: '#f59e0b', fontWeight: 600 }}>
+                        -{item.creditos_usados} cr
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
         {/* ACCIONES */}
         <div className="perfil-section">
           <h4 className="perfil-section-title">⚙️ Ajustes</h4>
@@ -1511,6 +1777,9 @@ const NAV_CSS = `
   .nav-label { font-size: 11px; font-weight: 700; letter-spacing: 0.01em; color: var(--color-text-muted); transition: color 0.3s, font-weight 0.3s; white-space: nowrap; }
   .nav-item.active .nav-icon-bg { background: linear-gradient(135deg, var(--color-primary), var(--color-secondary)); box-shadow: 0 8px 20px -4px var(--shadow-color), inset 0 1px 0 rgba(255,255,255,0.22); transform: translateY(-2px); }
   .nav-item.active .nav-label { color: var(--color-primary); font-weight: 900; }
+  @keyframes logroSlideUp { from { opacity: 0; transform: translateY(40px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  @keyframes logroSlideDown { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(40px) scale(0.95); } }
+  .logro-toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); z-index: 9999; background: linear-gradient(135deg, rgba(124,58,237,0.95), rgba(109,40,217,0.95)); border: 1px solid rgba(167,139,250,0.4); border-radius: 20px; padding: 14px 20px; display: flex; align-items: center; gap: 12px; box-shadow: 0 8px 32px rgba(124,58,237,0.4); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); animation: logroSlideUp 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards; min-width: 260px; max-width: 320px; }
 `
 
 function BottomNav() {
@@ -1546,7 +1815,26 @@ function BottomNav() {
 // ============================================================
 // APP HEADER
 // ============================================================
-function AppHeader({ usuario, esFundador, numeroRegistro, evalProximas3dias, onNotif, onPerfil, onAdmin, onLogout }) {
+// Badge reutilizable: muestra el costo en créditos de una acción. Si le
+// pasas `creditos` (el saldo actual del user) y es menor al costo, se
+// pinta rojo — pista visual para saber que la acción no va a pasar.
+export function CreditBadge({ costo, creditos, size = 'sm' }) {
+  const sinCreditos = creditos !== null && creditos !== undefined && creditos < costo
+  const baseStyle = {
+    display: 'inline-flex', alignItems: 'center', gap: 3,
+    background: sinCreditos ? 'rgba(248,113,113,0.15)' : 'rgba(251,191,36,0.15)',
+    border: `1px solid ${sinCreditos ? 'rgba(248,113,113,0.4)' : 'rgba(251,191,36,0.3)'}`,
+    borderRadius: 20,
+    padding: size === 'sm' ? '2px 8px' : '4px 12px',
+    fontSize: size === 'sm' ? 11 : 13,
+    fontWeight: 700,
+    color: sinCreditos ? '#f87171' : '#fbbf24',
+    whiteSpace: 'nowrap'
+  }
+  return <span style={baseStyle}>⚡ {costo} cr</span>
+}
+
+function AppHeader({ usuario, esFundador, numeroRegistro, evalProximas3dias, onNotif, onPerfil, onAdmin, onLogout, creditos, onVerPlanes }) {
   const uni = usuario?.universidad || ''
   const uniLabel = uni === 'ufro' ? 'UFRO' : uni === 'uchile' ? 'U. Chile' : uni === 'puc' ? 'PUC' : uni === 'usach' ? 'USACH' : uni ? uni.toUpperCase() : null
   const inicial = (usuario?.nombre || usuario?.name || 'U')[0].toUpperCase()
@@ -1590,6 +1878,18 @@ function AppHeader({ usuario, esFundador, numeroRegistro, evalProximas3dias, onN
               <span style={{ position: 'absolute', top: -2, right: -2, background: '#f87171', color: 'white', borderRadius: '50%', width: 16, height: 16, fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{evalProximas3dias}</span>
             )}
           </button>
+          {creditos !== null && creditos !== undefined && (
+            <button onClick={onVerPlanes} style={{
+              background: creditos < 30 ? 'rgba(248,113,113,0.2)' : 'rgba(251,191,36,0.15)',
+              border: `1px solid ${creditos < 30 ? 'rgba(248,113,113,0.5)' : 'rgba(251,191,36,0.3)'}`,
+              borderRadius: 20, padding: '4px 12px', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 4,
+              fontSize: 13, fontWeight: 700,
+              color: creditos < 30 ? '#f87171' : '#fbbf24'
+            }}>
+              ⚡ {creditos}
+            </button>
+          )}
           <div onClick={onPerfil} style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, color: 'white', cursor: 'pointer' }}>
             {inicial}
           </div>
@@ -3494,7 +3794,7 @@ function RamoRouteWrapper({ ramos, loadingRamos, usuario, onUpdate, onDelete, on
   )
 }
 
-function PlanEstudioRouteWrapper({ ramos, loadingRamos, usuario, cargarRamos }) {
+function PlanEstudioRouteWrapper({ ramos, loadingRamos, usuario, cargarRamos, cargarGamificacion }) {
   const { ramoId, evalId } = useParams()
   const navigate = useNavigate()
   if (!usuario) return <Navigate to="/" replace />
@@ -3512,13 +3812,14 @@ function PlanEstudioRouteWrapper({ ramos, loadingRamos, usuario, cargarRamos }) 
           await cargarRamos(token, true)
           navigate(-1)
         }}
+        onGeneracionExitosa={cargarGamificacion}
       />
       <BottomNav />
     </>
   )
 }
 
-function QuizRouteWrapper({ ramos, loadingRamos, usuario }) {
+function QuizRouteWrapper({ ramos, loadingRamos, usuario, cargarGamificacion }) {
   const { ramoId, evalId } = useParams()
   const navigate = useNavigate()
   if (!usuario) return <Navigate to="/" replace />
@@ -3528,7 +3829,7 @@ function QuizRouteWrapper({ ramos, loadingRamos, usuario }) {
   if (!ramo || !ev) return <Navigate to="/ramos" replace />
   return (
     <>
-      <Quiz evaluacion={ev} ramo={ramo} onBack={() => navigate(-1)} />
+      <Quiz evaluacion={ev} ramo={ramo} onBack={() => navigate(-1)} onGeneracionExitosa={cargarGamificacion} />
       <BottomNav />
     </>
   )
@@ -3578,10 +3879,10 @@ function DesktopFrame({ children }) {
            "escape" al document cuando llega a los bordes (rubberband en
            trackpad macOS y chain en wheel Chrome/Firefox). */
         .df-phone { width: 390px; height: min(844px, calc(100vh - 110px)); border-radius: 44px; box-shadow: 0 0 0 12px #1a1a2e, 0 0 0 14px #2a2a3e, 0 30px 80px rgba(0,0,0,0.8); overflow: hidden; position: relative; background: var(--bg-primary); transform: translateZ(0); display: flex; flex-direction: column; }
-        .df-content { flex: 1; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; position: relative; }
+        .df-content { flex: 1; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; position: relative; display: flex; flex-direction: column; }
         .df-phone::-webkit-scrollbar { display: none; }
         .df-content::-webkit-scrollbar { display: none; }
-        .df-phone .nav-root { position: sticky; bottom: 0; left: 0; right: 0; width: 100%; border-radius: 0 0 44px 44px; }
+        .df-phone .nav-root { position: sticky; bottom: 0; left: 0; right: 0; width: 100%; border-radius: 0 0 44px 44px; margin-top: auto; }
         .df-notch { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 120px; height: 30px; background: #000; border-radius: 0 0 20px 20px; z-index: 10000; pointer-events: none; }
         .df-hint { color: rgba(255,255,255,0.45); font-size: 13px; margin: 0; text-align: center; font-weight: 500; letter-spacing: 0.01em; }
         /* Roots con className propia: scroll interno dentro del frame. */
@@ -3628,8 +3929,67 @@ function AppContent() {
   const [mostrarNotif, setMostrarNotif] = useState(false)
   const [showNotifPrompt, setShowNotifPrompt] = useState(false)
   const [evalDestacada, setEvalDestacada] = useState(null)
+  const [creditos, setCreditos] = useState(null)
+  const [gamificacion, setGamificacion] = useState(null)
+  const [logros, setLogros] = useState(null)
+  const [historialGen, setHistorialGen] = useState([])
+  const [logroToast, setLogroToast] = useState(null)
   const navigate = useNavigate()
   const location = useLocation()
+
+  // Carga el saldo de créditos del usuario. Se llama al montar y se puede
+  // re-llamar desde acciones que el backend descontó (plan, quiz, etc.)
+  // para sincronizar el chip del header después del optimistic decrement.
+  const cargarCreditos = async () => {
+    try {
+      const res = await fetch(`${API}/usuarios/creditos`, { headers: authHeaders() })
+      if (res.ok) {
+        const d = await res.json()
+        setCreditos(d.total ?? d.creditos_total ?? 0)
+      }
+    } catch(e) {}
+  }
+
+  // Gamificación: XP total, nivel, racha, mejor_racha, historial. El state
+  // lo consumen la home (streak-pill) y PerfilTab (card de nivel).
+  const cargarGamificacion = async () => {
+    try {
+      const [resGam, resHist] = await Promise.allSettled([
+        fetch(`${API}/usuarios/gamificacion`, { headers: authHeaders() }),
+        fetch(`${API}/usuarios/historial-generaciones`, { headers: authHeaders() })
+      ])
+      if (resGam.status === 'fulfilled' && resGam.value.ok) {
+        setGamificacion(await resGam.value.json())
+      }
+      if (resHist.status === 'fulfilled' && resHist.value.ok) {
+        const d = await resHist.value.json()
+        if (d.historial) setHistorialGen(d.historial)
+      }
+      cargarLogros()
+    } catch(e) {}
+  }
+
+  // Logros: catálogo completo con flag desbloqueado por id. La UI en
+  // PerfilTab los agrupa por categoría y pinta en gris los bloqueados.
+  const cargarLogros = async () => {
+    try {
+      const res = await fetch(`${API}/usuarios/logros`, { headers: authHeaders() })
+      if (!res.ok) return
+      const nuevosLogros = await res.json()
+      // Detectar logros recién desbloqueados comparando con estado anterior
+      setLogros(prev => {
+        const prevArr = prev?.logros || []
+        const nuevoArr = nuevosLogros?.logros || []
+        const prevDesbloqueados = new Set(prevArr.filter(l => l.desbloqueado).map(l => l.id))
+        const recienDesbloqueados = nuevoArr.filter(l => l.desbloqueado && !prevDesbloqueados.has(l.id))
+        if (recienDesbloqueados.length > 0 && prev !== null) {
+          setLogroToast(recienDesbloqueados[0])
+          setTimeout(() => setLogroToast(null), 4000)
+        }
+        return nuevosLogros
+      })
+    } catch(e) {}
+  }
 
   useTheme(usuario?.universidad)
 
@@ -3654,6 +4014,9 @@ function AppContent() {
         cargarRamos(token)
         cargarNovedades(token, uniInicial)
         cargarHorarioGlobal()
+        cargarCreditos()
+        cargarGamificacion()
+        cargarLogros()
       } catch { /* usuario corrupto en LS → lo ignoramos */ }
     } else {
       setLoadingRamos(false)
@@ -3968,6 +4331,9 @@ function AppContent() {
             onAdmin={() => navigate('/admin')}
             evalProximas3dias={proximas3dias}
             novedades={novedades}
+            creditos={creditos}
+            onVerPlanes={() => navigate('/planes')}
+            gamificacion={gamificacion}
           />
         ))} />
         <Route path="/ramos" element={requireAuth(withBottomNav(
@@ -4005,6 +4371,12 @@ function AppContent() {
             esFundador={usuario?.es_fundador}
             numeroRegistro={usuario?.numero_registro}
             onUpdateUsuario={(u) => { setUsuario(u); localStorage.setItem('usuario', JSON.stringify(u)) }}
+            creditos={creditos}
+            onVerPlanes={() => navigate('/planes')}
+            gamificacion={gamificacion}
+            onCargarGamificacion={cargarGamificacion}
+            logros={logros}
+            historialGen={historialGen}
           />
         ))} />
         <Route path="/ramos/:ramoId" element={
@@ -4026,6 +4398,7 @@ function AppContent() {
             loadingRamos={loadingRamos}
             usuario={usuario}
             cargarRamos={cargarRamos}
+            cargarGamificacion={cargarGamificacion}
           />
         } />
         <Route path="/ramos/:ramoId/quiz/:evalId" element={
@@ -4033,11 +4406,27 @@ function AppContent() {
             ramos={ramos}
             loadingRamos={loadingRamos}
             usuario={usuario}
+            cargarGamificacion={cargarGamificacion}
           />
         } />
+        <Route path="/planes" element={<Planes />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       {mostrarNotif && <PanelNotificaciones onClose={() => setMostrarNotif(false)} proximas={ramos.flatMap(r => (r.evaluaciones||[]).filter(e => e.fecha && !e.nota).map(e => ({...e, ramoNombre: r.nombre})))} />}
+      {logroToast && (
+        <div className="logro-toast">
+          <div style={{ fontSize: 32, flexShrink: 0 }}>{logroToast.emoji}</div>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 2 }}>🏅 ¡Logro desbloqueado!</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: '#fff', marginBottom: 2 }}>{logroToast.nombre}</div>
+            {(logroToast.xp > 0 || logroToast.creditos > 0) && (
+              <div style={{ fontSize: 12, color: '#a78bfa', fontWeight: 700 }}>
+                {logroToast.xp > 0 ? `+${logroToast.xp} XP` : ''}{logroToast.xp > 0 && logroToast.creditos > 0 ? ' · ' : ''}{logroToast.creditos > 0 ? `+${logroToast.creditos} cr` : ''}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       {showNotifPrompt && (
         <NotificationsPrompt onDone={() => {
           setShowNotifPrompt(false)

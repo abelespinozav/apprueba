@@ -292,6 +292,24 @@ export default function LandingPage({ onEntrar }) {
           </div>
         </div>
 
+        {/* CTA planes */}
+        <div style={{ textAlign: 'center', padding: '48px 24px' }}>
+          <h2 style={{ fontSize: 22, fontWeight: 800, color: '#f1f5f9', marginBottom: 8 }}>
+            ¿Listo para estudiar más inteligente? 🚀
+          </h2>
+          <p style={{ color: '#64748b', fontSize: 14, marginBottom: 24 }}>
+            Empieza gratis o elige el plan que más te acomoda.
+          </p>
+          <a href="/planes" style={{
+            display: 'inline-block', background: '#6366f1', color: '#fff',
+            fontWeight: 700, fontSize: 15, padding: '14px 36px',
+            borderRadius: 99, textDecoration: 'none',
+            boxShadow: '0 4px 20px rgba(99,102,241,0.4)'
+          }}>
+            Ver planes →
+          </a>
+        </div>
+
         {/* Footer */}
         <div style={{ textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.18)' }}>Hecho con ❤️ en Chile · apprueba.com</div>
       </div>

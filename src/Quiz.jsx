@@ -1,8 +1,25 @@
 import { useState, useEffect } from 'react'
-import { useNotificaciones } from './Notificaciones'
+import { useNotificaciones, NudgeActivarCard } from './Notificaciones'
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const getToken = () => localStorage.getItem('token')
 const authHeaders = (extra = {}) => ({ ...extra, 'Authorization': `Bearer ${getToken()}` })
+const COSTO_QUIZ = 10
+
+// Copia local (no importar desde App para evitar ciclo — App ya importa Quiz).
+function CreditBadge({ costo, creditos }) {
+  const sinCreditos = creditos !== null && creditos !== undefined && creditos < costo
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 3,
+      background: sinCreditos ? 'rgba(248,113,113,0.15)' : 'rgba(251,191,36,0.15)',
+      border: `1px solid ${sinCreditos ? 'rgba(248,113,113,0.4)' : 'rgba(251,191,36,0.3)'}`,
+      borderRadius: 20, padding: '2px 8px',
+      fontSize: 11, fontWeight: 700,
+      color: sinCreditos ? '#f87171' : '#fbbf24',
+      whiteSpace: 'nowrap', marginLeft: 6
+    }}>⚡ {costo} cr</span>
+  )
+}
 
 const DIFICULTAD_COLOR = { facil: '#4ade80', media: '#fbbf24', dificil: '#f87171' }
 
@@ -103,15 +120,14 @@ function LoaderNotifHintInner() {
   )
 }
 
-export default function Quiz({ evaluacion, ramo, onBack }) {
+export default function Quiz({ evaluacion, ramo, onBack, onGeneracionExitosa = () => {} }) {
   const [estado, setEstado] = useState('inicio') // inicio | cargando | quiz | resultado
   const [preguntas, setPreguntas] = useState([])
   const [respuestas, setRespuestas] = useState({})
   const [preguntaActual, setPreguntaActual] = useState(0)
   const [mostrarExplicacion, setMostrarExplicacion] = useState(false)
   const [error, setError] = useState(null)
-  const [quizzesUsados, setQuizzesUsados] = useState(null)
-  const [limiteGlobal, setLimiteGlobal] = useState(100)
+  const [creditos, setCreditos] = useState(null)
   const [historialGuardado, setHistorialGuardado] = useState(false)
 
   useEffect(() => {
@@ -130,12 +146,11 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
 
   const cargarContador = async () => {
     try {
-      const [meRes, limRes] = await Promise.all([
-        fetch(API + '/auth/me', { headers: authHeaders() }),
-        fetch(API + '/config/limite-global', { headers: authHeaders() })
-      ])
-      if (meRes.ok) { const d = await meRes.json(); setQuizzesUsados(d.quizzes_usados || 0) }
-      if (limRes.ok) { const d = await limRes.json(); if (d.limite !== undefined) setLimiteGlobal(d.limite) }
+      const res = await fetch(`${API}/usuarios/creditos`, { headers: authHeaders() })
+      if (res.ok) {
+        const d = await res.json()
+        setCreditos(d.total ?? d.creditos_total ?? 0)
+      }
     } catch(e) {}
   }
 
@@ -163,8 +178,10 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
       const contentType = res.headers.get('content-type') || ''
       if (!contentType.includes('text/event-stream')) {
         const data = await res.json()
-        if (res.status === 403 && data.error === 'limite_alcanzado') {
-          setQuizzesUsados(limiteGlobal); setEstado('inicio'); return
+        if (res.status === 403 && data.error === 'creditos_insuficientes') {
+          setCreditos(data.saldo ?? 0)
+          alert(`Sin créditos suficientes. Necesitas ${data.creditos_necesarios} cr, tienes ${data.saldo} cr. Ve a Perfil → Ver planes para conseguir más.`)
+          setEstado('inicio'); return
         }
         if (!res.ok) { setError(data.error || 'Error desconocido'); setEstado('inicio'); return }
         setPreguntas(data.preguntas)
@@ -199,11 +216,20 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
               setRespuestas({})
               setPreguntaActual(0)
               setMostrarExplicacion(false)
-              setQuizzesUsados(prev => (prev || 0) + 1)
+              // Optimistic: el backend ya descontó. Resincronizamos con GET
+              // /usuarios/creditos en background por si hubo bonos u otras
+              // transacciones concurrentes.
+              setCreditos(prev => prev !== null ? Math.max(0, prev - COSTO_QUIZ) : prev)
+              cargarContador()
+              onGeneracionExitosa()
               setEstado('quiz')
             } else if (evento.tipo === 'error') {
-              if (evento.error === 'limite_alcanzado') setQuizzesUsados(limiteGlobal)
-              else setError(evento.mensaje || 'Error generando quiz')
+              if (evento.error === 'creditos_insuficientes') {
+                setCreditos(evento.saldo ?? 0)
+                alert('Sin créditos suficientes para generar el quiz.')
+              } else {
+                setError(evento.mensaje || 'Error generando quiz')
+              }
               setMostrarModal(false)
               setEstado('inicio')
             }
@@ -301,6 +327,7 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
                   <input type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xlsx,.xls,.txt,.png,.jpg,.jpeg,.webp,.heic,.mp3,.m4a,.wav,.ogg,.mp4,.mov" style={{ display: 'none' }} onChange={async (e) => {
                     const file = e.target.files[0]
                     if (!file) return
+                    if (!evaluacion?.id) { alert('⚠️ No hay evaluación seleccionada. Entrá a un ramo y elegí una evaluación primero.'); return }
                     const fd = new FormData()
                     fd.append('archivo', file)
                     const r = await fetch(`${API}/evaluaciones/${evaluacion.id}/archivos`, { method: 'POST', headers: { 'Authorization': `Bearer ${getToken()}` }, body: fd })
@@ -313,9 +340,9 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
           </div>
         )}
 
-        {quizzesUsados >= limiteGlobal ? (
+        {creditos !== null && creditos < COSTO_QUIZ ? (
           <div style={{ background: 'rgba(248,113,113,0.1)', border: '1px solid #f87171', borderRadius: 10, padding: 12, color: '#f87171', fontSize: 13, marginBottom: 16 }}>
-            🔒 Alcanzaste el límite de {limiteGlobal} quizzes.
+            🔒 Sin créditos suficientes. Necesitas {COSTO_QUIZ} cr, tienes {creditos}. Ve a Perfil → Ver planes.
           </div>
         ) : null}
         {/* Con quiz guardado: primario = responder existente, secundario =
@@ -335,35 +362,35 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
             </button>
             <button
               onClick={() => {
-                if (quizzesUsados >= limiteGlobal) return
+                if (creditos !== null && creditos < COSTO_QUIZ) return
                 if (!window.confirm('¿Seguro que quieres generar un quiz nuevo? El quiz actual será reemplazado.')) return
                 generarQuiz(true)
               }}
-              disabled={quizzesUsados >= limiteGlobal}
+              disabled={creditos !== null && creditos < COSTO_QUIZ}
               style={{
                 ...s.btn,
                 background: 'transparent',
                 border: '1px solid rgba(255,255,255,0.15)',
-                color: quizzesUsados >= limiteGlobal ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.72)',
+                color: (creditos !== null && creditos < COSTO_QUIZ) ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.72)',
                 fontSize: 13,
                 fontWeight: 600,
-                cursor: quizzesUsados >= limiteGlobal ? 'not-allowed' : 'pointer'
+                cursor: (creditos !== null && creditos < COSTO_QUIZ) ? 'not-allowed' : 'pointer'
               }}
             >
-              {quizzesUsados >= limiteGlobal
-                ? '🔒 Límite alcanzado'
-                : `🔄 Generar nuevo quiz (${limiteGlobal - (quizzesUsados || 0)} restantes)`}
+              {(creditos !== null && creditos < COSTO_QUIZ)
+                ? '🔒 Sin créditos suficientes'
+                : <>🔄 Generar nuevo quiz <CreditBadge costo={COSTO_QUIZ} creditos={creditos} /></>}
             </button>
           </>
         ) : (
           <button
             onClick={() => generarQuiz(false)}
-            disabled={quizzesUsados >= limiteGlobal}
-            style={{ ...s.btn, background: quizzesUsados >= limiteGlobal ? 'rgba(46,125,209,0.3)' : 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', cursor: quizzesUsados >= limiteGlobal ? 'not-allowed' : 'pointer' }}
+            disabled={creditos !== null && creditos < COSTO_QUIZ}
+            style={{ ...s.btn, background: (creditos !== null && creditos < COSTO_QUIZ) ? 'rgba(46,125,209,0.3)' : 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', cursor: (creditos !== null && creditos < COSTO_QUIZ) ? 'not-allowed' : 'pointer' }}
           >
-            {quizzesUsados >= limiteGlobal
-              ? '🔒 Límite alcanzado'
-              : `🤖 Generar Quiz con IA (${limiteGlobal - (quizzesUsados || 0)} restantes)`}
+            {(creditos !== null && creditos < COSTO_QUIZ)
+              ? '🔒 Sin créditos suficientes'
+              : <>🤖 Generar Quiz con IA <CreditBadge costo={COSTO_QUIZ} creditos={creditos} /></>}
           </button>
         )}
       </div>
@@ -480,8 +507,8 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={() => generarQuiz(true)} disabled={quizzesUsados >= limiteGlobal} style={{ ...s.btn, flex: 1, background: quizzesUsados >= limiteGlobal ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.08)', cursor: quizzesUsados >= limiteGlobal ? 'not-allowed' : 'pointer' }}>
-              {quizzesUsados >= limiteGlobal ? '🔒 Límite' : '🔄 Nuevo quiz'}
+            <button onClick={() => generarQuiz(true)} disabled={creditos !== null && creditos < COSTO_QUIZ} style={{ ...s.btn, flex: 1, background: (creditos !== null && creditos < COSTO_QUIZ) ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.08)', cursor: (creditos !== null && creditos < COSTO_QUIZ) ? 'not-allowed' : 'pointer' }}>
+              {(creditos !== null && creditos < COSTO_QUIZ) ? '🔒 Sin créditos' : <>🔄 Nuevo quiz <CreditBadge costo={COSTO_QUIZ} creditos={creditos} /></>}
             </button>
             <button onClick={onBack} style={{ ...s.btn, flex: 1 }}>← Volver</button>
           </div>
@@ -503,6 +530,7 @@ export default function Quiz({ evaluacion, ramo, onBack }) {
             )
           })}
         </div>
+        <NudgeActivarCard texto="🔔 La próxima vez te avisamos cuando tu quiz esté listo — activa las notificaciones" />
       </div>
     )
   }
