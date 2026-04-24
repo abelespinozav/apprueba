@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import Quiz from './Quiz'
+import { NudgeActivarCard } from './Notificaciones'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const getToken = () => localStorage.getItem('token')
@@ -628,6 +629,7 @@ export default function PlanEstudio({ evaluacion, ramo, onBack, onGeneracionExit
                 {generando ? <><span style={spinnerStyle}></span>{progresoMsg || 'Iniciando...'}</> : (creditos !== null && creditos < COSTO_PLAN) ? '🔒 Sin créditos suficientes' : <>🤖 Regenerar plan con IA <CreditBadge costo={COSTO_PLAN} creditos={creditos} /></>}
               </button>
             </div>
+            <NudgeActivarCard texto="🔔 La próxima vez te avisamos cuando tu plan esté listo — activa las notificaciones" />
           </>
         ) : (
           <div style={{ background: 'var(--bg-card)', borderRadius: 20, padding: 24, border: '1.5px dashed rgba(46,125,209,0.3)', textAlign: 'center' }}>

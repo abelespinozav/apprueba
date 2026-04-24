@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { aplicarTema } from './useTheme'
+import { useActivarNotificaciones } from './Notificaciones'
 import ufroLogo from './assets/logos/ufro.png'
 import umayorLogo from './assets/logos/umayor.png'
 import uautonomaLogo from './assets/logos/uautonoma.png'
@@ -49,6 +50,10 @@ const ONB_CSS = `
   .onb-skip { display: block; width: 100%; background: none; border: none; color: rgba(255,255,255,0.45); font-size: 13px; font-weight: 600; text-align: center; padding: 14px; cursor: pointer; font-family: inherit; margin-top: 4px; transition: color 0.2s; }
   .onb-skip:hover:not(:disabled) { color: rgba(255,255,255,0.7); }
   .onb-err { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); border-radius: 12px; padding: 10px 14px; color: #f87171; font-size: 12px; font-weight: 600; text-align: center; margin: 16px auto 0; max-width: 380px; }
+  .onb-notif-benefits { max-width: 380px; margin: 0 auto 24px; display: flex; flex-direction: column; gap: 10px; }
+  .onb-notif-benefit { display: flex; align-items: flex-start; gap: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 12px 14px; }
+  .onb-notif-benefit-emoji { font-size: 22px; flex-shrink: 0; line-height: 1.1; }
+  .onb-notif-benefit-text { color: rgba(255,255,255,0.85); font-size: 13px; line-height: 1.45; font-weight: 500; }
 `
 
 export default function OnboardingScreen({ user, onComplete, API }) {
@@ -56,6 +61,12 @@ export default function OnboardingScreen({ user, onComplete, API }) {
   const [uniSeleccionada, setUniSeleccionada] = useState(user?.universidad || null)
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState(null)
+  // paso='datos' → formulario nombre+universidad. Paso 'notif' → invitar a
+  // activar push antes de soltar al dashboard. Separamos acá (no en ruta)
+  // para no perder el state si el user toca atrás.
+  const [paso, setPaso] = useState('datos')
+  const [usuarioGuardado, setUsuarioGuardado] = useState(null)
+  const { activar, activando, puedeRecibir, permiso } = useActivarNotificaciones()
 
   const guardar = async (universidad) => {
     const nombreTrim = nombre.trim()
@@ -71,17 +82,84 @@ export default function OnboardingScreen({ user, onComplete, API }) {
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Error al guardar'); setGuardando(false); return }
-      // Confirmar que el servidor efectivamente marcó onboarding_v2=true.
-      // Si por alguna razón no lo hizo, no seteamos el flag local para
-      // evitar que el cliente crea estar onboarded cuando el server no.
       if (data?.usuario?.onboarding_v2) {
         localStorage.setItem('onboarding_completo', 'true')
       }
-      onComplete(data.usuario)
+      setUsuarioGuardado(data.usuario)
+      setGuardando(false)
+      // Si el browser soporta push y no están ya activas, mostrar paso dedicado.
+      const soportado = typeof window !== 'undefined' && 'Notification' in window
+      if (soportado && permiso !== 'granted') {
+        setPaso('notif')
+      } else {
+        onComplete(data.usuario)
+      }
     } catch (e) {
       setError('Error de conexión')
       setGuardando(false)
     }
+  }
+
+  const irAlDashboard = () => onComplete(usuarioGuardado)
+
+  const activarYSeguir = async () => {
+    await activar()
+    // Independiente del resultado (granted/denied/error) pasamos al dashboard:
+    // no bloqueamos por notifs. Si quedó granted, el estado se sincroniza vía
+    // /notificaciones/estado en el próximo refresh del hook.
+    onComplete(usuarioGuardado)
+  }
+
+  if (paso === 'notif') {
+    return (
+      <>
+        <style>{ONB_CSS}</style>
+        <div className="onb-root">
+          <div className="onb-dots">
+            <span className="onb-dot dim" />
+            <span className="onb-dot dim" />
+            <span className="onb-dot on" />
+          </div>
+
+          <div className="onb-hero">
+            <h1 className="onb-title">No te pierdas nada 🔔</h1>
+            <p className="onb-sub">Activa las notificaciones para que te avisemos en los momentos que importan.</p>
+          </div>
+
+          <div className="onb-notif-benefits">
+            <div className="onb-notif-benefit">
+              <div className="onb-notif-benefit-emoji">📅</div>
+              <div className="onb-notif-benefit-text">Te avisamos 1, 2 y 5 días antes de tus pruebas</div>
+            </div>
+            <div className="onb-notif-benefit">
+              <div className="onb-notif-benefit-emoji">🏫</div>
+              <div className="onb-notif-benefit-text">Aviso 15 minutos antes de cada clase</div>
+            </div>
+            <div className="onb-notif-benefit">
+              <div className="onb-notif-benefit-emoji">📖</div>
+              <div className="onb-notif-benefit-text">Te decimos cuándo tienes tiempo libre para estudiar</div>
+            </div>
+          </div>
+
+          <div className="onb-actions">
+            <button
+              className="onb-submit"
+              disabled={activando || puedeRecibir}
+              onClick={activarYSeguir}
+            >
+              {activando ? 'Activando...' : puedeRecibir ? '✓ Activadas' : '🔔 Activar notificaciones'}
+            </button>
+            <button
+              className="onb-skip"
+              disabled={activando}
+              onClick={irAlDashboard}
+            >
+              Ahora no
+            </button>
+          </div>
+        </div>
+      </>
+    )
   }
 
   return (

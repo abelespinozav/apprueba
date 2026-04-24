@@ -98,6 +98,112 @@ export function useNotificaciones() {
   return { permiso, config, cargando, activar, guardarConfig }
 }
 
+// Hook compartido para los nudges (home, onboarding, post-quiz/plan, perfil).
+// Consume /notificaciones/estado como source of truth del backend y expone
+// activar() con el flujo completo: requestPermission + SW + subscribe + POST
+// /notificaciones/config con todos los flags en true (activo + notif_clases +
+// notif_ventanas + dias_antes:[1,2,5]). Un solo clic "Activar" en cualquier
+// nudge debe dejar al user con todo habilitado y hacer que los otros nudges
+// desaparezcan. Notification.permission se lee cada 3s (no hay un evento
+// nativo para eso) para detectar si el user revocó desde settings del browser.
+export function useActivarNotificaciones() {
+  const [puedeRecibir, setPuedeRecibir] = useState(false)
+  const [cargandoEstado, setCargandoEstado] = useState(true)
+  const [activando, setActivando] = useState(false)
+  const [permiso, setPermiso] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'default')
+
+  const refrescar = async () => {
+    try {
+      const res = await fetch(`${API}/notificaciones/estado`, { headers: authHeaders() })
+      if (res.ok) {
+        const d = await res.json()
+        setPuedeRecibir(!!d.puede_recibir)
+      }
+    } catch(e) {}
+    setCargandoEstado(false)
+  }
+
+  useEffect(() => {
+    refrescar()
+    if (typeof Notification === 'undefined') return
+    const id = setInterval(() => {
+      const p = Notification.permission
+      setPermiso(prev => prev === p ? prev : p)
+    }, 3000)
+    return () => clearInterval(id)
+  }, [])
+
+  const activar = async () => {
+    setActivando(true)
+    try {
+      const perm = await Notification.requestPermission()
+      setPermiso(perm)
+      if (perm !== 'granted') {
+        setActivando(false)
+        return false
+      }
+      const { publicKey } = await fetch(`${API}/notificaciones/vapid-key`).then(r => r.json())
+      const reg = await registrarServiceWorker()
+      if (!reg || !publicKey) {
+        setActivando(false)
+        return false
+      }
+      await suscribirPush(reg, publicKey)
+      // Forzamos TODAS las notifs activas en el backend. Los nudges piden
+      // activación simple — el user espera todo encendido, no solo el browser.
+      await fetch(`${API}/notificaciones/config`, {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          activo: true,
+          dias_antes: [1, 2, 5],
+          notif_clases: true,
+          notif_ventanas: true
+        })
+      })
+      await refrescar()
+      setActivando(false)
+      return true
+    } catch(e) {
+      console.error('[useActivarNotificaciones] activar falló:', e)
+      setActivando(false)
+      return false
+    }
+  }
+
+  return { puedeRecibir, cargandoEstado, activando, permiso, activar, refrescar }
+}
+
+// Card inline reutilizable para los nudges post-generación (quiz/plan). El
+// banner del home y el step del onboarding tienen layouts distintos y usan
+// el hook directo; esto es para el caso "card compacto al final de una
+// pantalla" que aparece en varias vistas con el mismo shape.
+export function NudgeActivarCard({ texto = '🔔 La próxima vez te avisamos cuando esté listo — activa las notificaciones', estilo = {} }) {
+  const { puedeRecibir, cargandoEstado, activando, permiso, activar } = useActivarNotificaciones()
+  if (cargandoEstado || puedeRecibir) return null
+  if (permiso === 'denied') {
+    return (
+      <div style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 14, padding: '12px 16px', margin: '16px auto', maxWidth: 480, ...estilo }}>
+        <p style={{ color: 'rgba(255,255,255,0.55)', margin: 0, fontSize: 13, lineHeight: 1.4 }}>
+          🔕 Tenés las notificaciones bloqueadas en el navegador. Actívalas desde settings para que te avisemos la próxima vez.
+        </p>
+      </div>
+    )
+  }
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'space-between', background: 'rgba(108,99,255,0.1)', border: '1px solid rgba(108,99,255,0.3)', borderRadius: 14, padding: '12px 16px', margin: '16px auto', maxWidth: 480, ...estilo }}>
+      <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, lineHeight: 1.4, flex: '1 1 220px' }}>{texto}</span>
+      <button
+        onClick={activar}
+        disabled={activando}
+        style={{ background: 'linear-gradient(135deg, #6c63ff, #8b5cf6)', border: 'none', borderRadius: 10, padding: '8px 16px', color: '#fff', fontSize: 13, fontWeight: 800, cursor: activando ? 'wait' : 'pointer', fontFamily: 'inherit', flexShrink: 0 }}
+      >
+        {activando ? '…' : 'Activar'}
+      </button>
+    </div>
+  )
+}
+
 export default function PanelNotificaciones({ onClose, proximas = [] }) {
   const { permiso, config, cargando, activar, guardarConfig } = useNotificaciones()
   const DIAS_OPCIONES = [1, 2, 3, 5, 7]
