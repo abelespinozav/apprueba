@@ -1240,6 +1240,7 @@ function QuizTab({ ramos, onIniciarQuiz }) {
   const [ramoExpandido, setRamoExpandido] = useState(null)
   const [evalSinMaterial, setEvalSinMaterial] = useState(null)
   const [estadoSemanal, setEstadoSemanal] = useState(null)
+  const ramosPickerRef = useRef(null)
   const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
   const getToken = () => localStorage.getItem('token')
 
@@ -1277,14 +1278,14 @@ function QuizTab({ ramos, onIniciarQuiz }) {
         <div className="pq-section">
           {/* Banner quiz semanal — solo se muestra si el backend responde el estado */}
           {estadoSemanal && !estadoSemanal.jugado && (
-            <div style={{ margin: '0 0 16px', background: 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(96,165,250,0.15))', border: '1px solid rgba(139,92,246,0.4)', borderRadius: 16, padding: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button type="button" onClick={() => ramosPickerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} style={{ margin: '0 0 16px', background: 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(96,165,250,0.15))', border: '1px solid rgba(139,92,246,0.4)', borderRadius: 16, padding: 16, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', width: '100%', textAlign: 'left' }}>
               <div style={{ fontSize: 32, flexShrink: 0 }}>🗓</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#fff', marginBottom: 2 }}>Quiz semanal disponible</div>
                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Juega cualquier quiz esta semana y gana +60 XP y +8 créditos extra.</div>
               </div>
               <div style={{ fontSize: 20 }}>→</div>
-            </div>
+            </button>
           )}
           {estadoSemanal?.jugado && (
             <div style={{ margin: '0 0 16px', background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.25)', borderRadius: 16, padding: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -1301,7 +1302,7 @@ function QuizTab({ ramos, onIniciarQuiz }) {
           ) : (
             <>
               <div className="pq-section-title"><h4>🎯 Elige un ramo</h4></div>
-              <div className="pq-grid">
+              <div className="pq-grid" ref={ramosPickerRef}>
                 {ramos.map((r, i) => {
                   const accent = HOME_ACCENTS[i % HOME_ACCENTS.length]
                   const active = ramoExpandido === r.id
