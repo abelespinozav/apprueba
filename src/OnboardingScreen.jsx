@@ -59,6 +59,7 @@ const ONB_CSS = `
 export default function OnboardingScreen({ user, onComplete, API }) {
   const [nombre, setNombre] = useState((user?.name || user?.nombre || '').trim())
   const [uniSeleccionada, setUniSeleccionada] = useState(user?.universidad || null)
+  const [carrera, setCarrera] = useState(user?.carrera || '')
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState(null)
   // paso='datos' → formulario nombre+universidad. Paso 'notif' → invitar a
@@ -78,7 +79,7 @@ export default function OnboardingScreen({ user, onComplete, API }) {
       const res = await fetch(`${API}/auth/onboarding`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ nombre: nombreTrim, universidad: universidad || null })
+        body: JSON.stringify({ nombre: nombreTrim, universidad: universidad || null, carrera: carrera.trim() || null })
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Error al guardar'); setGuardando(false); return }
@@ -204,6 +205,18 @@ export default function OnboardingScreen({ user, onComplete, API }) {
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="onb-field">
+          <div className="onb-label">📚 Tu carrera <span style={{ opacity: 0.6, fontWeight: 400 }}>(opcional)</span></div>
+          <input
+            className="onb-input"
+            type="text"
+            value={carrera}
+            onChange={e => setCarrera(e.target.value)}
+            placeholder="Ej: Ingeniería Civil"
+            maxLength={100}
+          />
         </div>
 
         {error && <div className="onb-err">{error}</div>}
