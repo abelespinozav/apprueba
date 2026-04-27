@@ -327,7 +327,7 @@ export default function Quiz({ evaluacion, ramo, onBack, onGeneracionExitosa = (
                   <input type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xlsx,.xls,.txt,.png,.jpg,.jpeg,.webp,.heic,.mp3,.m4a,.wav,.ogg,.mp4,.mov" style={{ display: 'none' }} onChange={async (e) => {
                     const file = e.target.files[0]
                     if (!file) return
-                    if (!evaluacion?.id) { alert('⚠️ No hay evaluación seleccionada. Entrá a un ramo y elegí una evaluación primero.'); return }
+                    if (!evaluacion?.id) { alert('⚠️ No hay evaluación seleccionada. Entra a un ramo y elige una evaluación primero.'); return }
                     const fd = new FormData()
                     fd.append('archivo', file)
                     const r = await fetch(`${API}/evaluaciones/${evaluacion.id}/archivos`, { method: 'POST', headers: { 'Authorization': `Bearer ${getToken()}` }, body: fd })
