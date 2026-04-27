@@ -1277,7 +1277,10 @@ function QuizTab({ ramos, onIniciarQuiz }) {
 
         <div className="pq-section">
           {/* Banner quiz semanal — solo se muestra si el backend responde el estado */}
-          {estadoSemanal && !estadoSemanal.jugado && (
+          {/* TEMPORAL 2026-04-27: banner oculto hasta validar con entrevistas
+              qué debe hacer al click. Re-activar cuando se implemente quiz
+              mixto/contextual. */}
+          {/* {estadoSemanal && !estadoSemanal.jugado && (
             <button type="button" onClick={() => ramosPickerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} style={{ margin: '0 0 16px', background: 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(96,165,250,0.15))', border: '1px solid rgba(139,92,246,0.4)', borderRadius: 16, padding: 16, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', width: '100%', textAlign: 'left' }}>
               <div style={{ fontSize: 32, flexShrink: 0 }}>🗓</div>
               <div style={{ flex: 1 }}>
@@ -1286,7 +1289,7 @@ function QuizTab({ ramos, onIniciarQuiz }) {
               </div>
               <div style={{ fontSize: 20 }}>→</div>
             </button>
-          )}
+          )} */}
           {estadoSemanal?.jugado && (
             <div style={{ margin: '0 0 16px', background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.25)', borderRadius: 16, padding: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ fontSize: 18 }}>✅</span>
